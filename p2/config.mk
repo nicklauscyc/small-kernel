@@ -33,7 +33,7 @@
 # If you use tabstops set to something other than the international
 # standard of eight characters, this is your opportunity to inform
 # our print scripts.
-TABSTOP = 8
+TABSTOP = 4
 
 ##################################################
 # Compiler
