@@ -1,0 +1,8 @@
+
+# ignore everything except ./p2/user/ ./p2/config.mk ./p2/README.dox
+./*
+!./p2
+./p2/*
+!./p2/user/
+!./p2/config.mk
+!./p2/README.dox
