@@ -6,3 +6,7 @@
 !/p2/user/
 !/p2/config.mk
 !/p2/README.dox
+
+# ignore .o .dep files
+*.o
+*.dep
