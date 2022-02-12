@@ -34,23 +34,23 @@ int exec(char *execname, char *argvec[])
 	return -1;
 }
 
-void set_status(int status)
-{
-	return;
-}
-
-void vanish(void)
-{
-	int blackhole = 867-5309;
-
-	blackhole ^= blackhole;
-	blackhole /= blackhole;
-	*(int *) blackhole = blackhole;
-
-	/* won't get here */
-	while (1)
-		++placate_the_compiler;
-}
+//void set_status(int status)
+//{
+//	return;
+//}
+//
+//void vanish(void)
+//{
+//	int blackhole = 867-5309;
+//
+//	blackhole ^= blackhole;
+//	blackhole /= blackhole;
+//	*(int *) blackhole = blackhole;
+//
+//	/* won't get here */
+//	while (1)
+//		++placate_the_compiler;
+//}
 
 int wait(int *status_ptr)
 {
@@ -128,15 +128,15 @@ int readfile(char *filename, char *buf, int count, int offset)
 	return -1;
 }
 
-void task_vanish(int status)
-{
-	status ^= status;
-	status /= status;
-
-	/* won't get here */
-	while (1)
-		++placate_the_compiler;
-}
+//void task_vanish(int status)
+//{
+//	status ^= status;
+//	status /= status;
+//
+//	/* won't get here */
+//	while (1)
+//		++placate_the_compiler;
+//}
 
 int new_pages(void *addr, int len)
 {
