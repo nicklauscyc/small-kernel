@@ -1,14 +1,14 @@
-/** @file vanish.S
- *  @brief Assembly wrapper for vanish() system call
- *  @author Nicklaus Choo (nchoo)
+/** @file sleep.S
+ *  @brief Assembly wrapper for sleep() system call
+ *  @author Andre Nascimento (anascime)
  *  @bugs No known bugs
  */
 
 #include <syscall_int.h>
 
-.globl vanish
+.globl sleep
 
-vanish:
+sleep:
 	/* Save all callee save registers */
 	pushl %ebp
 	movl  %esp, %ebp
@@ -16,7 +16,8 @@ vanish:
 	pushl %ebx
 	pushl %esi
 
-	int $VANISH_INT /* Call handler in IDT for vanish() */
+	movl 8(%ebp), %esi  /* Get first arg and place in %esi */
+	int $SLEEP_INT      /* Call handler in IDT for sleep() */
 
 	/* Restore all callee save registers */
 	popl %esi

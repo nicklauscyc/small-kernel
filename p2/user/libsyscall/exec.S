@@ -1,14 +1,14 @@
-/** @file vanish.S
- *  @brief Assembly wrapper for vanish() system call
- *  @author Nicklaus Choo (nchoo)
+/** @file exec.S
+ *  @brief Assembly wrapper for the exec() system call
+ *  @author Andre Nascimento (anascime)
  *  @bugs No known bugs
  */
 
 #include <syscall_int.h>
 
-.globl vanish
+.globl exec
 
-vanish:
+exec:
 	/* Save all callee save registers */
 	pushl %ebp
 	movl  %esp, %ebp
@@ -16,7 +16,8 @@ vanish:
 	pushl %ebx
 	pushl %esi
 
-	int $VANISH_INT /* Call handler in IDT for vanish() */
+	leal 8(%ebp), %esi  /* Point %esi to caller arg address */
+	int  $EXEC_INT		/* Call handler in IDT for exec() */
 
 	/* Restore all callee save registers */
 	popl %esi

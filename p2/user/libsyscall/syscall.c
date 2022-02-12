@@ -24,15 +24,15 @@
 
 volatile static int placate_the_compiler;
 
-int fork(void)
-{
-	return -1;
-}
-
-int exec(char *execname, char *argvec[])
-{
-	return -1;
-}
+//int fork(void)
+//{
+//	return -1;
+//}
+//
+//int exec(char *execname, char *argvec[])
+//{
+//	return -1;
+//}
 
 //void set_status(int status)
 //{
@@ -52,40 +52,40 @@ int exec(char *execname, char *argvec[])
 //		++placate_the_compiler;
 //}
 
-int wait(int *status_ptr)
-{
-	return -1;
-}
+//int wait(int *status_ptr)
+//{
+//	return -1;
+//}
 
-int yield(int pid)
-{
-	return -1;
-}
-
-int deschedule(int *flag)
-{
-	return -1;
-}
-
-int make_runnable(int pid)
-{
-	return -1;
-}
-
-int gettid(void)
-{
-	return -1;
-}
-
-int sleep(int ticks)
-{
-	return -1;
-}
-
-int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
-{
-	return -1;
-}
+//int yield(int pid)
+//{
+//	return -1;
+//}
+//
+//int deschedule(int *flag)
+//{
+//	return -1;
+//}
+//
+//int make_runnable(int pid)
+//{
+//	return -1;
+//}
+//
+//int gettid(void)
+//{
+//	return -1;
+//}
+//
+//int sleep(int ticks)
+//{
+//	return -1;
+//}
+//
+//int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
+//{
+//	return -1;
+//}
 
 int getchar(void)
 {
@@ -97,10 +97,10 @@ int readline(int size, char *buf)
 	return -1;
 }
 
-int print(int size, char *buf)
-{
-	return -1;
-}
+//int print(int size, char *buf)
+//{
+//	return -1;
+//}
 
 int set_term_color(int color)
 {
@@ -138,10 +138,10 @@ int readfile(char *filename, char *buf, int count, int offset)
 //		++placate_the_compiler;
 //}
 
-int new_pages(void *addr, int len)
-{
-	return -1;
-}
+//int new_pages(void *addr, int len)
+//{
+//	return -1;
+//}
 
 int remove_pages(void *addr)
 {

@@ -4,7 +4,7 @@
  *  @bugs No known bugs
  */
 
-#include "../../spec/syscall_int.h"
+#include <syscall_int.h>
 
 .globl set_status
 
@@ -23,7 +23,6 @@ set_status:
 	popl %esi
 	popl %ebx
 	popl %edi
-	movl %ebp, %esp
 	popl %ebp
 	ret
 

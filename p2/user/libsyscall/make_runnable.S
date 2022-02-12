@@ -1,14 +1,14 @@
-/** @file task_vanish.S
- *  @brief Assembly wrapper for task_vanish() system call
- *  @author Nicklaus Choo (nchoo)
+/** @file make_runnable.S
+ *  @brief Assembly wrapper for make_runnable() system call
+ *  @author Andre Nascimento (anascime)
  *  @bugs No known bugs
  */
 
 #include <syscall_int.h>
 
-.globl task_vanish
+.globl make_runnable
 
-task_vanish:
+make_runnable:
 	/* Save all callee save registers */
 	pushl %ebp
 	movl  %esp, %ebp
@@ -17,7 +17,7 @@ task_vanish:
 	pushl %esi
 
 	movl 8(%ebp), %esi      /* Get first arg and place in %esi */
-	int $TASK_VANISH_INT    /* Call handler in IDT for task_vanish() */
+	int $MAKE_RUNNABLE_INT  /* Call handler in IDT for make_runnable() */
 
 	/* Restore all callee save registers */
 	popl %esi
