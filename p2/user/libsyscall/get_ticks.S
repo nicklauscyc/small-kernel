@@ -1,14 +1,14 @@
-/** @file vanish.S
- *  @brief Assembly wrapper for vanish() system call
- *  @author Nicklaus Choo (nchoo)
+/** @file get_ticks.S
+ *  @brief Assembly wrapper for the get_ticks() system call
+ *  @author Andre Nascimento (anascime)
  *  @bugs No known bugs
  */
 
 #include <syscall_int.h>
 
-.globl vanish
+.globl get_ticks
 
-vanish:
+get_ticks:
 	/* Save all callee save registers */
 	pushl %ebp
 	movl  %esp, %ebp
@@ -16,7 +16,7 @@ vanish:
 	pushl %ebx
 	pushl %esi
 
-	int $VANISH_INT /* Call handler in IDT for vanish() */
+	int  $GET_TICKS_INT /* Call handler in IDT for get_ticks() */
 
 	/* Restore all callee save registers */
 	popl %esi
