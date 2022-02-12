@@ -6,3 +6,6 @@
 !/p2/user/
 !/p2/config.mk
 !/p2/README.dox
+/p2/*.o
+/p2/*.a
+/p2/*.dep
