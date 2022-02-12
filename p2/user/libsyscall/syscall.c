@@ -143,10 +143,10 @@ int readfile(char *filename, char *buf, int count, int offset)
 //	return -1;
 //}
 
-int remove_pages(void *addr)
-{
-	return -1;
-}
+//int remove_pages(void *addr)
+//{
+//	return -1;
+//}
 
 unsigned int get_ticks(void)
 {
