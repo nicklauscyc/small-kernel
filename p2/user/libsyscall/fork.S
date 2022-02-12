@@ -1,14 +1,14 @@
-/** @file print.S
- *  @brief Assembly wrapper for the print() system call
+/** @file fork.S
+ *  @brief Assembly wrapper for the fork() system call
  *  @author Andre Nascimento (anascime)
  *  @bugs No known bugs
  */
 
 #include <syscall_int.h>
 
-.globl print
+.globl fork
 
-print:
+fork:
 	/* Save all callee save registers */
 	pushl %ebp
 	movl  %esp, %ebp
@@ -16,8 +16,7 @@ print:
 	pushl %ebx
 	pushl %esi
 
-	leal 8(%ebp), %esi  /* Point %esi to caller arg address */
-	int  $PRINT_INT		/* Call handler in IDT for print() */
+	int  $FORK_INT		/* Call handler in IDT for fork() */
 
 	/* Restore all callee save registers */
 	popl %esi

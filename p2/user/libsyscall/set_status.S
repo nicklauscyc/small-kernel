@@ -23,7 +23,6 @@ set_status:
 	popl %esi
 	popl %ebx
 	popl %edi
-	movl %ebp, %esp /* Andre: I think we don't need this */
 	popl %ebp
 	ret
 

@@ -23,7 +23,6 @@ task_vanish:
 	popl %esi
 	popl %ebx
 	popl %edi
-	movl %ebp, %esp /* Andre: Think we don't need this */
 	popl %ebp
 	ret
 

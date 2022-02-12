@@ -129,7 +129,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the 410user/progs
 # directory
 #
-410TESTS =
+410TESTS = cat
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -155,7 +155,8 @@ THREAD_OBJS = malloc.o panic.o
 ###########################################################################
 # Object files for your syscall wrappers
 ###########################################################################
-SYSCALL_OBJS = syscall.o set_status.o vanish.o task_vanish.o print.o
+SYSCALL_OBJS = syscall.o set_status.o vanish.o task_vanish.o print.o \
+			   fork.o exec.o
 
 ###########################################################################
 # Object files for your automatic stack handling
