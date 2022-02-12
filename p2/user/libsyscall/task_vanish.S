@@ -4,7 +4,7 @@
  *  @bugs No known bugs
  */
 
-#include "../../spec/syscall_int.h"
+#include <syscall_int.h>
 
 .globl task_vanish
 
@@ -23,7 +23,7 @@ task_vanish:
 	popl %esi
 	popl %ebx
 	popl %edi
-	movl %ebp, %esp
+	movl %ebp, %esp # This is likely unecessary
 	popl %ebp
 	ret
 

@@ -4,7 +4,7 @@
  *  @bugs No known bugs
  */
 
-#include "../../spec/syscall_int.h"
+#include <syscall_int.h>
 
 .globl vanish
 
@@ -22,7 +22,7 @@ vanish:
 	popl %esi
 	popl %ebx
 	popl %edi
-	movl %ebp, %esp
+	movl %ebp, %esp /* Andre: Think we don't need this */
 	popl %ebp
 	ret
 
