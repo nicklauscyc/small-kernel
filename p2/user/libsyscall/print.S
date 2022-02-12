@@ -16,9 +16,9 @@ print:
 	push %ebx
 	push %esi
 
-    mov %ebp, %esi
-	add $8,   %esi      /* Point %esi to caller arg address */
-	int $PRINT_INT    /* Call handler in IDT for task_vanish() */
+	mov %ebp, %esi
+	add $8,   %esi    /* Point %esi to caller arg address */
+	int $PRINT_INT    /* Call handler in IDT for print() */
 
 	/* Restore all callee save registers */
 	pop %esi
