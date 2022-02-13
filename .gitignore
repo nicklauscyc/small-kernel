@@ -1,9 +1,15 @@
 
-# ignore everything except ./p2/user/ ./p2/config.mk ./p2/README.dox
+# ignore everything
 /*
+
+# unignore /p2
 !/p2
+
+# ignore everything in /p2
 /p2/*
-!/p2/user/
+
+# unignore the below
+!/p2/user
 !/p2/config.mk
 !/p2/README.dox
 
@@ -12,3 +18,12 @@
 *.dep
 *.swp
 *.a
+
+# ignore all files in user/progs
+/p2/user/progs/*
+
+# don't ignore .c, README, .h files in user/progs
+!/p2/user/progs/*.c
+!/p2/user/progs/*.h
+!/p2/user/progs/README*
+

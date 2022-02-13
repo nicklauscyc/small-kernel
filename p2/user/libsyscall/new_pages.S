@@ -1,5 +1,5 @@
 /** @file new_pages.S
- *  @brief Assembly wrapper for the swexn() system call
+ *  @brief Assembly wrapper for the new_pages() system call
  *  @author Andre Nascimento (anascime)
  *  @bugs No known bugs
  */
@@ -17,7 +17,7 @@ new_pages:
 	pushl %esi
 
 	leal 8(%ebp), %esi  /* Point %esi to caller arg address */
-	int  $NEW_PAGES		/* Call handler in IDT for new_pages() */
+	int  $NEW_PAGES_INT	/* Call handler in IDT for new_pages() */
 
 	/* Restore all callee save registers */
 	popl %esi

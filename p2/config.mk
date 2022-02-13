@@ -129,7 +129,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the 410user/progs
 # directory
 #
-410TESTS = cat
+410TESTS = cat stack_test1
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -155,12 +155,12 @@ THREAD_OBJS = malloc.o panic.o
 ###########################################################################
 # Object files for your syscall wrappers
 ###########################################################################
-SYSCALL_OBJS = syscall.o set_status.o vanish.o task_vanish.o print.o \
-			   fork.o exec.o wait.o gettid.o yield.o deschedule.o \
-			   make_runnable.o get_ticks.o sleep.o swexn.o new_pages.o \
-			   getchar.o readline.o set_term_color.o get_cursor_pos.o \
-			   set_cursor_pos.o halt.o readfile.o swexn.o \
-			   get_ticks.o
+SYSCALL_OBJS = fork.o exec.o set_status.o vanish.o wait.o task_vanish.o \
+               gettid.o yield.o deschedule.o make_runnable.o get_ticks.o \
+			   sleep.o swexn.o new_pages.o remove_pages.o \
+			   getchar.o readline.o print.o set_term_color.o set_cursor_pos.o \
+			   get_cursor_pos.o \
+			   readfile.o halt.o
 
 ###########################################################################
 # Object files for your automatic stack handling
