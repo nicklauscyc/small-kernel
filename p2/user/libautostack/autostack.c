@@ -70,6 +70,9 @@ init_ureg(ureg_t *ureg)
 void
 install_autostack(void *stack_high, void *stack_low)
 {
+	lprintf("stack_high: %p, stack_low: %p size:%x\n", stack_high,
+	stack_low, stack_high - stack_low);
+
 	/* Zero all fields in ureg */
 	init_ureg(ureg);
 
@@ -102,7 +105,7 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	/* Only deal with pagefault exceptions caused by non-present page */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(ERR_P_PROTECTION_VIOLATION_MASK & error_code)) {
-		assert(cr2);
+		MAGIC_BREAK;
 
 		/* Allocate new memory for user space stack */
 		uint32_t base = (cr2 / PAGE_SIZE) * PAGE_SIZE;
