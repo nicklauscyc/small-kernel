@@ -19,38 +19,9 @@
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
 
-/* Private ureg used for page fault exception handling */
-static ureg_t ureg[1];
-
 void install_autostack(void * stack_high, void * stack_low);
 void pf_swexn_handler(void *arg, ureg_t *ureg);
 void reg_pf_swexn_handler(void *stack_low, ureg_t *oldureg);
-
-void
-init_ureg(ureg_t *ureg)
-{
-	assert(ureg);
-	ureg->cause = 0;
-	ureg->cr2 = 0;
-	ureg->ds = 0;
-	ureg->es = 0;
-	ureg->fs = 0;
-	ureg->gs = 0;
-	ureg->edi = 0;
-	ureg->esi = 0;
-	ureg->ebp = 0;
-	ureg->zero = 0;
-	ureg->ebx = 0;
-	ureg->edx = 0;
-	ureg->ecx = 0;
-	ureg->eax = 0;
-	ureg->error_code = 0;
-	ureg->eip = 0;
-	ureg->cs = 0;
-	ureg->eflags = 0;
-	ureg->esp = 0;
-	ureg->ss = 0;
-}
 
 /** @brief Installs pagefault handler at a region of memory that will never
  *         be touched by main() and all other function calls descending from
@@ -73,10 +44,7 @@ install_autostack(void *stack_high, void *stack_low)
 	lprintf("stack_high: %p, stack_low: %p size:%x\n", stack_high,
 	stack_low, stack_high - stack_low);
 
-	/* Zero all fields in ureg */
-	init_ureg(ureg);
-
-	int res = swexn(exn_stack + PAGE_SIZE, pf_swexn_handler, 0, 0);
+	int res = swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, 0);
 	lprintf("exn_stack: %p, res: %d\n", exn_stack, res);
 	assert(res == 0);
 
@@ -105,10 +73,10 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	/* Only deal with pagefault exceptions caused by non-present page */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(ERR_P_PROTECTION_VIOLATION_MASK & error_code)) {
-		MAGIC_BREAK;
+		//MAGIC_BREAK;
 
 		/* Allocate new memory for user space stack */
-		uint32_t base = (cr2 / PAGE_SIZE) * PAGE_SIZE;
+		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
 		lprintf("base: %p\n", (void *) base);
 
@@ -117,8 +85,7 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 			panic("FATAL: Unable to grow user space stack, error: %d\n", res);
 	}
 	/* Always register page fault exception handler again */
-	init_ureg(ureg);
-	swexn(exn_stack + PAGE_SIZE + WORD_SIZE, pf_swexn_handler, 0, 0);
+	swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, ureg);
 	return;
 }
 
