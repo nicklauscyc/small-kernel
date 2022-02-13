@@ -20,7 +20,7 @@
 *.a
 
 # ignore all files in user/progs
-/p2/user/progs
+/p2/user/progs/*
 
 # don't ignore .c, README, .h files in user/progs
 !/p2/user/progs/*.c
