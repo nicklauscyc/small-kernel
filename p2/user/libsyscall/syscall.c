@@ -24,6 +24,7 @@
 
 volatile static int placate_the_compiler;
 
+
 int remove_pages(void *base) {
     return -1;
 }
