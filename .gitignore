@@ -27,3 +27,5 @@
 !/p2/user/progs/*.h
 !/p2/user/progs/README*
 
+# don't ignore the variable queue thing
+!/p2/vq_challenge/*
