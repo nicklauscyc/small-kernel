@@ -2,7 +2,7 @@
  *
  *  @brief Generalized queue module for data collection
  *
- *  @author Your name here
+ *  @author Nicklaus Choo (nchoo)
  **/
 
 
@@ -13,7 +13,9 @@
  *  of a queue of elements of type Q_ELEM_TYPE.
  *
  *  Usage: Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE); //create the type <br>
-           Q_HEAD_TYPE headName; //instantiate a head of the given type
+ *         Q_HEAD_TYPE headName; //instantiate a head of the given type
+ *
+ *  This queue must only be manipulated by one thread at any one time
  *
  *  @param Q_HEAD_TYPE the type you wish the newly-generated structure to have.
  *
@@ -21,11 +23,11 @@
  *         Q_ELEM_TYPE must be a structure.
  *
  **/
-
 #define Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE) \
 typedef struct {\
 	struct Q_ELEM_TYPE *front;\
 	struct Q_ELEM_TYPE *tail;\
+	struct Q_ELEM_TYPE *iter;\
 } Q_HEAD_TYPE;
 
 /** @def Q_NEW_LINK(Q_ELEM_TYPE)
@@ -47,7 +49,7 @@ typedef struct {\
  *  @param Q_ELEM_TYPE the type of the structure containing the link
  **/
 #define Q_NEW_LINK(Q_ELEM_TYPE) \
-typedef struct {\
+struct {\
 	struct Q_ELEM_TYPE *prev;\
 	struct Q_ELEM_TYPE *next;\
 }
@@ -58,9 +60,11 @@ typedef struct {\
  *         properly.
  *  @param Q_HEAD Pointer to queue head to initialize
  **/
-#define Q_INIT_HEAD(Q_HEAD) \
-(Q_HEAD)->front = 0;\
-(Q_HEAD)->tail = 0
+#define Q_INIT_HEAD(Q_HEAD) do\
+{\
+	(Q_HEAD)->front = 0;\
+	(Q_HEAD)->tail = 0;\
+} while(0)
 
 /** @def Q_INIT_ELEM(Q_ELEM, LINK_NAME)
  *
@@ -72,9 +76,11 @@ typedef struct {\
  *  @param Q_ELEM Pointer to the structure instance containing the link
  *  @param LINK_NAME The name of the link to initialize
  **/
-#define Q_INIT_ELEM(Q_ELEM, LINK_NAME) \
-((Q_ELEM)->LINK_NAME).prev = 0;\
-((Q_ELEM)->LINK_NAME).next = 0
+#define Q_INIT_ELEM(Q_ELEM, LINK_NAME) do\
+{\
+	((Q_ELEM)->LINK_NAME).prev = 0;\
+	((Q_ELEM)->LINK_NAME).next = 0;\
+} while(0)
 
 /** @def Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME)
  *
@@ -82,27 +88,28 @@ typedef struct {\
  *         queue headed by the structure Q_HEAD.
  *
  *  The link identified by LINK_NAME will be used to organize the element and
- *  record its location in the queue.
+ *  record its location in the queue. Requires that Q_INIT_ELEM() be called on
+ *  Q_ELEM prior to insertion.
  *
  *  @param Q_HEAD Pointer to the head of the queue into which Q_ELEM will be
  *         inserted
  *  @param Q_ELEM Pointer to the element to insert into the queue
  *  @param LINK_NAME Name of the link used to organize the queue
- *
  *  @return Void (you may change this if your implementation calls for a
  *                return value)
  **/
 #define Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME) do\
 {\
-	/* Insert tail as well if queue is currently empty */\
+	/* Q is currently empty, insert tail as well */\
 	if ((Q_HEAD)->front == 0) {\
+		(Q_HEAD)->front = Q_ELEM;\
 		(Q_HEAD)->tail = Q_ELEM;\
+	/* Q not empty, update front */\
 	} else {\
-	/* Update current front element */\
-	*(((Q_ELEM)->LINK_NAME).next) = (Q_HEAD)->front;\
-	(((Q_HEAD)->front)->LINK_NAME).prev = Q_ELEM;\
-	*(((Q_ELEM)->LINK_NAME).prev) = (Q_HEAD)->0;\
-	(Q_HEAD)->front = Q_ELEM;\
+		(((Q_HEAD)->front)->LINK_NAME).prev = Q_ELEM;\
+		((Q_ELEM)->LINK_NAME).next = (Q_HEAD)->front;\
+		(Q_HEAD)->front = Q_ELEM;\
+	}\
 } while(0)
 
 /** @def Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME)
@@ -120,13 +127,19 @@ typedef struct {\
  *  @return Void (you may change this if your implementation calls for a
  *                return value)
  **/
-#define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) \
+#define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) do\
 {\
-	/* Insert front as well if queue is currently empty */\
-	if ((Q_HEAD)->front == 0) (Q_HEAD)->front = Q_ELEM;\
-	(Q_HEAD)->tail = Q_ELEM;\
-	*(((Q_ELEM)->LINK_NAME).next) = 0;\
-}
+	/* Q is currently empty, insert tail as well */\
+	if ((Q_HEAD)->front == 0) {\
+		(Q_HEAD)->front = Q_ELEM;\
+		(Q_HEAD)->tail = Q_ELEM;\
+	/* Q not empty, update front */\
+	} else {\
+		(((Q_HEAD)->tail)->LINK_NAME).next = Q_ELEM;\
+		((Q_ELEM)->LINK_NAME).prev = (Q_HEAD)->tail;\
+		(Q_HEAD)->tail = Q_ELEM;\
+	}\
+} while(0)
 
 
 /** @def Q_GET_FRONT(Q_HEAD)
@@ -168,7 +181,7 @@ typedef struct {\
  *  @return The element after Q_ELEM, or NULL if there is no next element
  **/
 #define Q_GET_NEXT(Q_ELEM, LINK_NAME) \
-((Q_ELEM)->LINK_NAME)
+(((Q_ELEM)->LINK_NAME).next)
 
 /** @def Q_GET_PREV(Q_ELEM, LINK_NAME)
  *
@@ -182,9 +195,10 @@ typedef struct {\
  *  @param LINK_NAME Name of the link organizing the queue
  *
  *  @return The element before Q_ELEM, or NULL if there is no next element
- *  TODO this is broken because the test suite has a singly linked list
  **/
-#define Q_GET_PREV(Q_ELEM, LINK_NAME) 0
+#define Q_GET_PREV(Q_ELEM, LINK_NAME) \
+(((Q_ELEM)->LINK_NAME).prev)
+
 
 /** @def Q_INSERT_AFTER(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME)
  *
@@ -201,7 +215,19 @@ typedef struct {\
  *  @param LINK_NAME  Name of link field used to organize the queue
  **/
 
-#define Q_INSERT_AFTER(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME) { (Q_TOINSERT)->LINK_NAME = 0;}
+#define Q_INSERT_AFTER(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME) do\
+{\
+	((Q_TOINSERT)->LINK_NAME).prev = Q_INQ;\
+	((Q_TOINSERT)->LINK_NAME).next = ((Q_INQ)->LINK_NAME).next;\
+	((Q_INQ)->LINK_NAME).next = Q_TOINSERT;\
+	/* Insert at tail of queue */\
+	if ((Q_INQ) == (Q_HEAD)->tail) {\
+		(Q_HEAD)->tail = Q_TOINSERT;\
+	/* Not at tail of queue, update child's next */\
+	} else {\
+		((((Q_TOINSERT)->LINK_NAME).next)->LINK_NAME).prev = Q_TOINSERT;\
+	}\
+} while(0)
 
 
 
@@ -220,8 +246,19 @@ typedef struct {\
  *  @param LINK_NAME  Name of link field used to organize the queue
  **/
 
-#define Q_INSERT_BEFORE(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME) { (Q_TOINSERT)->LINK_NAME = 0;}
-
+#define Q_INSERT_BEFORE(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME) do\
+{\
+	((Q_TOINSERT)->LINK_NAME).next = Q_INQ;\
+	((Q_TOINSERT)->LINK_NAME).prev = ((Q_INQ)->LINK_NAME).prev;\
+	((Q_INQ)->LINK_NAME).prev = Q_TOINSERT;\
+	/* Insert at front of queue */\
+	if ((Q_INQ) == (Q_HEAD)->front) {\
+		(Q_HEAD)->front = Q_TOINSERT;\
+	/* Not at front of queue, update ancestor's next */\
+	} else {\
+		((((Q_TOINSERT)->LINK_NAME).prev)->LINK_NAME).next = Q_TOINSERT;\
+	}\
+} while(0)
 
 /** @def Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME)
  *
@@ -242,8 +279,30 @@ typedef struct {\
  *  @return Void (if you would like to return a value, you may change this
  *                specification)
  **/
-#define Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME){ (Q_ELEM)->LINK_NAME = 0;}
+#define Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME) do\
+{\
+	/* If Q_ELEM is only element */\
+	if (((Q_ELEM) == (Q_HEAD)->front) && ((Q_ELEM) == (Q_HEAD)->tail)) {\
+		(Q_HEAD)->front = 0;\
+		(Q_HEAD)->tail = 0;\
+	/* If Q_ELEM is at the front */\
+	} else if ((Q_ELEM) == (Q_HEAD)->front) {\
+		(Q_HEAD)->front = ((Q_ELEM)->LINK_NAME).next;\
+		(((Q_HEAD)->front)->LINK_NAME).prev = 0;\
+	/* If Q_ELEM is at the tail */\
+	} else if ((Q_ELEM) == (Q_HEAD)->tail) {\
+		(Q_HEAD)->tail = ((Q_ELEM)->LINK_NAME).prev;\
+		(((Q_HEAD)->tail)->LINK_NAME).next = 0;\
+	/* Q_ELEM is somewhere in the middle */\
+	} else {\
+		((((Q_ELEM)->LINK_NAME).next)->LINK_NAME).prev = \
+		(((Q_ELEM)->LINK_NAME).prev);\
+		((((Q_ELEM)->LINK_NAME).prev)->LINK_NAME).next = \
+			 (((Q_ELEM)->LINK_NAME).next);\
+	}\
+} while(0)
 
+/* TODO this has yet to be implemented */
 /** @def Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME)
  *
  *  @brief Constructs an iterator block (like a for block) that operates
@@ -273,5 +332,5 @@ typedef struct {\
  *         by Q_HEAD.
  **/
 
-#define Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME) { (Q_ELEM)->LINK_NAME = 0;}
+#define Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME) { ((Q_ELEM)->LINK_NAME = 0;}
 
