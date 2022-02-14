@@ -5,6 +5,9 @@
  *  @author Nicklaus Choo (nchoo)
  **/
 
+#ifndef _VARIABLE_QUEUE_H_
+#define _VARIABLE_QUEUE_H_
+
 /** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
  *
  *  @brief Generates a new structure of type Q_HEAD_TYPE representing the head
@@ -298,3 +301,6 @@ struct {\
 			 (((Q_ELEM)->LINK_NAME).next);\
 	}\
 } while(0)
+
+#endif /* _VARIABLE_QUEUE_H_ */
+
