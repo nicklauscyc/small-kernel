@@ -1,8 +1,8 @@
 .globl add_one_atomic
 
+/* int add_one_atomic(int *at) */
 add_one_atomic:
-    movl 8(%ebp), %ebx      /* Move address argument to ebx */
+    movl 4(%esp), %ecx      /* Move address argument to ecx */
     movl $1, %eax           /* eax = 1 */
-    lock
-    xaddl %eax, (%ebx) /* Atomically: eax = *ebx and *ebx = *ebx + 1 */
+    lock xaddl %eax, (%ecx) /* Atomically: eax = *ecx and *ecx = *ecx + eax */
     ret

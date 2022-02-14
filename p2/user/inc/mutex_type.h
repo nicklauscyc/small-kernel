@@ -5,10 +5,12 @@
 #ifndef _MUTEX_TYPE_H
 #define _MUTEX_TYPE_H
 
+#include <stdint.h>
+
 typedef struct {
     int initialized;
-    int serving;      /* Ticket being served */
-    int next_ticket;  /* Next ticket to be picked. */
+    uint32_t serving;      /* Ticket being served */
+    uint32_t next_ticket;  /* Next ticket to be picked. */
     int owner_tid;
 } mutex_t;
 

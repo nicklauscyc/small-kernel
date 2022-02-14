@@ -60,10 +60,11 @@ mutex_lock( mutex_t *mp )
     affirm_msg(mp && mp->initialized,
             "Tried to acquire invalid or uninitialized lock");
 
-    lprintf("next_ticket: %d", mp->next_ticket);
+    lprintf("next_ticket: %lu", mp->next_ticket);
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
-    int my_ticket = add_one_atomic(&mp->next_ticket) - 1;
-    lprintf("my_ticket: %d", my_ticket);
+    uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
+    lprintf("my_ticket: %lu", my_ticket);
+    lprintf("next_ticket after: %lu", mp->next_ticket);
     while (my_ticket != mp->serving)
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
 

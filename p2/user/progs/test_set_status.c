@@ -2,26 +2,40 @@
 #include <stdlib.h> /* exit() */
 #include <simics.h> /* lprintf */
 #include <mutex.h> /* mutex */
+#include <thr_internals.h> /* add_one_atomic() */
 #include <assert.h>
 
 void test_exec();
 void test_fork_and_wait();
 void test_thread_management();
 void test_mutex();
-
+void test_add_one_atomic();
 
 int main() {
-    test_mutex();
+    test_add_one_atomic();
 	exit(69);
 }
 
+void test_add_one_atomic() {
+    uint32_t result = 0;
+    int ticket;
+
+    for (int i = 0; i < 100; i++) {
+        ticket = add_one_atomic(&result);
+    }
+
+    lprintf("ticket is %d", ticket);
+    lprintf("result is: %lu", result);
+}
+
+// At dad should be printed before At son
 void test_mutex() {
     mutex_t m;
     assert(mutex_init(&m) >= 0);
     if (fork()) {
         mutex_lock(&m);
-        lprintf("At dad");
         sleep(500);
+        lprintf("At dad");
         mutex_unlock(&m);
     } else {
         sleep(100);
@@ -29,6 +43,7 @@ void test_mutex() {
         lprintf("At son");
         mutex_unlock(&m);
     }
+
     mutex_destroy(&m);
 }
 
