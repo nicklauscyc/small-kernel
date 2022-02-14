@@ -142,7 +142,7 @@ STUDENTTESTS = test_set_status
 ###########################################################################
 # Object files for your thread library
 ###########################################################################
-THREAD_OBJS = malloc.o panic.o
+THREAD_OBJS = malloc.o panic.o mutex.o add_one_atomic.o
 
 # Thread Group Library Support.
 #

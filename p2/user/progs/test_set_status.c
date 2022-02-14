@@ -1,14 +1,35 @@
 #include <syscall.h>
 #include <stdlib.h> /* exit() */
 #include <simics.h> /* lprintf */
+#include <mutex.h> /* mutex */
 #include <assert.h>
 
 void test_exec();
 void test_fork_and_wait();
 void test_thread_management();
+void test_mutex();
+
 
 int main() {
+    test_mutex();
 	exit(69);
+}
+
+void test_mutex() {
+    mutex_t m;
+    assert(mutex_init(&m) >= 0);
+    if (fork()) {
+        mutex_lock(&m);
+        lprintf("At dad");
+        sleep(500);
+        mutex_unlock(&m);
+    } else {
+        sleep(100);
+        mutex_lock(&m);
+        lprintf("At son");
+        mutex_unlock(&m);
+    }
+    mutex_destroy(&m);
 }
 
 void test_thread_management() {

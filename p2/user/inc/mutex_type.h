@@ -5,9 +5,11 @@
 #ifndef _MUTEX_TYPE_H
 #define _MUTEX_TYPE_H
 
-
-typedef struct mutex {
-  /* fill this in */
+typedef struct {
+    int initialized;
+    int serving;      /* Ticket being served */
+    int next_ticket;  /* Next ticket to be picked. */
+    int owner_tid;
 } mutex_t;
 
 #endif /* _MUTEX_TYPE_H */
