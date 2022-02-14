@@ -13,11 +13,6 @@
 !/p2/config.mk
 !/p2/README.dox
 
-# ignore .o .dep .swp .a files
-*.o
-*.dep
-*.swp
-*.a
 
 # ignore all files in user/progs
 /p2/user/progs/*
@@ -28,4 +23,12 @@
 !/p2/user/progs/README*
 
 # don't ignore the variable queue thing
+!/p2/vq_challenge
 !/p2/vq_challenge/*
+
+# ignore .o .dep .swp .a files
+*.o
+*.dep
+*.swp
+*.a
+
