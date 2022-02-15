@@ -11,6 +11,7 @@
 #include <thr_internals.h> /* thread_fork() */
 #include <thread.h> /* all thread library prototypes */
 #include <syscall.h> /* gettid() */
+#include <assert.h> /* assert() */
 
 /* thread library functions */
 //int thr_init( unsigned int size );
@@ -22,7 +23,7 @@
 
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
-static unsigned int THR_STACK_SIZE = -1;
+static unsigned int THR_STACK_SIZE = 0;
 
 
 /** @brief Struct containing all necesary information about a thread.
@@ -47,7 +48,7 @@ static thr_status_t *thr_arr[NUM_THREADS];
 int
 thr_init(unsigned int size)
 {
-	if (size <= 0) return -1;
+	if (size == 0) return -1;
 	THR_STACK_SIZE = size;
 	return 0;
 }
@@ -66,18 +67,33 @@ thr_create(void *(*func)(void *), void *arg)
 	if (THR_STACK_SIZE == -1) return THR_UNINIT;
 
 	/* Allocate memory for thread stack */
-	char *thr_stack = _malloc(THR_STACK_SIZE + 1);
+	//TODO magic number boi
+	char *thr_stack = _malloc(THR_STACK_SIZE + 3);
+	assert(thr_stack);
 
 	/* Allocate memory for thr_status_t */
 	thr_status_t *tp = _malloc(sizeof(thr_status_t));
+	assert(tp);
 	tp->thr_stack_low = thr_stack;
-	tp->thr_stack_high = thr_stack;
+	tp->thr_stack_high = thr_stack + THR_STACK_SIZE + 3;
+	assert(tp->thr_stack_high > tp->thr_stack_low);
+	lprintf("before thread_fork() \n");
 
 	/* Fork a new thread */
+	MAGIC_BREAK;
 	int tid = thread_fork();
+ 	lprintf("thread_fork() after tid: %d\n",gettid());
+	MAGIC_BREAK;
 
 	/* In child thread */
 	if (tid == 0) {
+ 	lprintf("called thread_fork() success child\n");
+
+		assert(tp);
+		lprintf("thr_create child!\n");
+		MAGIC_BREAK;
+		assert(func);
+		assert(arg);
 		run_thread(tp->thr_stack_high, func, arg);
 
 		/* On return call thr_exit() */
@@ -85,8 +101,11 @@ thr_create(void *(*func)(void *), void *arg)
 
 	/* In parent thread */
 	} else {
+lprintf("called thread_fork() success parent\n");
+
 
 		/* Set remaining fields of tp */
+		assert(tp);
 		tp->tid = tid;
 		tp->runnable = 1;
 

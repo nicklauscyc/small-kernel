@@ -23,8 +23,10 @@ add_one(void *arg)
 
 int main()
 {
-	assert(thr_init(0) == -1);
-	assert(thr_init(-1) == -1);
+	int res = 0;
+	res = thr_init(0);
+	lprintf("res: %d\n", res);
+	assert(res == -1);
 	assert(thr_init(PAGE_SIZE) == 0);
 
 	int x = 1;
