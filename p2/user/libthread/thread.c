@@ -10,6 +10,7 @@
 #include <malloc.h> /* malloc() */
 #include <thr_internals.h> /* thread_fork() */
 #include <thread.h> /* all thread library prototypes */
+#include <syscall.h> /* gettid() */
 
 /* thread library functions */
 //int thr_init( unsigned int size );
