@@ -18,7 +18,8 @@ add_one(void *arg)
 	lprintf("hello from child thread with id: %d, *arg: %d\n", thr_getid(), *iarg);
 	assert(thr_getid() == gettid());
 	*iarg = *iarg + 1;
-	return arg;
+    lprintf("[child] Set iarg to %d", *iarg);
+    return arg;
 }
 
 int main()

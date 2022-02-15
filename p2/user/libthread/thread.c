@@ -86,13 +86,7 @@ thr_create(void *(*func)(void *), void *arg)
 
 	/* In child thread */
 	if (tid == 0) {
-		assert(func);
-		assert(arg);
-
-        // FIXME: This is a hack, as we might be providing too little stack space to func
-        /* Call func and, in case it doesn't call thr_exit, we call
-         * thr_exit on its behalf with its return value. */
-        thr_exit(func(arg));
+        assert(0); // Child thread should never return
 
 	/* In parent thread */
 	} else {
@@ -113,22 +107,22 @@ thr_create(void *(*func)(void *), void *arg)
 void
 thr_exit(void *status)
 {
-	int tid = gettid();
+	//int tid = gettid();
 
     // TODO: Store status somewhere so it may be retrieved
     // by a subsequent call to join
 
 	/* Remove from array */
 	/* TODO protect with mutex */
-	int i = 0;
-	while (thr_arr[i]->tid != tid) i++;
-	thr_status_t *tp = thr_arr[i];
-	free(tp->thr_stack_low);
-	thr_arr[i] = 0;
+	//int i = 0;
+	//while (thr_arr[i]->tid != tid) i++;
+	//thr_status_t *tp = thr_arr[i];
+	//free(tp->thr_stack_low);
+	//thr_arr[i] = 0;
 
-	/* Deschedule */
-	int x = 0;
-	deschedule(&x);
+	///* Deschedule */
+	//int x = 0;
+	//deschedule(&x);
     exit(0);
 }
 

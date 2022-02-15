@@ -5,7 +5,6 @@
  */
 
 #include <syscall_int.h>
-#include <thread.h>
 
 .globl thread_fork
 
