@@ -17,9 +17,10 @@ run_thread:
 	pushl %esi
 
 	movl 8(%ebp), %esp /* Set the new stack pointer */
-	movl 12(%ebp), %esi /* Move arg into %esi */
+	movl 16(%ebp), %esi /* Move arg into %esi */
 	pushl %esi /* put arg for func() onto stack */
-	call func /* call func() */
+	movl 12(%ebp), %ebx
+	calll *%ebx /* call func in 2nd argument */
 
 	/* Restore all callee save registers */
 	popl %esi

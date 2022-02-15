@@ -78,7 +78,7 @@ thr_create(void *(*func)(void *), void *arg)
 
 	/* In child thread */
 	if (tid == 0) {
-		run_thread(tp->thr_stack_high, arg);
+		run_thread(tp->thr_stack_high, func, arg);
 
 		/* On return call thr_exit() */
 		thr_exit(0);
