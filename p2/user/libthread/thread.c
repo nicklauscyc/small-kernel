@@ -24,6 +24,9 @@
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
+/* Global variable to indicate that thr library has been initialized */
+// FIXME: Might not need this as programs are well behaved (section 5.3)
+int THR_INITIALIZED = 0;
 
 
 /** @brief Struct containing all necesary information about a thread.
@@ -48,8 +51,9 @@ static thr_status_t *thr_arr[NUM_THREADS];
 int
 thr_init(unsigned int size)
 {
-	if (size == 0) return -1;
+	if (size == 0 || THR_INITIALIZED) return -1;
 	THR_STACK_SIZE = size;
+    THR_INITIALIZED = 1;
 	return 0;
 }
 
@@ -64,46 +68,34 @@ int
 thr_create(void *(*func)(void *), void *arg)
 {
 	/* thr_init() was not called prior, return error */
-	if (THR_STACK_SIZE == -1) return THR_UNINIT;
+	if (!THR_INITIALIZED) return THR_UNINIT;
 
 	/* Allocate memory for thread stack */
 	//TODO magic number boi
-	char *thr_stack = _malloc(THR_STACK_SIZE + 3);
-	assert(thr_stack);
+	char *thr_stack = _malloc(THR_STACK_SIZE + 2);
+	affirm_msg(thr_stack, "Failed to allocate child stack.");
 
 	/* Allocate memory for thr_status_t */
 	thr_status_t *tp = _malloc(sizeof(thr_status_t));
-	assert(tp);
+	affirm_msg(tp, "Failed to allocate memory for thread status.");
 	tp->thr_stack_low = thr_stack;
-	tp->thr_stack_high = thr_stack + THR_STACK_SIZE + 3;
-	assert(tp->thr_stack_high > tp->thr_stack_low);
-	lprintf("before thread_fork() \n");
+	tp->thr_stack_high = thr_stack + THR_STACK_SIZE + 2;
 
 	/* Fork a new thread */
-	MAGIC_BREAK;
-	int tid = thread_fork();
- 	lprintf("thread_fork() after tid: %d\n",gettid());
-	MAGIC_BREAK;
+	int tid = thread_fork(tp->thr_stack_high, func, arg);
 
 	/* In child thread */
 	if (tid == 0) {
- 	lprintf("called thread_fork() success child\n");
-
-		assert(tp);
-		lprintf("thr_create child!\n");
-		MAGIC_BREAK;
 		assert(func);
 		assert(arg);
-		run_thread(tp->thr_stack_high, func, arg);
 
-		/* On return call thr_exit() */
-		thr_exit(0);
+        // FIXME: This is a hack, as we might be providing too little stack space to func
+        /* Call func and, in case it doesn't call thr_exit, we call
+         * thr_exit on its behalf with its return value. */
+        thr_exit(func(arg));
 
 	/* In parent thread */
 	} else {
-lprintf("called thread_fork() success parent\n");
-
-
 		/* Set remaining fields of tp */
 		assert(tp);
 		tp->tid = tid;
@@ -115,7 +107,7 @@ lprintf("called thread_fork() success parent\n");
 		while (thr_arr[i] == NULL) i++;
 		thr_arr[i] = tp;
 	}
-	return 0;
+	return tid;
 }
 
 void
