@@ -43,8 +43,8 @@ void reg_pf_swexn_handler(void *stack_low, ureg_t *oldureg);
 void
 install_autostack(void *stack_high, void *stack_low)
 {
-	asssert(the_stack_low == 0);
-	the_stack_low = stack_low;
+	assert(the_stack_low == 0);
+	the_stack_low = (unsigned int) stack_low;
 	lprintf("stack_high: %p, stack_low: %p size:%x\n", stack_high,
 	stack_low, stack_high - stack_low);
 
