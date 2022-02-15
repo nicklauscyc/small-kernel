@@ -130,6 +130,7 @@ thr_exit(void *status)
 	while (thr_arr[i]->tid != tid) i++;
 	thr_status_t *tp = thr_arr[i];
 	free(tp->thr_stack_low);
+	thr_arr[i] = 0;
 
 	/* Deschedule */
 	int x = 0;
