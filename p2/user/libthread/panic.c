@@ -47,6 +47,7 @@ void panic(const char *fmt, ...)
 		// exact authorship uncertain, popularized by Heinlein
 		printf("When in danger or in doubt, run in circles, scream and shout.\n");
 		lprintf("When in danger or in doubt, run in circles, scream and shout.");
+		exit(0);
 		++side_effect;
 	}
 }

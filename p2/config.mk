@@ -129,7 +129,8 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the 410user/progs
 # directory
 #
-410TESTS = cat stack_test1
+410TESTS = cat stack_test1 getpid_test1 startle actual_wait \
+
 
 ###########################################################################
 # Test programs you have written which you wish to run

@@ -23,6 +23,7 @@ void test_add_one_atomic() {
 
     for (int i = 0; i < 100; i++) {
         ticket = add_one_atomic(&result);
+		ticket++;
     }
 
     assert(result == 100);
