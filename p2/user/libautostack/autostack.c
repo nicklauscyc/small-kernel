@@ -16,6 +16,8 @@
 /* Word size is 16 bit so 2 bytes */
 #define WORD_SIZE 2
 
+extern unsigned int the_stack_low;
+
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
 
@@ -41,6 +43,8 @@ void reg_pf_swexn_handler(void *stack_low, ureg_t *oldureg);
 void
 install_autostack(void *stack_high, void *stack_low)
 {
+	asssert(the_stack_low == 0);
+	the_stack_low = stack_low;
 	lprintf("stack_high: %p, stack_low: %p size:%x\n", stack_high,
 	stack_low, stack_high - stack_low);
 
@@ -79,6 +83,7 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
 		lprintf("base: %p\n", (void *) base);
+		the_stack_low = base; // TODO delete this after stop debug
 
 		/* Panic if cannot grow user space stack */
 		if (res < 0)

@@ -26,6 +26,7 @@
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
+unsigned int the_stack_low = 0;
 mutex_t *mmp; /* global mutex for malloc family functions */
 
 /* Global variable to indicate that thr library has been initialized */

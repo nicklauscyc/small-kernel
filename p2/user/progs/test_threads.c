@@ -36,13 +36,11 @@ int main()
 	assert(*arg == 1);
 	int tid = thr_create(add_one,arg);
 	lprintf("hello from parent thread, child id is: %d\n", tid);
-	lprintf("*arg: %d\n", *arg);
-	//assert(*arg == 2);
-
+	//lprintf("*arg: %d\n", *arg);
     tid = thr_create(add_one,arg);
 	lprintf("hello from parent thread, child id is: %d\n", tid);
 	sleep(100);
-	lprintf("*arg: %d\n", *arg);
+	//lprintf("*arg: %d\n", *arg);
 
 	return 0;
 }
