@@ -6,18 +6,36 @@
  *  @author Nicklaus Choo (nchoo)
  */
 
+#include <simics.h> /* lprintf() */
 #include <malloc.h> /* malloc() */
+#include <thr_internals.h> /* thread_fork() */
+#include <thread.h> /* all thread library prototypes */
+
+/* thread library functions */
+//int thr_init( unsigned int size );
+//int thr_create( void *(*func)(void *), void *args );
+//int thr_join( int tid, void **statusp );
+//void thr_exit( void *status );
+//int thr_getid( void );
+//int thr_yield( int tid );
 
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = -1;
 
+
+/** @brief Struct containing all necesary information about a thread.
+ */
 typedef struct {
 	char *thr_stack_low;
 	char *thr_stack_high;
 	int tid;
 	int runnable;
 } thr_status_t;
+
+/* TODO make this unbounded */
+#define NUM_THREADS 20
+static thr_status_t *thr_arr[NUM_THREADS];
 
 /** @brief Initializes the size all thread stacks will have if the thread
  *         is not the initial thread.
@@ -47,11 +65,63 @@ thr_create(void *(*func)(void *), void *arg)
 	if (THR_STACK_SIZE == -1) return THR_UNINIT;
 
 	/* Allocate memory for thread stack */
-	char *thr_stack = malloc(THR_STACK_SIZE);
+	char *thr_stack = malloc(THR_STACK_SIZE + 1);
 
 	/* Allocate memory for thr_status_t */
+	thr_status_t *tp = malloc(sizeof(thr_status_t));
+	tp->thr_stack_low = thr_stack;
+	tp->thr_stack_high = thr_stack;
 
+	/* Fork a new thread */
+	int tid = thread_fork();
+
+	/* In child thread */
+	if (tid == 0) {
+		run_thread(tp->thr_stack_high, arg);
+
+		/* On return call thr_exit() */
+		thr_exit(0);
+
+	/* In parent thread */
+	} else {
+
+		/* Set remaining fields of tp */
+		tp->tid = tid;
+		tp->runnable = 1;
+
+		/* Add to array of running threads */
+	 	/* TODO protect this with mutex */
+		int i = 0;
+		while (thr_arr[i] == NULL) i++;
+		thr_arr[i] = tp;
+	}
 	return 0;
-
 }
+
+void
+thr_exit(void *status)
+{
+	int tid = gettid();
+	lprintf("thr_exit() called from tid: %d\n", tid);
+
+	/* Remove from array */
+	/* TODO protect with mutex */
+	int i = 0;
+	while (thr_arr[i]->tid != tid) i++;
+	thr_status_t *tp = thr_arr[i];
+	free(tp->thr_stack_low);
+
+	/* Deschedule */
+	int x = 0;
+	deschedule(&x);
+}
+
+int
+thr_getid(void)
+{
+	return gettid();
+}
+
+
+
 

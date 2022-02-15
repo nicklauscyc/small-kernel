@@ -4,6 +4,7 @@
 #include <mutex.h> /* mutex */
 #include <thr_internals.h> /* add_one_atomic(), thread_fork() */
 #include <assert.h>
+#include <mutex.h>
 
 void test_exec();
 void test_fork_and_wait();
@@ -40,6 +41,9 @@ void test_mutex() {
 
 void test_thread_management() {
     int tid;
+	mutex_t *mp = malloc(sizeof(mp));
+	mutex_init(mp);
+
     if ((tid = fork())) {
         lprintf("Child tid is %d", tid);
         sleep(100);

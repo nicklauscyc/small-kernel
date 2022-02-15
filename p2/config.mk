@@ -137,7 +137,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory
 #
-STUDENTTESTS = test_set_status
+STUDENTTESTS = test_set_status test_threads
 
 ###########################################################################
 # Object files for your thread library
