@@ -52,7 +52,7 @@ TABSTOP = 4
 # "clangalyzer" will likely complain more than "clang"
 #
 # Use "make veryclean" if you adjust CC.
-CC = clang
+CC = gcc
 
 ###########################################################################
 # DEBUG

@@ -114,7 +114,9 @@ void
 thr_exit(void *status)
 {
 	int tid = gettid();
-	lprintf("thr_exit() called from tid: %d\n", tid);
+
+    // TODO: Store status somewhere so it may be retrieved
+    // by a subsequent call to join
 
 	/* Remove from array */
 	/* TODO protect with mutex */
@@ -127,6 +129,7 @@ thr_exit(void *status)
 	/* Deschedule */
 	int x = 0;
 	deschedule(&x);
+    exit(0);
 }
 
 int
