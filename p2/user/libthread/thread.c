@@ -66,10 +66,10 @@ thr_create(void *(*func)(void *), void *arg)
 	if (THR_STACK_SIZE == -1) return THR_UNINIT;
 
 	/* Allocate memory for thread stack */
-	char *thr_stack = malloc(THR_STACK_SIZE + 1);
+	char *thr_stack = _malloc(THR_STACK_SIZE + 1);
 
 	/* Allocate memory for thr_status_t */
-	thr_status_t *tp = malloc(sizeof(thr_status_t));
+	thr_status_t *tp = _malloc(sizeof(thr_status_t));
 	tp->thr_stack_low = thr_stack;
 	tp->thr_stack_high = thr_stack;
 
