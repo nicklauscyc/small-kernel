@@ -1,4 +1,13 @@
 
+# ignore all files in user/progs
+/p2/user/progs/*
+
+# don't ignore .c, README, .h files in user/progs
+!/p2/user/progs/*.c
+!/p2/user/progs/*.h
+!/p2/user/progs/README*
+
+
 # ignore everything
 /*
 

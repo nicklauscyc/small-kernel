@@ -20,12 +20,15 @@
 #include <simics.h> /* lprintf() */
 #include <stdint.h>  /* uint32_t */
 #include <assert.h> /* assert() */
+#include <thr_internals.h> /* THR_INITIALIZED */
 
 /* Lowest bit P=0 if fault by non-present page, 1 o/w (intel-sys.pdf pg 182) */
 #define ERR_P_PROTECTION_VIOLATION_MASK 1
 
 /* Word size is 16 bit so 2 bytes */
 #define WORD_SIZE 2
+
+void *global_stack_low = 0;
 
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
@@ -78,8 +81,11 @@ Swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
 void
 install_autostack(void *stack_high, void *stack_low)
 {
-	lprintf("stack_high: %p, stack_low: %p size:%x\n", stack_high,
+	assert(global_stack_low == 0);
+	global_stack_low = stack_low;
+	lprintf("stack_high: %p, stack_low: %p, size:%x\n", stack_high,
 	stack_low, stack_high - stack_low);
+	lprintf("global_stack_low: %p\n", global_stack_low);
 
 	/* esp3 argument points to an address 1 word higher than first address */
 	Swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, 0);
@@ -97,6 +103,9 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 {
 	assert(arg == 0);
 	assert(ureg);
+
+	/* If other user threads initialized, don't grow stack */
+	if (THR_INITIALIZED) return;
 
 	/* Get relevant info */
 	int cause = ureg->cause;
@@ -116,13 +125,17 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		/* Allocate new memory for user space stack */
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
+		lprintf("base: %p\n", (void *) base);
+		global_stack_low = (void *) base; // TODO delete this after stop debug
+    	lprintf("global_stack_low: %p\n", global_stack_low);
 
 		/* Panic if cannot grow user space stack for initial single thread */
 		if (res < 0)
 			panic("FATAL: Unable to grow user space stack, error: %d\n", res);
+
+		/* Always register page fault exception handler again */
+		Swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, ureg);
 	}
-	/* Always register page fault exception handler again */
-	Swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, ureg);
 	return;
 }
 

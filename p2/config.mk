@@ -129,7 +129,8 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the 410user/progs
 # directory
 #
-410TESTS = cat stack_test1
+410TESTS = cat stack_test1 getpid_test1 startle actual_wait \
+
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -137,12 +138,13 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory
 #
-STUDENTTESTS = test_set_status
+STUDENTTESTS = test_set_status test_threads
 
 ###########################################################################
 # Object files for your thread library
 ###########################################################################
-THREAD_OBJS = malloc.o panic.o
+THREAD_OBJS = malloc.o panic.o mutex.o add_one_atomic.o thread.o run_thread.o \
+              thread_fork.o uba.o
 
 # Thread Group Library Support.
 #
