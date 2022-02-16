@@ -34,15 +34,6 @@ mutex_t *mmp; /* global mutex for malloc family functions */
 int THR_INITIALIZED = 0;
 
 
-/** @brief Struct containing all necesary information about a thread.
- */
-typedef struct {
-	char *thr_stack_low;
-	char *thr_stack_high;
-	int tid;
-	int runnable;
-} thr_status_t;
-
 /* TODO make this unbounded */
 #define NUM_THREADS 20
 static thr_status_t *thr_arr[NUM_THREADS];

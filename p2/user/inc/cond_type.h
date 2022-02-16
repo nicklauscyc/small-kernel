@@ -7,21 +7,39 @@
 
 #include <mutex.h> /* mutex_t */
 #include <variable_queue.h>
+#include <thr_internals.h>
 
+/* Declare type of cvar_node_t */
+/** @brief struct for each node in cv->queue
+ *
+ *  typedef struct cvar_node {
+ *  	   struct {
+ *  	       struct cvar_node *prev;
+ *  	       struct cvar_node *next;
+ *  	   }
+ *  	   thr_status_t *thr_info;
+ *  } cvar_node_t;
+ */
+typedef struct cvar_node {
+	Q_NEW_LINK(cvar_node) link;
+	thr_status_t *thr_info;
+} cvar_node_t;
 
-typedef struct node {
-	Q_NEW_LINK(node) link;
-	int tid;
-} node_t;
+/* Declare type of cvar_queue_t */
+/*
+typedef struct {
+    struct cvar_node *front;
+    struct cvar_node *tail;
+} cvar_queue_t;
+ */
+Q_NEW_HEAD(cvar_queue_t, cvar_node);
 
-Q_NEW_HEAD(queue_t, node);
-
-/* Size of the queue */
-#define Q_LEN 100
-
+/* Condition variable */
 typedef struct cond {
-	mutex_t mutex;
-	queue_t queue;
+	mutex_t *mp;
+	cvar_queue_t *qp;
 } cond_t;
+
+
 
 #endif /* _COND_TYPE_H */

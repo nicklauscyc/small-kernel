@@ -12,9 +12,20 @@
 /* Global variable set to 1 when thr_init() is called, 0 before */
 extern int THR_INITIALIZED;
 
+/** @brief Struct containing all necesary information about a thread.
+ */
+typedef struct {
+	char *thr_stack_low;
+	char *thr_stack_high;
+	int tid;
+	int runnable;
+} thr_status_t;
+
+
 uint32_t add_one_atomic(uint32_t *at);
 int thread_fork(void *child_stack_start, void *(*func)(void *), void *arg);
 void run_thread(void *rsp, void *(*func)(void *), void *arg);
+
 
 /* Circular Unbounded Arrays */
 
