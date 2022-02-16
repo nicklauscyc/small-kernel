@@ -16,6 +16,9 @@
 /* Word size is 16 bit so 2 bytes */
 #define WORD_SIZE 2
 
+void *global_stack_low = 0;
+extern int THR_INITIALIZED; /* declared in user/libthread/thread.c */
+
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
 
@@ -41,11 +44,14 @@ void reg_pf_swexn_handler(void *stack_low, ureg_t *oldureg);
 void
 install_autostack(void *stack_high, void *stack_low)
 {
-	lprintf("stack_high: %p, stack_low: %p size:%x\n", stack_high,
+	assert(global_stack_low == 0);
+	global_stack_low = stack_low;
+	lprintf("stack_high: %p, stack_low: %p, size:%x\n", stack_high,
 	stack_low, stack_high - stack_low);
+	lprintf("global_stack_low: %p\n", global_stack_low);
 
 	int res = swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, 0);
-	lprintf("exn_stack: %p, res: %d\n", exn_stack, res);
+	lprintf("pf_exn_stack: %p, res should be 0: %d\n", exn_stack, res);
 	assert(res == 0);
 
 	return;
@@ -57,6 +63,9 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 {
 	assert(arg == NULL);
 	assert(ureg);
+
+	/* If other user threads initialized, don't grow stack */
+	if (THR_INITIALIZED) return;
 
 	/* Get relevant info */
 	int cause = ureg->cause;
@@ -79,13 +88,16 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
 		lprintf("base: %p\n", (void *) base);
+		global_stack_low = (void *) base; // TODO delete this after stop debug
+    	lprintf("global_stack_low: %p\n", global_stack_low);
 
 		/* Panic if cannot grow user space stack */
 		if (res < 0)
 			panic("FATAL: Unable to grow user space stack, error: %d\n", res);
+
+		/* Always register page fault exception handler again */
+		swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, ureg);
 	}
-	/* Always register page fault exception handler again */
-	swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, ureg);
 	return;
 }
 

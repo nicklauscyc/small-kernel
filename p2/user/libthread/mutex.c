@@ -65,8 +65,12 @@ mutex_lock( mutex_t *mp )
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
     lprintf("my_ticket: %lu", my_ticket);
     lprintf("next_ticket after: %lu", mp->next_ticket);
-    while (my_ticket != mp->serving)
+    while (my_ticket != mp->serving) {
+		lprintf("waiting for turn on thread: %d\n", gettid());
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
+	}
+	lprintf("got lock on thread: %d\n", gettid());
+
 
     mp->owner_tid = gettid();
 }
