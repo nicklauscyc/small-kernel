@@ -26,7 +26,7 @@
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
-unsigned int the_stack_low = 0;
+extern void *global_stack_low; /* In autostack.c */
 mutex_t *mmp; /* global mutex for malloc family functions */
 
 /* Global variable to indicate that thr library has been initialized */
@@ -92,7 +92,6 @@ thr_create(void *(*func)(void *), void *arg)
 
 	assert(ROUND_UP_THR_STACK_SIZE % 4 == 0);
 	lprintf("before malloc(round up thr_stack)\n");
-	MAGIC_BREAK;
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
 	assert(thr_stack);
 	lprintf("after malloc thr stack\n");
