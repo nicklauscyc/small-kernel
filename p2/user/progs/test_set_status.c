@@ -2,9 +2,10 @@
 #include <stdlib.h> /* exit() */
 #include <simics.h> /* lprintf */
 #include <mutex.h> /* mutex */
-#include <thr_internals.h> /* add_one_atomic(), thread_fork() */
+#include <thr_internals.h> /* add_one_atomic() */
 #include <assert.h>
 #include <mutex.h>
+#include <thread.h>
 
 void test_exec();
 void test_fork_and_wait();
@@ -29,13 +30,47 @@ void test_add_one_atomic() {
     assert(result == 100);
 }
 
-// At dad should be printed before At son
+int val = 0;
+
+void *conflict_a(void *arg) {
+    lprintf("Hello from conflict_a");
+    mutex_t *m = (mutex_t *)arg;
+    for (int i=0; i<1000; ++i) {
+        mutex_lock(m);
+        for (int j=0; j<1000; ++j) {
+            val++;
+        }
+        mutex_unlock(m);
+    }
+    lprintf("Conflict a done");
+    return 0;
+}
+
+void *conflict_b(void *arg) {
+    lprintf("Hello from conflict_b");
+    mutex_t *m = (mutex_t *)arg;
+    for (int i=0; i<1000; ++i) {
+        mutex_lock(m);
+        for (int j=0; j<1000; ++j) {
+            val++;
+        }
+        mutex_unlock(m);
+    }
+    lprintf("Conflict b done");
+    return 0;
+}
+
 void test_mutex() {
+    thr_init(1024);
     mutex_t m;
     assert(mutex_init(&m) >= 0);
-    mutex_lock(&m);
-    sleep(500);
-    mutex_unlock(&m);
+
+    thr_create(conflict_a, &m);
+    thr_create(conflict_b, &m);
+    // No join yet, so just sleep for a while
+    sleep(1000);
+    lprintf("val %d (expect 2000000)", val);
+    assert(val = 2000000);
 
     mutex_destroy(&m);
 }

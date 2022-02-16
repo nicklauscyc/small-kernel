@@ -32,7 +32,6 @@ child_continue:
     pushl %eax          /* Push return value onto stack for call to thr_exit */
     call thr_exit
 
-    /* Thr_exit should never never return, assert(false) */
-    //pushl $0
-    //call assert
+    /* Thr_exit should never never return, panic */
+    call panic
 

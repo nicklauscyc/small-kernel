@@ -6,7 +6,6 @@
  *  @author Nicklaus Choo (nchoo)
  */
 
-#include <simics.h> /* lprintf() */
 #include <malloc.h> /* malloc() */
 #include <thr_internals.h> /* thread_fork() */
 #include <thread.h> /* all thread library prototypes */
@@ -64,7 +63,6 @@ thr_init(unsigned int size)
 	if (size == 0 || THR_INITIALIZED) return -1;
 	THR_STACK_SIZE = size;
     THR_INITIALIZED = 1;
-	lprintf("thr_init() finished running\n");
 	return 0;
 }
 
@@ -80,7 +78,6 @@ thr_create(void *(*func)(void *), void *arg)
 {
 	/* thr_init() was not called prior, return error */
 	if (!THR_INITIALIZED) return THR_UNINIT;
-	lprintf("thr_create() running on tid: %d\n", gettid());
 
 	/* Allocate memory for thread stack */
 	//TODO magic number boa
@@ -91,19 +88,15 @@ thr_create(void *(*func)(void *), void *arg)
 		ROUND_UP_THR_STACK_SIZE += 1;
 
 	assert(ROUND_UP_THR_STACK_SIZE % 4 == 0);
-	lprintf("before malloc(round up thr_stack)\n");
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
 	assert(thr_stack);
-	lprintf("after malloc thr stack\n");
 
 	affirm_msg(thr_stack, "Failed to allocate child stack.");
 
 	/* Allocate memory for thr_status_t */
-	lprintf("before malloc thr_status_t\n");
 	thr_status_t *tp = malloc(((sizeof(thr_status_t) / 16) + 1) * 16);
 	assert(tp);
 
-	lprintf("after malloc thr_status_t\n");
 	affirm_msg(tp, "Failed to allocate memory for thread status.");
 	tp->thr_stack_low = thr_stack;
 	tp->thr_stack_high = thr_stack + THR_STACK_SIZE - 4;
@@ -133,6 +126,9 @@ thr_create(void *(*func)(void *), void *arg)
 	return tid;
 }
 
+// TODO: Use wait to collect tid of vanish(ed) child, then collect status
+//int thr_join( int tid, void **statusp );
+
 void
 thr_exit(void *status)
 {
@@ -149,10 +145,7 @@ thr_exit(void *status)
 	//free(tp->thr_stack_low);
 	//thr_arr[i] = 0;
 
-	///* Deschedule */
-	//int x = 0;
-	//deschedule(&x);
-    exit(0);
+    vanish();
 }
 
 int
