@@ -26,7 +26,6 @@
 #include <thr_internals.h> /* add_one_atomic */
 #include <assert.h>     /* affirm_msg() */
 #include <syscall.h>    /* yield() */
-#include <simics.h> /*TODO Remove*/
 
 int
 mutex_init( mutex_t *mp )
@@ -60,17 +59,11 @@ mutex_lock( mutex_t *mp )
     affirm_msg(mp && mp->initialized,
             "Tried to acquire invalid or uninitialized lock");
 
-    lprintf("next_ticket: %lu", mp->next_ticket);
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
-    lprintf("my_ticket: %lu", my_ticket);
-    lprintf("next_ticket after: %lu", mp->next_ticket);
     while (my_ticket != mp->serving) {
-		lprintf("waiting for turn on thread: %d\n", gettid());
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
 	}
-	lprintf("got lock on thread: %d\n", gettid());
-
 
     mp->owner_tid = gettid();
 }
