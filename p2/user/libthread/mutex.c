@@ -51,6 +51,7 @@ mutex_destroy( mutex_t *mp )
     mp->initialized = 0;
 }
 
+/* TODO: Make this re-entrant, ie no-op if calling thread already owns mutex */
 void
 mutex_lock( mutex_t *mp )
 {
