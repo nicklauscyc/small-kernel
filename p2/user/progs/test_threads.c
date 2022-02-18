@@ -24,10 +24,13 @@ add_one(void *arg)
 
 int main()
 {
+	/* Test init to zero stack size does not go through */
 	int res = 0;
 	res = thr_init(0);
 	lprintf("res: %d\n", res);
 	assert(res == -1);
+
+
 	assert(thr_init(PAGE_SIZE) == 0);
 
 	int x = 1;

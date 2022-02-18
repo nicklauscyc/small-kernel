@@ -15,6 +15,8 @@
 #include <mutex.h> /* mutex_t */
 #include <string.h> /* memset() */
 
+#include <simics.h> /* MAGIC_BREAK */
+
 /* thread library functions */
 //int thr_init( unsigned int size );
 //int thr_create( void *(*func)(void *), void *args );
@@ -23,12 +25,14 @@
 //int thr_getid( void );
 //int thr_yield( int tid );
 
+#define ALIGN 16
+
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
 extern void *global_stack_low; /* In autostack.c */
-mutex_t mmp; /* global mutex for malloc family functions */
+mutex_t malloc_mutex; /* global mutex for malloc family functions */
 
 /* Global variable to indicate that thr library has been initialized */
 // FIXME: Might not need this as programs are well behaved (section 5.3)
@@ -70,7 +74,8 @@ thr_init( unsigned int size )
 {
 	/* Initialize the mutex for malloc family functions. After this only
 	 * malloc() without underscores should be called */
-	affirm_msg(mutex_init(&mmp) == 0,
+	// mmp = _malloc(sizeof(mutex_t));
+	affirm_msg(mutex_init(&malloc_mutex) == 0,
             "Failed to initialize mutex used in malloc library");
 
     /* Initialize mutex for thread status array, which contains all threads
@@ -100,12 +105,14 @@ thr_create( void *(*func)(void *), void *arg )
 
 	/* Allocate memory for thread stack */
 	// TODO magic number bad
-	// Round the stack size up to a multiple of 4 bytes
+	// Round the stack size up to a multiple of ALIGN bytes
 	unsigned int ROUND_UP_THR_STACK_SIZE =
-		((THR_STACK_SIZE + 4 - 1) / 4) * 4;
+		((THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
     /* Allocate child stack */
+	MAGIC_BREAK;
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
+	MAGIC_BREAK;
 	affirm_msg(thr_stack, "Failed to allocate child stack.");
 
 	/* Allocate memory for thr_status_t */
@@ -115,8 +122,8 @@ thr_create( void *(*func)(void *), void *arg )
 
     /* Set child_tp values */
 	child_tp->thr_stack_low = thr_stack;
-	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE - 4;
-	assert(((uint32_t)child_tp->thr_stack_high) % 4 == 0);
+	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE - ALIGN;
+	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
     /* Get mutex so that child_tp is stored before child exits (and writes to it) */
     mutex_lock(&thr_status_mux);
