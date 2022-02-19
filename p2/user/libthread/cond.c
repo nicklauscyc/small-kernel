@@ -127,8 +127,13 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	mutex_unlock(mp);
 	tprintf("unlocked mp");
 
-	/* Finally deschedule this thread */
+    // FIXME: If we unlock cv->mp before call to deschedule
+    // someone can call make_runnable before we actually go
+    // to sleep
+
 	int runnable = 0;
+
+	/* Finally deschedule this thread */
 	int res = deschedule(&runnable);
 
 	/* res should be 0 on successful return */
@@ -143,8 +148,8 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	return;
 }
 
-/** @brief Helper function to decide whether to lock condition variable
- *         mutex or not.
+/** @brief Helper function which assumes cv->mp is locked by this
+ *         thread.
  *
  *  This solves the problem of not awakening threads which may have invoked
  *  cond_wait() after the call to con_broadcast()
@@ -154,30 +159,30 @@ cond_wait( cond_t *cv, mutex_t *mp )
  *  	   con_broadcast(), 0 otherwise.
  */
 void
-_cond_signal( cond_t *cv, const int from_broadcast)
+_cond_signal( cond_t *cv )
 {
-	/* Acquire mutex if call was not from broadcast */
-	if (!from_broadcast)
-		mutex_lock(cv->mp);
-
 	/* Get front most descheduled thread if queue non_empty */
 	cvar_node_t *front = Q_GET_FRONT(cv->qp);
 	if (front) {
 		Q_REMOVE(cv->qp, front, link);
 
 		/* Update that this is no longer descheduled */
-		assert(front->descheduled);
+		affirm(front->descheduled);
 		front->descheduled = 0;
 
 		/* get tid and make runnable */
 		int tid = front->tid;
-		int res = make_runnable(tid);
-		tprintf("_con_signal make runnable tid[%d], res: %d", tid, res);
-	}
+        int res;
 
-	/* Return lock if needed */
-    if (!from_broadcast)
-		mutex_unlock(cv->mp);
+        /* Make runnable will only fail if the thread has not been descheduled yet.
+         * However since we know front->descheduled is 1, then that thread is set
+         * to be deschedule soon - where soon means in a few instructions. */
+		while ((res = make_runnable(tid)) < 0) {
+		    tprintf("_cond_signal make runnable tid[%d], res: %d", tid, res);
+            yield(tid);
+        }
+		tprintf("_cond_signal make runnable tid[%d], res: %d", tid, res);
+	}
 
 	return;
 }
@@ -189,8 +194,9 @@ _cond_signal( cond_t *cv, const int from_broadcast)
 void
 cond_signal( cond_t *cv )
 {
-	/* Indicate that we are calling cond_signal not from a broadcast */
-	_cond_signal(cv, 0);
+	mutex_lock(cv->mp);
+	_cond_signal(cv);
+	mutex_unlock(cv->mp);
 }
 
 /** @brief Locks the cv and wakes up all sleeping threads in queue
@@ -200,22 +206,16 @@ cond_signal( cond_t *cv )
 void
 cond_broadcast( cond_t *cv )
 {
-	MAGIC_BREAK;
 	assert(cv);
 	/* Lock cv->mp */
-	tprintf("bdcst getting lock for cv->mp");
 	mutex_lock(cv->mp);
-	tprintf("bdcst got lock fro cv->mp");
 
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
-		tprintf("con_broadcast() loop\n");
-		_cond_signal(cv, 1);
+		_cond_signal(cv);
 	}
 	/* Unlock cv->mp */
-	tprintf("bdcst unlocking cv->mp");
 	mutex_unlock(cv->mp);
-	tprintf("bdcst unlocked cv->mp");
 
 	return;
 }

@@ -185,7 +185,6 @@ thr_join( int tid, void **statusp )
 	/* con_wait for thread with tid to exit */
     mutex_lock(&thr_status_mux);
 	while (1) {
-		MAGIC_BREAK;
 		tprintf("thr_join loop waiting to join tid[%d]", tid);
 
 		/* If some other thread already cleaned up, do nothing more, return */

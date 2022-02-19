@@ -70,7 +70,6 @@ mutex_lock( mutex_t *mp )
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
     while (my_ticket != mp->serving) {
-		MAGIC_BREAK;
 		tprintf("mutex_lock() loop for owner tid %d \n", mp->owner_tid);
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
 	}
