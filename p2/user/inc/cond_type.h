@@ -24,6 +24,7 @@
 typedef struct cvar_node {
 	Q_NEW_LINK(cvar_node) link;
 	thr_status_t *tstatusp;
+	mutex_t *mp;
 	int descheduled;
 } cvar_node_t;
 
@@ -40,6 +41,7 @@ Q_NEW_HEAD(cvar_queue_t, cvar_node);
 typedef struct cond {
 	mutex_t *mp;
 	cvar_queue_t *qp;
+	int init;
 } cond_t;
 
 

@@ -51,16 +51,57 @@ cond_init( cond_t *cv )
 	assert(!Q_GET_FRONT(qp));
 	assert(!Q_GET_TAIL(qp));
 	cv->qp = qp;
+	cv->init = 1;
 	return 0;
 }
-//void cond_destroy( cond_t *cv );
+
+/** @brief deallocates memory of cv
+ *
+ *  Affirm that the queue is empty before destroying so that clients
+ *  will know that they have committed an illegal operation, and not
+ *  mistakenly think that cv was destroyed (if a no-op was done instead
+ *  when cv->queue is not empty.
+ *
+ *  @param cv Pointer to condition variable to deallocate memory
+ */
+void
+cond_destroy( cond_t *cv )
+{
+	/* Cannot destroy if queue of blocked threads not empty */
+	affirm_msg(!(Q_GET_FRONT(cv->qp)), "Illegal: attempted to destroy "
+		"condition variable with blocked threads");
+
+	/* Lock this cv */
+	mutex_lock(cv->mp);
+
+ 	/* Free queue head */
+	free(cv->qp);
+
+	/* Mark as unitialized so no one else may use this cv */
+	cv->init = 0;
+
+	/* Release lock and deactivate mutex */
+	mutex_unlock(cv->mp);
+	mutex_destroy(cv->mp);
+	free(cv->mp);
+
+	/* Free outermost cv struct itself */
+	free(cv);
+}
+
+
 void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
 	/* Lock cv mutex */
 	mutex_lock(cv->mp);
 
-	//TODO get thread status struct
+	/* If cv has been de-initialized, release lock and do nothing */
+	if (!cv->init) {
+		mutex_unlock(cv->mp);
+		return;
+	}
+	/* Get thread status struct */
 	int tid = gettid();
 	thr_status_t *tstatusp = get_thr_status(tid);
 
@@ -71,6 +112,7 @@ cond_wait( cond_t *cv, mutex_t *mp )
 
 	/* Initialize the node in queue */
 	cn->tstatusp = tstatusp;
+	cn->mp = mp;
 	cn->descheduled = 1;
 
 	/* Add to cv queue tail */
@@ -93,17 +135,74 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	return;
 }
 
-//void cond_signal( cond_t *cv );
-//void cond_broadcast( cond_t *cv );
-//
-//#ifndef MUTEX_H
-//#define MUTEX_H
-//
-//#include <mutex_type.h>
-//
-//int mutex_init( mutex_t *mp );
-//void mutex_destroy( mutex_t *mp );
-//void mutex_lock( mutex_t *mp );
-//void mutex_unlock( mutex_t *mp );
-//
-//#
+/** @brief Helper function to decide whether to lock condition variable
+ *         mutex or not.
+ *
+ *  This solves the problem of not awakening threads which may have invoked
+ *  cond_wait() after the call to con_broadcast()
+ *
+ *  @param cv Pointer to condition variable cv
+ *  @param from_broadcast Boolean set to 1 if called from within
+ *  	   con_broadcast(), 0 otherwise.
+ */
+void
+_cond_signal( cond_t *cv, const int from_broadcast)
+{
+	/* Acquire mutex if call was not from broadcast */
+	if (!from_broadcast)
+		mutex_lock(cv->mp);
+
+	/* Get front most descheduled thread if queue non_empty */
+	cvar_node_t *front = Q_GET_FRONT(cv->qp);
+	if (front) {
+		Q_REMOVE(cv->qp, front, link);
+
+		/* Re-acquire mutex and set this thread to runnable */
+		mutex_lock(front->mp);
+
+		/* Update that this is no longer descheduled */
+		assert(front->descheduled);
+		front->descheduled = 0;
+
+		/* get tid and make runnable */
+		int tid = (front->tstatusp)->tid;
+		make_runnable(tid);
+	}
+
+	/* Return lock if needed */
+    if (!from_broadcast)
+		mutex_unlock(cv->mp);
+
+	return;
+}
+
+/** @brief Wakes up the first descheduled thread on the queue
+ *
+ *  @param cv Pointer to condition variable
+ */
+void
+cond_signal( cond_t *cv )
+{
+	/* Indicate that we are calling cond_signal not from a broadcast */
+	_cond_signal(cv, 0);
+}
+
+/** @brief Locks the cv and wakes up all sleeping threads in queue
+ *
+ *  @param cv Pointer to condition variable
+ */
+void
+cond_broadcast( cond_t *cv )
+{
+	/* Lock cv->mp */
+	mutex_lock(cv->mp);
+
+	/* Wake up all threads */
+	while(Q_GET_FRONT(cv->qp)) {
+		_cond_signal(cv, 1);
+	}
+	/* Unlock cv->mp */
+	mutex_unlock(cv->mp);
+
+	return;
+}
