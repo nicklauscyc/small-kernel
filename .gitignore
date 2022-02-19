@@ -40,3 +40,6 @@
 *.dep
 *.swp
 *.a
+
+# ignore all . dot files
+.*

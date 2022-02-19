@@ -1,6 +1,7 @@
 /** @file misbehave.S
  *  @brief Assembly wrapper for misbehave() system call
  *  @author Andre Nascimento (anascime)
+ *  @author Nicklaus Choo (nchoo)
  *  @bugs No known bugs
  */
 
@@ -16,8 +17,8 @@ misbehave:
 	pushl %ebx
 	pushl %esi
 
-	movl 8(%ebp), %esi  /* Get first arg and place in %esi */
-	int $MISBEHAVE_INT  /* Call handler in IDT for misbehave() */
+	movl 8(%ebp), %esi /* Get first arg and place in %esi */
+	int $MISBEHAVE_INT /* Call handler in IDT for misbehave() */
 
 	/* Restore all callee save registers */
 	popl %esi

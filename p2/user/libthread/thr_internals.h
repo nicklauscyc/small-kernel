@@ -7,11 +7,39 @@
 #ifndef THR_INTERNALS_H
 #define THR_INTERNALS_H
 
-#include <stdint.h>
+#include <stdint.h> /* uint32_t */
+#include <cond_type.h> /* cond_t */
+
+void tprintf( const char *format, ... );
+
+
+/* Global variable set to 1 when thr_init() is called, 0 before */
+extern int THR_INITIALIZED;
+
+/** @brief Struct containing all necesary information about a thread.
+ *
+ *  @param thr_stack_low Lowest valid memory address in thread stack
+ *  @param thr_stack_high Highest valid memory address in thread stack
+ *  @param tid Thread ID (matching that of gettid() syscall)
+ *  @param exit_cvar A cvar which will receive a broadcast on thr_exit
+ *  @param exited Whether the thread has exited
+ *  @param statusp Status which the thread exited with. Valid iff exited == 1
+ */
+typedef struct {
+	char *thr_stack_low;
+	char *thr_stack_high;
+	int tid;
+    cond_t *exit_cvar;
+    int exited;
+    void *status;
+} thr_status_t;
+
+thr_status_t *get_thr_status( int tid );
 
 uint32_t add_one_atomic(uint32_t *at);
 int thread_fork(void *child_stack_start, void *(*func)(void *), void *arg);
 void run_thread(void *rsp, void *(*func)(void *), void *arg);
+
 
 /* Circular Unbounded Arrays */
 
