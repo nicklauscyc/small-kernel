@@ -59,6 +59,7 @@ mutex_lock( mutex_t *mp )
 {
 	/* If calling thread already owns mutex, no-op */
 	if (gettid() == mp->owner_tid) return;
+	tprintf("in mutex_lock");
 
     /* Exit if impossible to lock mutex, as just returning would give
      * thread the false impression that lock was acquired. */
@@ -88,6 +89,8 @@ mutex_unlock( mutex_t *mp )
 			gettid(), mp->owner_tid);
     affirm_msg(mp->serving < mp->next_ticket,
             "tid[%d]: Tried to unlock mutex that was not locked", gettid());
+
+	tprintf("in mutex_unlock");
 
     mp->serving++;
     mp->owner_tid = -1;
