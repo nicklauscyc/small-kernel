@@ -174,9 +174,6 @@ _cond_signal( cond_t *cv, const int from_broadcast)
 	if (front) {
 		Q_REMOVE(cv->qp, front, link);
 
-		/* Re-acquire mutex and set this thread to runnable */
-		mutex_lock(front->mp);
-
 		/* Update that this is no longer descheduled */
 		assert(front->descheduled);
 		front->descheduled = 0;
