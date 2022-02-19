@@ -176,8 +176,8 @@ _cond_signal( cond_t *cv, const int from_broadcast)
 
 		/* get tid and make runnable */
 		int tid = front->tid;
-		make_runnable(tid);
-		tprintf("_con_signal make runnable tid[%d]", tid);
+		int res = make_runnable(tid);
+		tprintf("_con_signal make runnable tid[%d], res: %d", tid, res);
 	}
 
 	/* Return lock if needed */
@@ -205,8 +205,12 @@ cond_signal( cond_t *cv )
 void
 cond_broadcast( cond_t *cv )
 {
+	MAGIC_BREAK;
+	assert(cv);
 	/* Lock cv->mp */
+	tprintf("bdcst getting lock for cv->mp");
 	mutex_lock(cv->mp);
+	tprintf("bdcst got lock fro cv->mp");
 
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
@@ -214,7 +218,9 @@ cond_broadcast( cond_t *cv )
 		_cond_signal(cv, 1);
 	}
 	/* Unlock cv->mp */
+	tprintf("bdcst unlocking cv->mp");
 	mutex_unlock(cv->mp);
+	tprintf("bdcst unlocked cv->mp");
 
 	return;
 }
