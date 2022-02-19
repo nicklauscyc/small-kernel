@@ -12,51 +12,43 @@
 #include <stddef.h>
 #include <mutex.h>
 #include <assert.h> /* assert() */
-#include <simics.h> /* MAGIC_BREAK */
-extern mutex_t *mmp;
+extern mutex_t malloc_mutex;
 
 void *malloc(size_t __size)
 {
-	assert(mmp);
+	//assert(&malloc_mutex);
 
-	lprintf("mmp: %p\n", mmp);
-
-	mutex_lock(mmp);
+	mutex_lock(&malloc_mutex);
 	void *p = _malloc(__size);
-	mutex_unlock(mmp);
+	mutex_unlock(&malloc_mutex);
 	return p;
 }
 
 void *calloc(size_t __nelt, size_t __eltsize)
 {
-	assert(mmp);
-	MAGIC_BREAK;
-	lprintf("mmp: %p\n", mmp);
-	mutex_lock(mmp);
+	//assert(&malloc_mutex);
+	mutex_lock(&malloc_mutex);
 	void *p = _calloc(__nelt, __eltsize);
-	mutex_unlock(mmp);
+	mutex_unlock(&malloc_mutex);
 	return p;
 }
 
 void *realloc(void *__buf, size_t __new_size)
 {
 
-	assert(mmp);
-    MAGIC_BREAK;
-	lprintf("mmp: %p\n", mmp);
+	//assert(&malloc_mutex);
 
-	mutex_lock(mmp);
+	mutex_lock(&malloc_mutex);
 	void *p = realloc(__buf, __new_size);
-	mutex_unlock(mmp);
+	mutex_unlock(&malloc_mutex);
 	return p;
 }
 
 void free(void *__buf)
 {
-	MAGIC_BREAK;
-	assert(mmp);
-	mutex_lock(mmp);
+	//assert(&malloc_mutex);
+	mutex_lock(&malloc_mutex);
 	_free(__buf);
-	mutex_unlock(mmp);
+	mutex_unlock(&malloc_mutex);
 	return;
 }

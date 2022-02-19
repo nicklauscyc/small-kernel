@@ -15,32 +15,21 @@ void *
 add_one(void *arg)
 {
 	int *iarg = (int *) arg;
-	lprintf("hello from child thread with id: %d, *arg: %d\n", thr_getid(), *iarg);
-	assert(thr_getid() == gettid());
 	*iarg = *iarg + 1;
-    lprintf("[child] Set iarg to %d", *iarg);
     return arg;
 }
 
 int main()
 {
-	int res = 0;
-	res = thr_init(0);
-	lprintf("res: %d\n", res);
-	assert(res == -1);
 	assert(thr_init(PAGE_SIZE) == 0);
 
 	int x = 1;
-	int *arg = &x;
-	*arg = 1;
-	assert(*arg == 1);
-	int tid = thr_create(add_one,arg);
-	lprintf("hello from parent thread, child id is: %d\n", tid);
-	//lprintf("*arg: %d\n", *arg);
-    tid = thr_create(add_one,arg);
-	lprintf("hello from parent thread, child id is: %d\n", tid);
-	sleep(100);
-	//lprintf("*arg: %d\n", *arg);
+	int tid = thr_create(add_one, &x);
+
+    void *out;
+    thr_join(tid, &out);
+
+    assert(*(int *)out == 2);
 
 	return 0;
 }

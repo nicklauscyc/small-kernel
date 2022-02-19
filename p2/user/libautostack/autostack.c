@@ -5,7 +5,6 @@
 
 #include <ureg.h> /* ureg_t */
 #include <syscall.h> /* PAGE_SIZE */
-#include <simics.h> /* lprintf() */
 #include <stdint.h>  /* uint32_t */
 #include <stddef.h> /* NULL */
 #include <assert.h> /* assert() */
@@ -46,12 +45,8 @@ install_autostack(void *stack_high, void *stack_low)
 {
 	assert(global_stack_low == 0);
 	global_stack_low = stack_low;
-	lprintf("stack_high: %p, stack_low: %p, size:%x\n", stack_high,
-	stack_low, stack_high - stack_low);
-	lprintf("global_stack_low: %p\n", global_stack_low);
 
 	int res = swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, 0);
-	lprintf("pf_exn_stack: %p, res should be 0: %d\n", exn_stack, res);
 	assert(res == 0);
 
 	return;
@@ -76,20 +71,14 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	/* Why memory address was inaccessible */
 	unsigned int error_code = ureg->error_code;
 
-	lprintf("pf_swexn_handler() cause: %x, cr2: %x, error_code: %x\n",
-	        cause, cr2, error_code);
-
 	/* Only deal with pagefault exceptions caused by non-present page */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(ERR_P_PROTECTION_VIOLATION_MASK & error_code)) {
-		//MAGIC_BREAK;
 
 		/* Allocate new memory for user space stack */
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
-		lprintf("base: %p\n", (void *) base);
 		global_stack_low = (void *) base; // TODO delete this after stop debug
-    	lprintf("global_stack_low: %p\n", global_stack_low);
 
 		/* Panic if cannot grow user space stack */
 		if (res < 0)
