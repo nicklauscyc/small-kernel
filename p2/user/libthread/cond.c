@@ -86,29 +86,24 @@ cond_destroy( cond_t *cv )
 	mutex_unlock(cv->mp);
 	mutex_destroy(cv->mp);
 	free(cv->mp);
-
-	/* Free outermost cv struct itself */
-	free(cv);
 }
-
 
 void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
-	tprintf("my id: %d", gettid());
+	/* If cv has been de-initialized, release lock and do nothing */
+	affirm_msg(cv != NULL && cv->init,
+            "Trying to wait on uninitialized cond variable.");
+
+    // TODO: cond_destroy could happen here (Illegal, however)
+
 	/* Lock cv mutex */
+	tprintf("my id: %d", gettid());
 	tprintf("locking cv->mp");
 	mutex_lock(cv->mp);
 	tprintf("locked cv->mp");
 
-	/* If cv has been de-initialized, release lock and do nothing */
-	if (!cv->init) {
-		tprintf("unlocking cv->mp because !cv->init");
-		mutex_unlock(cv->mp);
-		tprintf("unlocked cv->mp because !cv->init");
 
-		return;
-	}
 	/* Allocate memory for linked list element */
 	cvar_node_t *cn = malloc(sizeof(cvar_node_t));
 	assert(cn);
