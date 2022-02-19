@@ -48,7 +48,8 @@ mutex_destroy( mutex_t *mp )
         return;
     /* However, crash if threads have or are waiting for lock. */
     affirm_msg(mp->serving == mp->next_ticket,
-            "Tried to destroy mutex in use by other threads");
+            "tid[%d]: Tried to destroy mutex in use by other threads",
+			gettid());
     mp->initialized = 0;
 }
 
@@ -56,15 +57,20 @@ mutex_destroy( mutex_t *mp )
 void
 mutex_lock( mutex_t *mp )
 {
+	/* If calling thread already owns mutex, no-op */
+	if (gettid() == mp->owner_tid) return;
+
     /* Exit if impossible to lock mutex, as just returning would give
      * thread the false impression that lock was acquired. */
     affirm_msg(mp && mp->initialized,
-            "Tried to acquire invalid or uninitialized lock");
+            "tid[%d]: Tried to acquire invalid or uninitialized lock",
+			 gettid());
 
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
     while (my_ticket != mp->serving) {
-		lprintf("mutex_lock() loop\n");
+		MAGIC_BREAK;
+		tprintf("mutex_lock() loop for owner tid %d \n", mp->owner_tid);
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
 	}
 
@@ -76,11 +82,12 @@ mutex_unlock( mutex_t *mp )
 {
     /* Ensure lock is valid, locked and owned by this thread*/
     affirm_msg(mp && mp->initialized,
-            "Tried to unlock invalid or uninitialized lock");
+            "tid[%d]: Tried to unlock invalid or uninitialized lock", gettid());
     affirm_msg(mp->owner_tid == gettid(),
-            "Tried to unlock lock owned by different thread");
+            "tid[%d]: Tried to unlock lock owned by tid[%d] ",
+			gettid(), mp->owner_tid);
     affirm_msg(mp->serving < mp->next_ticket,
-            "Tried to unlock mutex that was not locked");
+            "tid[%d]: Tried to unlock mutex that was not locked", gettid());
 
     mp->serving++;
     mp->owner_tid = -1;

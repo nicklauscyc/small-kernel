@@ -95,16 +95,17 @@ cond_destroy( cond_t *cv )
 void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
+	tprintf("my id: %d", gettid());
 	/* Lock cv mutex */
-	lprintf("locking cv->mp");
+	tprintf("locking cv->mp");
 	mutex_lock(cv->mp);
-	lprintf("locked cv->mp");
+	tprintf("locked cv->mp");
 
 	/* If cv has been de-initialized, release lock and do nothing */
 	if (!cv->init) {
-		lprintf("unlocking cv->mp because !cv->init");
+		tprintf("unlocking cv->mp because !cv->init");
 		mutex_unlock(cv->mp);
-		lprintf("unlocked cv->mp because !cv->init");
+		tprintf("unlocked cv->mp because !cv->init");
 
 		return;
 	}
@@ -126,14 +127,14 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	Q_INSERT_TAIL(cv->qp, cn, link);
 
 	/* Give up cv mutex */
-	lprintf("unlocking cv->mp");
+	tprintf("unlocking cv->mp");
 	mutex_unlock(cv->mp);
-	lprintf("unlocked cv->mp");
+	tprintf("unlocked cv->mp");
 
 	/* Give up mutex */
-	lprintf("unlocking mp");
+	tprintf("unlocking mp");
 	mutex_unlock(mp);
-	lprintf("unlocked mp");
+	tprintf("unlocked mp");
 
 	/* Finally deschedule this thread */
 	int runnable = 0;
@@ -142,7 +143,12 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	/* res should be 0 on successful return */
 	assert(!res);
 
-	/* On wake up, will run here */
+	/* On wake up, reacquire mutex */
+	tprintf("woken up, trying to acquire mutex");
+	mutex_lock(mp);
+	tprintf("woken up, acquired mutex");
+
+
 	return;
 }
 
@@ -178,6 +184,7 @@ _cond_signal( cond_t *cv, const int from_broadcast)
 		/* get tid and make runnable */
 		int tid = (front->tstatusp)->tid;
 		make_runnable(tid);
+		tprintf("_con_signal make runnable tid[%d]", tid);
 	}
 
 	/* Return lock if needed */
@@ -210,7 +217,7 @@ cond_broadcast( cond_t *cv )
 
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
-		lprintf("con_broadcast() loop\n");
+		tprintf("con_broadcast() loop\n");
 		_cond_signal(cv, 1);
 	}
 	/* Unlock cv->mp */

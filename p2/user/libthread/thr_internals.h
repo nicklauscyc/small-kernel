@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 
+void tprintf( const char *format, ... );
+
 
 /* Global variable set to 1 when thr_init() is called, 0 before */
 extern int THR_INITIALIZED;

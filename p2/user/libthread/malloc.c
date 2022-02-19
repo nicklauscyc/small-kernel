@@ -30,7 +30,6 @@ void *malloc(size_t __size)
 void *calloc(size_t __nelt, size_t __eltsize)
 {
 	//assert(&malloc_mutex);
-	MAGIC_BREAK;
 	lprintf("&malloc_mutex: %p\n", &malloc_mutex);
 	mutex_lock(&malloc_mutex);
 	void *p = _calloc(__nelt, __eltsize);
@@ -42,7 +41,6 @@ void *realloc(void *__buf, size_t __new_size)
 {
 
 	//assert(&malloc_mutex);
-    MAGIC_BREAK;
 	lprintf("&malloc_mutex: %p\n", &malloc_mutex);
 
 	mutex_lock(&malloc_mutex);
@@ -53,7 +51,6 @@ void *realloc(void *__buf, size_t __new_size)
 
 void free(void *__buf)
 {
-	MAGIC_BREAK;
 	//assert(&malloc_mutex);
 	mutex_lock(&malloc_mutex);
 	_free(__buf);
