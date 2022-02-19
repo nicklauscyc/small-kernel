@@ -13,13 +13,23 @@
  *
  *  @author Nicklaus Choo (nchoo)
  */
+//typedef struct {
+//	char *thr_stack_low;
+//	char *thr_stack_high;
+//	int tid;
+//    //TODO: cond_t *exit_cvar;
+//    int exited;
+//    void *status;
+//} thr_status_t;
 
 #include <mutex.h> /* mutex_t */
 #include <cond_type.h> /* cond_t */
 #include <malloc.h> /* malloc() */
 #include <variable_queue.h> /* queue_t */
 #include <assert.h> /* assert() */
-#include <thr_internals.h>
+#include <thr_internals.h> /* thr_status_t */
+#include <syscall.h> /* gettid() */
+#include <string.h> /* memset() */
 
 
 /* condition variable functions */
@@ -50,12 +60,39 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	/* Lock cv mutex */
 	mutex_lock(cv->mp);
 
-	//TODO get thread info struct
+	//TODO get thread status struct
+	int tid = gettid();
+	thr_status_t *tstatusp = get_thr_status(tid);
 
-	/* Add to cv queue */
-	//Q_INSERT_TAIL(cv->qp,
-	//
-	}
+	/* Allocate memory for linked list element */
+	cvar_node_t *cn = malloc(sizeof(cvar_node_t));
+	assert(cn);
+	memset(cn, 0, sizeof(cvar_node_t));
+
+	/* Initialize the node in queue */
+	cn->tstatusp = tstatusp;
+	cn->descheduled = 1;
+
+	/* Add to cv queue tail */
+	Q_INSERT_TAIL(cv->qp, cn, link);
+
+	/* Give up mutex */
+	mutex_unlock(mp);
+
+	/* Give up cv mutex */
+	mutex_unlock(cv->mp);
+
+	/* Finally deschedule this thread */
+	int runnable = 0;
+	int res = deschedule(&runnable);
+
+	/* res should be 0 on successful return */
+	assert(!res);
+
+	/* On wake up, will run here */
+	return;
+}
+
 //void cond_signal( cond_t *cv );
 //void cond_broadcast( cond_t *cv );
 //

@@ -10,6 +10,7 @@
 #include <thr_internals.h>
 
 /* Declare type of cvar_node_t */
+// TODO not sure where this should go
 /** @brief struct for each node in cv->queue
  *
  *  typedef struct cvar_node {
@@ -22,7 +23,8 @@
  */
 typedef struct cvar_node {
 	Q_NEW_LINK(cvar_node) link;
-	thr_status_t *thr_info;
+	thr_status_t *tstatusp;
+	int descheduled;
 } cvar_node_t;
 
 /* Declare type of cvar_queue_t */
