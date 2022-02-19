@@ -210,6 +210,11 @@ thr_exit( void *status )
 }
 
 int
+thr_yield( int tid )
+{
+	return yield(tid);
+}
+int
 thr_getid( void )
 {
 	return gettid();

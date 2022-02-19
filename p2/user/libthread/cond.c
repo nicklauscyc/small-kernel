@@ -13,6 +13,8 @@
  *
  *  @author Nicklaus Choo (nchoo)
  */
+
+#include <simics.h> /* lprintf() */
 //typedef struct {
 //	char *thr_stack_low;
 //	char *thr_stack_high;
@@ -94,11 +96,16 @@ void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
 	/* Lock cv mutex */
+	lprintf("locking cv->mp");
 	mutex_lock(cv->mp);
+	lprintf("locked cv->mp");
 
 	/* If cv has been de-initialized, release lock and do nothing */
 	if (!cv->init) {
+		lprintf("unlocking cv->mp because !cv->init");
 		mutex_unlock(cv->mp);
+		lprintf("unlocked cv->mp because !cv->init");
+
 		return;
 	}
 	/* Get thread status struct */
@@ -118,11 +125,15 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	/* Add to cv queue tail */
 	Q_INSERT_TAIL(cv->qp, cn, link);
 
-	/* Give up mutex */
-	mutex_unlock(mp);
-
 	/* Give up cv mutex */
+	lprintf("unlocking cv->mp");
 	mutex_unlock(cv->mp);
+	lprintf("unlocked cv->mp");
+
+	/* Give up mutex */
+	lprintf("unlocking mp");
+	mutex_unlock(mp);
+	lprintf("unlocked mp");
 
 	/* Finally deschedule this thread */
 	int runnable = 0;
@@ -199,6 +210,7 @@ cond_broadcast( cond_t *cv )
 
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
+		lprintf("con_broadcast() loop\n");
 		_cond_signal(cv, 1);
 	}
 	/* Unlock cv->mp */

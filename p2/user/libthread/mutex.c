@@ -26,6 +26,7 @@
 #include <thr_internals.h> /* add_one_atomic */
 #include <assert.h>     /* affirm_msg() */
 #include <syscall.h>    /* yield() */
+#include <simics.h> /* lprintf() */
 
 int
 mutex_init( mutex_t *mp )
@@ -63,6 +64,7 @@ mutex_lock( mutex_t *mp )
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
     while (my_ticket != mp->serving) {
+		lprintf("mutex_lock() loop\n");
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
 	}
 
