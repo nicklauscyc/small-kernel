@@ -130,6 +130,7 @@ UPDATE_METHOD = afs
 # directory
 #
 410TESTS = cat stack_test1 getpid_test1 startle actual_wait \
+	thr_exit_join misbehave misbehave_wrap cyclone
 
 
 ###########################################################################
@@ -159,10 +160,9 @@ THREAD_OBJS = malloc.o panic.o mutex.o add_one_atomic.o thread.o \
 ###########################################################################
 SYSCALL_OBJS = fork.o exec.o set_status.o vanish.o wait.o task_vanish.o \
                gettid.o yield.o deschedule.o make_runnable.o get_ticks.o \
-			   sleep.o swexn.o new_pages.o remove_pages.o \
-			   getchar.o readline.o print.o set_term_color.o set_cursor_pos.o \
-			   get_cursor_pos.o \
-			   readfile.o halt.o
+			   sleep.o swexn.o new_pages.o remove_pages.o getchar.o \
+			   readline.o print.o set_term_color.o set_cursor_pos.o \
+			   get_cursor_pos.o readfile.o halt.o misbehave.o
 
 ###########################################################################
 # Object files for your automatic stack handling

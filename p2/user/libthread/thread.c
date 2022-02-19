@@ -15,8 +15,6 @@
 #include <mutex.h> /* mutex_t */
 #include <string.h> /* memset() */
 
-#include <simics.h> /* MAGIC_BREAK */
-
 /* thread library functions */
 //int thr_init( unsigned int size );
 //int thr_create( void *(*func)(void *), void *args );
@@ -72,9 +70,9 @@ mutex_t thr_status_mux;
 int
 thr_init( unsigned int size )
 {
-	/* Initialize the mutex for malloc family functions. After this only
-	 * malloc() without underscores should be called */
-	// mmp = _malloc(sizeof(mutex_t));
+	if (size == 0 || THR_INITIALIZED) return -1;
+
+	/* Initialize the mutex for malloc family functions. */
 	affirm_msg(mutex_init(&malloc_mutex) == 0,
             "Failed to initialize mutex used in malloc library");
 
@@ -83,9 +81,21 @@ thr_init( unsigned int size )
 	affirm_msg(mutex_init(&thr_status_mux) == 0,
             "Failed to initialize mutex used in thread library");
 
-	if (size == 0 || THR_INITIALIZED) return -1;
 	THR_STACK_SIZE = size;
     THR_INITIALIZED = 1;
+
+    /* Store current threads info in thr_arr, as it is the only
+     * thread in this task not created through thr_create. */
+
+	/* Allocate memory for thr_status_t */
+	thr_status_t *tp = malloc(sizeof(thr_status_t));
+	affirm_msg(tp, "Failed to allocate memory for thread status.");
+    memset(tp, 0, sizeof(thr_status_t));
+
+    /* Set child_tp values */
+    tp->tid = gettid();
+    thr_arr[tp->tid] = tp;
+
 	return 0;
 }
 
@@ -110,9 +120,7 @@ thr_create( void *(*func)(void *), void *arg )
 		((THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
     /* Allocate child stack */
-	MAGIC_BREAK;
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
-	MAGIC_BREAK;
 	affirm_msg(thr_stack, "Failed to allocate child stack.");
 
 	/* Allocate memory for thr_status_t */
@@ -151,6 +159,7 @@ thr_join( int tid, void **statusp )
     if (tid < 0 || tid > 100 || thr_arr[tid] == NULL)
         return -1;
 
+    mutex_unlock(&thr_status_mux); // FIXME: Locks currently not re-entrant
     /* FIXME: Swap for cvar: Wait until thread exits */
     while(1) {
         mutex_lock(&thr_status_mux);
@@ -166,12 +175,15 @@ thr_join( int tid, void **statusp )
     //     if (thr_arr[tid]->exited) break;
     // }
 
-    /* Collect exit status */
+    /* Collect exit status if statusp non-NULL */
     assert(thr_arr[tid]->exited);
-    *statusp = thr_arr[tid]->status;
+    if (statusp)
+        *statusp = thr_arr[tid]->status;
 
     /* TODO: Free child stack and thread status and cond var */
-    free(thr_arr[tid]->thr_stack_low);
+    /* TODO: What should we do about parent threads stack? Just don't free? */
+    if (thr_arr[tid]->thr_stack_low)
+        free(thr_arr[tid]->thr_stack_low);
     free(thr_arr[tid]);
 
     mutex_unlock(&thr_status_mux);
