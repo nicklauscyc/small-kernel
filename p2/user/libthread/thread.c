@@ -104,8 +104,8 @@ thr_init( unsigned int size )
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
 	affirm_msg(exit_cvar, "Failed to allocate memory for root thread cvar.");
     memset(exit_cvar, 0, sizeof(cond_t));
-	int res = cond_init(exit_cvar);
-	tprintf("initialized root exit_cvar result: %d", res);
+
+	affirm(cond_init(exit_cvar) == 0);
 	tp->exit_cvar = exit_cvar;
 
     tid2thr_statusp[tp->tid] = tp;
@@ -146,8 +146,8 @@ thr_create( void *(*func)(void *), void *arg )
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
 	affirm_msg(exit_cvar, "Failed to allocate memory for thread cvar.");
     memset(exit_cvar, 0, sizeof(cond_t));
-	int res = cond_init(exit_cvar);
-	tprintf("initialized exit_cvar result: %d", res);
+
+	affirm(cond_init(exit_cvar) == 0);
 	child_tp->exit_cvar = exit_cvar;
 
 	child_tp->thr_stack_low = thr_stack;
@@ -180,13 +180,9 @@ thr_join( int tid, void **statusp )
     if (tid < 0 || tid > 100 || tid2thr_statusp[tid] == NULL) {
         return -1;
 	}
-	mutex_unlock(&thr_status_mux);
 
 	/* con_wait for thread with tid to exit */
-    mutex_lock(&thr_status_mux);
 	while (1) {
-		tprintf("thr_join loop waiting to join tid[%d]", tid);
-
 		/* If some other thread already cleaned up, do nothing more, return */
 		if (tid2thr_statusp[tid] == NULL) {
 			mutex_unlock(&thr_status_mux);
@@ -198,6 +194,7 @@ thr_join( int tid, void **statusp )
 
         cond_wait(tid2thr_statusp[tid]->exit_cvar, &thr_status_mux);
     }
+
     /* Collect exit status if statusp non-NULL */
     assert(tid2thr_statusp[tid]->exited);
     if (statusp)
@@ -208,26 +205,22 @@ thr_join( int tid, void **statusp )
     if (tid2thr_statusp[tid]->thr_stack_low)
         free(tid2thr_statusp[tid]->thr_stack_low);
     free(tid2thr_statusp[tid]);
+    tid2thr_statusp[tid] = NULL; /* Signal we've cleaned up this thread */
 
     mutex_unlock(&thr_status_mux);
 
     return 0;
 }
 
-// TODO: Update with new
 void
 thr_exit( void *status )
 {
-	tprintf("in exit");
 	int tid = gettid();
 
-    tprintf("before mutex_lock()");
     mutex_lock(&thr_status_mux);
-	tprintf("after mutex_lock()");
 
     assert(tid > 0 && tid < 100 && tid2thr_statusp[tid] != NULL);
 
-	tprintf("getting thread status by tid");
     thr_status_t *tp = tid2thr_statusp[tid];
     assert(tp->tid == tid);
 
@@ -235,17 +228,10 @@ thr_exit( void *status )
     tp->exited = 1;
     tp->status = status;
 
-    /* Get exit_cvar and broadcast that this thread has exited */
-    //cvar_t *exit_cvar = thr_statusp->exit_cvar;
-
-	tprintf("before mutex unlock");
-    mutex_unlock(&thr_status_mux);
-	tprintf("after mutex_unlock");
-
 	/* Tell all waiting joining threads of exit */
-	tprintf("before cond_broadcast exit_cvar");
     cond_broadcast(tp->exit_cvar);
-	tprintf("after cond_broadcast exit_cvar");
+
+    mutex_unlock(&thr_status_mux);
 
     /* Exit thread */
     vanish();

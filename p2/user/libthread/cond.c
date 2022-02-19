@@ -98,11 +98,7 @@ cond_wait( cond_t *cv, mutex_t *mp )
     // TODO: cond_destroy could happen here (Illegal, however)
 
 	/* Lock cv mutex */
-	tprintf("my id: %d", gettid());
-	tprintf("locking cv->mp");
 	mutex_lock(cv->mp);
-	tprintf("locked cv->mp");
-
 
 	/* Allocate memory for linked list element */
 	cvar_node_t *cn = malloc(sizeof(cvar_node_t));
@@ -118,32 +114,20 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	Q_INSERT_TAIL(cv->qp, cn, link);
 
 	/* Give up cv mutex */
-	tprintf("unlocking cv->mp");
 	mutex_unlock(cv->mp);
-	tprintf("unlocked cv->mp");
 
 	/* Give up mutex */
-	tprintf("unlocking mp");
 	mutex_unlock(mp);
-	tprintf("unlocked mp");
-
-    // FIXME: If we unlock cv->mp before call to deschedule
-    // someone can call make_runnable before we actually go
-    // to sleep
-
-	int runnable = 0;
 
 	/* Finally deschedule this thread */
+	int runnable = 0;
 	int res = deschedule(&runnable);
 
 	/* res should be 0 on successful return */
 	assert(!res);
 
 	/* On wake up, reacquire mutex */
-	tprintf("woken up, trying to acquire mutex");
 	mutex_lock(mp);
-	tprintf("woken up, acquired mutex");
-
 
 	return;
 }
@@ -178,10 +162,8 @@ _cond_signal( cond_t *cv )
          * However since we know front->descheduled is 1, then that thread is set
          * to be deschedule soon - where soon means in a few instructions. */
 		while ((res = make_runnable(tid)) < 0) {
-		    tprintf("_cond_signal make runnable tid[%d], res: %d", tid, res);
             yield(tid);
         }
-		tprintf("_cond_signal make runnable tid[%d], res: %d", tid, res);
 	}
 
 	return;

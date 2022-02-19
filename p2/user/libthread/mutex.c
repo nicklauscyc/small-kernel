@@ -26,7 +26,6 @@
 #include <thr_internals.h> /* add_one_atomic */
 #include <assert.h>     /* affirm_msg() */
 #include <syscall.h>    /* yield() */
-#include <simics.h> /* lprintf() */
 
 int
 mutex_init( mutex_t *mp )
@@ -59,7 +58,6 @@ mutex_lock( mutex_t *mp )
 {
 	/* If calling thread already owns mutex, no-op */
 	if (gettid() == mp->owner_tid) return;
-	tprintf("in mutex_lock");
 
     /* Exit if impossible to lock mutex, as just returning would give
      * thread the false impression that lock was acquired. */
@@ -70,7 +68,6 @@ mutex_lock( mutex_t *mp )
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);
     while (my_ticket != mp->serving) {
-		tprintf("mutex_lock() loop for owner tid %d \n", mp->owner_tid);
         yield(mp->owner_tid); /* Don't busy wait and prioritize lock owner */
 	}
 
@@ -88,8 +85,6 @@ mutex_unlock( mutex_t *mp )
 			gettid(), mp->owner_tid);
     affirm_msg(mp->serving < mp->next_ticket,
             "tid[%d]: Tried to unlock mutex that was not locked", gettid());
-
-	tprintf("in mutex_unlock");
 
     mp->serving++;
     mp->owner_tid = -1;
