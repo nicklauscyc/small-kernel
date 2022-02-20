@@ -5,6 +5,11 @@
  *
  *  @author Nicklaus Choo (nchoo)
  *  @author Andre Nascimento (anascime)
+ *
+ *  FIXME: What should we do about root thread's stack when joining it?
+ *  Just don't free?
+ *
+ *  @bugs No know bugs.
  */
 
 #include <malloc.h> /* malloc() */
@@ -26,7 +31,7 @@
 //int thr_yield( int tid );
 
 #define ALIGN 16
-#define NUM_THREADS 100
+#define NUM_BUCKETS 1024
 
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
@@ -39,33 +44,9 @@ mutex_t malloc_mutex; /* global mutex for malloc family functions */
 // FIXME: Might not need this as programs are well behaved (section 5.3)
 int THR_INITIALIZED = 0;
 
-/* TODO make this unbounded.
- * A dictionary would be ideal. */
-// #define NUM_THREADS 100
-thr_status_t *tid2thr_statusp[NUM_THREADS];
+hashmap_t tid2thr_status;
+hashmap_t *tid2thr_statusp = &tid2thr_status;
 mutex_t thr_status_mux;
-
-/** @brief Gets a pointer to the struct containing thread status via the tid
- *
- *  @param tid Thread id to get status of
- *  @return Pointer to struct containing all thread status
- */
-thr_status_t *
-get_thr_status( int tid )
-{
-	assert(tid >= 0);
-	/* Ensure exclusive access to array of all thread status */
-	mutex_lock(&thr_status_mux);
-
-	/* Get pointer to thread status based on tid */
-	thr_status_t *thr_statusp = tid2thr_statusp[tid];
-
-	/* Give up mutex */
-	mutex_unlock(&thr_status_mux);
-
-	return thr_statusp;
-}
-
 
 /** @brief Initializes the size all thread stacks will have if the thread
  *         is not the initial thread.
@@ -76,7 +57,8 @@ get_thr_status( int tid )
 int
 thr_init( unsigned int size )
 {
-	if (size == 0 || THR_INITIALIZED) return -1;
+	if (size == 0 || THR_INITIALIZED)
+        return -1;
 
 	/* Initialize the mutex for malloc family functions. */
 	affirm_msg(mutex_init(&malloc_mutex) == 0,
@@ -89,6 +71,10 @@ thr_init( unsigned int size )
 
 	THR_STACK_SIZE = size;
     THR_INITIALIZED = 1;
+
+    /* Initialize hashmap to store thread status information */
+    if (new_map(tid2thr_statusp, NUM_BUCKETS) < 0)
+        return -1;
 
     /* Store current threads info in tid2thr_statusp, as it is the only
      * thread in this task not created through thr_create. */
@@ -108,7 +94,7 @@ thr_init( unsigned int size )
 	affirm(cond_init(exit_cvar) == 0);
 	tp->exit_cvar = exit_cvar;
 
-    tid2thr_statusp[tp->tid] = tp;
+    insert(tid2thr_statusp, tp);
 
 	return 0;
 }
@@ -127,9 +113,9 @@ thr_create( void *(*func)(void *), void *arg )
 	/* thr_init() was not called prior, return error */
 	if (!THR_INITIALIZED) return THR_UNINIT;
 
-	/* Allocate memory for thread stack */
-	// TODO magic number bad
-	// Round the stack size up to a multiple of ALIGN bytes
+	/* Allocate memory for thread stack, round the
+     * stack size up to a multiple of ALIGN bytes. */
+    // TODO: Do we really need this?
 	unsigned int ROUND_UP_THR_STACK_SIZE =
 		((THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
@@ -163,7 +149,7 @@ thr_create( void *(*func)(void *), void *arg )
     /* In parent thread, update child information. */
     child_tp->tid = tid;
 
-    tid2thr_statusp[tid] = child_tp;
+    insert(tid2thr_statusp, child_tp);
 
     /* Only release lock after setting tid2thr_statusp[tid] so that
      * the child knows where to write its exit status. */
@@ -175,37 +161,38 @@ thr_create( void *(*func)(void *), void *arg )
 int
 thr_join( int tid, void **statusp )
 {
-    /* TODO: Check thread exists */
     mutex_lock(&thr_status_mux);
-    if (tid < 0 || tid > 100 || tid2thr_statusp[tid] == NULL) {
-        return -1;
-	}
 
 	/* con_wait for thread with tid to exit */
+    thr_status_t *thr_statusp;
 	while (1) {
-		/* If some other thread already cleaned up, do nothing more, return */
-		if (tid2thr_statusp[tid] == NULL) {
+		/* If some other thread already cleaned up (or if that thread was
+         * never created), do nothing more, return */
+		if ((thr_statusp = get(tid2thr_statusp, tid)) == NULL) {
 			mutex_unlock(&thr_status_mux);
 			return -1;
 		}
 		/* If exited and not cleaned up, break and clean up */
-		if (tid2thr_statusp[tid]->exited)
+		if (thr_statusp->exited)
 			break;
 
-        cond_wait(tid2thr_statusp[tid]->exit_cvar, &thr_status_mux);
+        cond_wait(thr_statusp->exit_cvar, &thr_status_mux);
     }
 
     /* Collect exit status if statusp non-NULL */
-    assert(tid2thr_statusp[tid]->exited);
+    assert(thr_statusp->exited);
     if (statusp)
-        *statusp = tid2thr_statusp[tid]->status;
+        *statusp = thr_statusp->status;
 
-    /* TODO: Free child stack and thread status and cond var */
-    /* TODO: What should we do about root threads stack? Just don't free? */
-    if (tid2thr_statusp[tid]->thr_stack_low)
-        free(tid2thr_statusp[tid]->thr_stack_low);
-    free(tid2thr_statusp[tid]);
-    tid2thr_statusp[tid] = NULL; /* Signal we've cleaned up this thread */
+    /* Remove from hashmap, signaling we've cleaned up this thread */
+    remove(tid2thr_statusp, tid);
+
+    /* Free child stack and thread status and cond var */
+    if (thr_statusp->thr_stack_low)
+        free(thr_statusp->thr_stack_low);
+    cond_destroy(thr_statusp->exit_cvar);
+    free(thr_statusp->exit_cvar);
+    free(thr_statusp);
 
     mutex_unlock(&thr_status_mux);
 
@@ -219,9 +206,8 @@ thr_exit( void *status )
 
     mutex_lock(&thr_status_mux);
 
-    assert(tid > 0 && tid < 100 && tid2thr_statusp[tid] != NULL);
-
-    thr_status_t *tp = tid2thr_statusp[tid];
+    thr_status_t *tp = get(tid2thr_statusp, tid);
+    assert(tp);
     assert(tp->tid == tid);
 
     /* Store exit status for retrieval in thr_join */
@@ -242,6 +228,7 @@ thr_yield( int tid )
 {
 	return yield(tid);
 }
+
 int
 thr_getid( void )
 {

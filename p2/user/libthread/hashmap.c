@@ -6,17 +6,25 @@
  *  @author Andre Nascimento (anascime) */
 
 #include <thr_internals.h>
-#include <stdint.h>
+#include <stdint.h> /* uint32_t */
+#include <stddef.h> /* NULL */
+#include <stdlib.h> /* malloc, free */
+#include <string.h> /* memset */
+#include <assert.h> /* affirm */
 
-typedef struct {
-    thr_status_t *val;
-    map_node_t *next;
-} map_node_t;
-
-typedef struct {
-    map_node_t **buckets;
-    unsigned int num_buckets;
-} hashmap_t;
+/** @brief Hash for placement into map
+ *
+ *  @param x Key to be hashed
+ *  @return Hash.
+ *  */
+static uint32_t hash(uint32_t x) {
+    x ^= x >> 16;
+    x *= 0x7feb352d;
+    x ^= x >> 15;
+    x *= 0x846ca68b;
+    x ^= x >> 16;
+    return x;
+}
 
 /** @brief Insert status into hashmap.
  *  @param map Hashmap in which to insert status
@@ -32,14 +40,17 @@ void insert(hashmap_t *map, thr_status_t *tstatusp) {
         affirm(curr);
         curr->val = tstatusp;
         curr->next = NULL;
+        map->buckets[index] = curr;
         return;
     }
-    while (curr->next != NULL) {
+
+    while (curr->next != NULL)
         curr = curr->next;
-    }
+
     curr->next = malloc(sizeof(map_node_t));
     affirm(curr->next);
     curr->next->val = tstatusp;
+    curr->next->next = NULL;
 }
 
 /** @brief Get status in hashmap.
@@ -50,11 +61,13 @@ void insert(hashmap_t *map, thr_status_t *tstatusp) {
 thr_status_t *get(hashmap_t *map, int tid) {
     uint32_t index = hash(tid) % map->num_buckets;
     map_node_t *curr = map->buckets[index];
-    while (curr && curr->val->tid != tid) {
+
+    while (curr && curr->val->tid != tid)
         curr = curr->next;
-    }
+
     if (curr)
         return curr->val;
+
     return NULL;
 }
 
@@ -71,20 +84,22 @@ thr_status_t *remove(hashmap_t *map, int tid) {
     map_node_t *curr = map->buckets[index];
     if (!curr)
         return NULL;
+
     if (curr->val->tid == tid) {
         map_node_t *to_remove = map->buckets[index];
-        map->buckets[index] = NULL;
-        thr_status_t statusp = to_remove->val;
+        map->buckets[index] = to_remove->next;
+        thr_status_t *statusp = to_remove->val;
         free(to_remove);
         return statusp;
     }
+
     while (1) {
         if (!curr->next)
             return NULL;
         if (curr->next->val->tid == tid) {
             map_node_t *to_remove = curr->next;
             curr->next = curr->next->next;
-            thr_status_t statusp = to_remove->val;
+            thr_status_t *statusp = to_remove->val;
             free(to_remove);
             return statusp;
         }
@@ -93,27 +108,13 @@ thr_status_t *remove(hashmap_t *map, int tid) {
     return NULL;
 }
 
-/** @brief Hash for placement into map
- *
- *  @param x Key to be hashed
- *  @return Hash.
- *  */
-uint32_t hash(uint32_t x) {
-    x ^= x >> 16;
-    x *= 0x7feb352d;
-    x ^= x >> 15;
-    x *= 0x846ca68b;
-    x ^= x >> 16;
-    return x;
-}
-
 /** @brief Initialize new hashmap
  *  @param map Memory location in which to initialize
  *  @param num_buckets Number of buckets for this map
  *
  *  @return 0 on success, -1 on failure
  *  */
-int new(hashmap_t *map, unsigned int num_buckets) {
+int new_map(hashmap_t *map, unsigned int num_buckets) {
     if (!map || num_buckets == 0)
         return -1;
 
@@ -131,7 +132,7 @@ int new(hashmap_t *map, unsigned int num_buckets) {
  *
  *  @return Void.
  *  */
-void destroy(hashmap_t *map) {
+void destroy_map(hashmap_t *map) {
     if (!map || !map->buckets)
         return;
     free(map->buckets);
