@@ -1,16 +1,12 @@
-/*
- * these functions should be thread safe.
- * It is up to you to rewrite them
- * to make them thread safe.
- *
- * TODO add cvars once cvars is done
+/** @file malloc.c
+ *  @brief thread safe wrappers for the malloc family of functions using
+ *         mutexes.
  *
  */
 
 #include <stdlib.h>
 #include <types.h>
-#include <stddef.h>
-#include <mutex.h>
+#include <mutex.h> /* mutex_lock(), mutex_unlock() */
 #include <assert.h> /* assert() */
 extern mutex_t malloc_mutex;
 

@@ -22,13 +22,6 @@
 #include <cond.h> /* con_wait(), con_signal() */
 #include <simics.h> /* MAGIC_BREAK */
 
-/* thread library functions */
-//int thr_init( unsigned int size );
-//int thr_create( void *(*func)(void *), void *args );
-//int thr_join( int tid, void **statusp );
-//void thr_exit( void *status );
-//int thr_getid( void );
-//int thr_yield( int tid );
 
 #define ALIGN 16
 #define NUM_BUCKETS 1024
@@ -195,6 +188,7 @@ thr_join( int tid, void **statusp )
     free(thr_statusp);
 
     mutex_unlock(&thr_status_mux);
+    tprintf("successfully joined tid[%d]", tid);
 
     return 0;
 }
@@ -208,6 +202,7 @@ thr_exit( void *status )
 
     thr_status_t *tp = get(tid2thr_statusp, tid);
     assert(tp);
+
     assert(tp->tid == tid);
 
     /* Store exit status for retrieval in thr_join */
@@ -219,10 +214,13 @@ thr_exit( void *status )
 
     mutex_unlock(&thr_status_mux);
 
+	tprintf("successfully exited");
+
     /* Exit thread */
     vanish();
 }
 
+// TODO anything less expensive than a full blown syscall?
 int
 thr_yield( int tid )
 {
