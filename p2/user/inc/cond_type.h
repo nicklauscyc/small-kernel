@@ -8,39 +8,44 @@
 #include <mutex.h> /* mutex_t */
 #include <variable_queue.h>
 
-/* Declare type of cvar_node_t */
-// TODO not sure where this should go
-/** @brief struct for each node in cv->queue
+/** @brief struct for each node in a condition variable's queue
+ *
+ *  On full macros expansion, the struct will look like this:
  *
  *  typedef struct cvar_node {
- *  	   struct {
- *  	       struct cvar_node *prev;
- *  	       struct cvar_node *next;
- *  	   }
- *  	   thr_status_t *thr_info;
+ *  	struct {
+ *      	struct cvar_node *prev;
+ *      	struct cvar_node *next;
+ *  	} link;
+ *  	mutex_t *mp;
+ *  	int tid;
+ *  	int descheduled;
  *  } cvar_node_t;
  */
 typedef struct cvar_node {
-	Q_NEW_LINK(cvar_node) link;
-	int tid;
-	mutex_t *mp;
-	int descheduled;
+	Q_NEW_LINK(cvar_node) link; /**< struct for pointers to other cvar_node_t */
+	mutex_t *mp; /**< pointer to mutex locked by thread on call to con_wait() */
+	int tid; /**< thread ID of this blocked thread waiting via con_wait() */
+	int descheduled; /**< boolean to "atomically" implement thread deschedule */
 } cvar_node_t;
 
-/* Declare type of cvar_queue_t */
-/*
-typedef struct {
-    struct cvar_node *front;
-    struct cvar_node *tail;
-} cvar_queue_t;
+/** @brief queue head for a condition variable's queue
+ *
+ *  On full macros expansion, the struct will look like this:
+ *
+ *  typedef struct {
+ *  	struct cvar_node *front;
+ *  	struct cvar_node *tail;
+ *  } cvar_queue_t;
  */
 Q_NEW_HEAD(cvar_queue_t, cvar_node);
 
-/* Condition variable */
+/** @brief struct for the condition variable
+ */
 typedef struct cond {
-	mutex_t *mp;
-	cvar_queue_t *qp;
-	int init;
+	mutex_t mux; /**< mutex for the condition variable */
+	cvar_queue_t qhead; /**< queue head for the condition variable */
+	int initialized; /**< 1 if condition variable initialized, 0 otherwise */
 } cond_t;
 
 

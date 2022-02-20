@@ -25,27 +25,25 @@
 #include <string.h> /* memset() */
 
 
-/* condition variable functions */
+/** @brief Initializes a condition variable
+ *
+ * 	We define a condition variable to be in used when its queue is not empty.
+ *
+ *  @param cv Pointer to condition variable to be initialized
+ */
 int
 cond_init( cond_t *cv )
 {
-	/* Allocate memory for mutex and initialize mutex */
-	mutex_t *mp = malloc(sizeof(mutex_t));
-	//TODO malloc -1? What if we put mp in the struct so it doesn't have to be
-	//malloced? We essentially passed the error elsewhere
-	assert(mp);
-	mutex_init(mp);
-	cv->mp = mp;
-
-	/* Allocate memory for queue and initialize queue for waiting threads */
-	cvar_queue_t *qp = malloc(sizeof(cvar_queue_t));
-	assert(qp);
-	//TODO malloc -1?
-	Q_INIT_HEAD(qp);
-	assert(!Q_GET_FRONT(qp));
-	assert(!Q_GET_TAIL(qp));
-	cv->qp = qp;
-	cv->init = 1;
+	/* It is illegal to initialize when already initialized and in use */
+	if (cv->initialized && Q_GET_FRONT(&(cv->qhead))) {
+		return -1;
+	}
+	/* Initialize mutex, queue head, and indicate so */
+	mutex_init(&(cv->mux));
+	Q_INIT_HEAD(&(cv->qhead));
+	assert(!Q_GET_FRONT(&(cv->qhead)));
+	assert(!Q_GET_TAIL(&(cv->qhead)));
+	cv->initialized = 1;
 	return 0;
 }
 

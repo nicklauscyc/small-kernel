@@ -16,6 +16,7 @@
 void
 tprintf(const char *format, ... )
 {
+	return;
 	char str[LEN];
 
 	/* Get tid and prepend to output*/
