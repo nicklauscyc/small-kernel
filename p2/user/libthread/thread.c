@@ -26,7 +26,7 @@
 //int thr_yield( int tid );
 
 #define ALIGN 16
-#define NUM_THREADS 100
+#define NUM_THREADS 2048
 
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
@@ -177,7 +177,7 @@ thr_join( int tid, void **statusp )
 {
     /* TODO: Check thread exists */
     mutex_lock(&thr_status_mux);
-    if (tid < 0 || tid > 100 || tid2thr_statusp[tid] == NULL) {
+    if (tid < 0 || tid > NUM_THREADS || tid2thr_statusp[tid] == NULL) {
         return -1;
 	}
 
@@ -208,6 +208,7 @@ thr_join( int tid, void **statusp )
     tid2thr_statusp[tid] = NULL; /* Signal we've cleaned up this thread */
 
     mutex_unlock(&thr_status_mux);
+    tprintf("successfully joined tid[%d]", tid);
 
     return 0;
 }
@@ -219,7 +220,7 @@ thr_exit( void *status )
 
     mutex_lock(&thr_status_mux);
 
-    assert(tid > 0 && tid < 100 && tid2thr_statusp[tid] != NULL);
+    assert(tid > 0 && tid < NUM_THREADS && tid2thr_statusp[tid] != NULL);
 
     thr_status_t *tp = tid2thr_statusp[tid];
     assert(tp->tid == tid);
@@ -233,10 +234,13 @@ thr_exit( void *status )
 
     mutex_unlock(&thr_status_mux);
 
+	tprintf("successfully exited");
+
     /* Exit thread */
     vanish();
 }
 
+// TODO anything less expensive than a full blown syscall?
 int
 thr_yield( int tid )
 {

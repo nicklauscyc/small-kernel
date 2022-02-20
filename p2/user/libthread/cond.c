@@ -15,15 +15,6 @@
  */
 
 #include <simics.h> /* lprintf() */
-//typedef struct {
-//	char *thr_stack_low;
-//	char *thr_stack_high;
-//	int tid;
-//    //TODO: cond_t *exit_cvar;
-//    int exited;
-//    void *status;
-//} thr_status_t;
-
 #include <mutex.h> /* mutex_t */
 #include <cond_type.h> /* cond_t */
 #include <malloc.h> /* malloc() */
@@ -40,7 +31,8 @@ cond_init( cond_t *cv )
 {
 	/* Allocate memory for mutex and initialize mutex */
 	mutex_t *mp = malloc(sizeof(mutex_t));
-	//TODO malloc -1?
+	//TODO malloc -1? What if we put mp in the struct so it doesn't have to be
+	//malloced? We essentially passed the error elsewhere
 	assert(mp);
 	mutex_init(mp);
 	cv->mp = mp;
@@ -85,7 +77,7 @@ cond_destroy( cond_t *cv )
 	/* Release lock and deactivate mutex */
 	mutex_unlock(cv->mp);
 	mutex_destroy(cv->mp);
-	free(cv->mp);
+	free(cv->mp); //TODO is it ok to free this guy?
 }
 
 void
@@ -102,13 +94,17 @@ cond_wait( cond_t *cv, mutex_t *mp )
 
 	/* Allocate memory for linked list element */
 	cvar_node_t *cn = malloc(sizeof(cvar_node_t));
+	//TODO what if malloc fails?
 	assert(cn);
 	memset(cn, 0, sizeof(cvar_node_t));
 
 	/* Initialize the node in queue */
 	cn->mp = mp;
 	cn->tid = gettid();
+
+	/* Mark as descheduled so other threads know this thread not runnable */
 	cn->descheduled = 1;
+	tprintf("marked as descheduled");
 
 	/* Add to cv queue tail */
 	Q_INSERT_TAIL(cv->qp, cn, link);
@@ -136,7 +132,9 @@ cond_wait( cond_t *cv, mutex_t *mp )
  *         thread.
  *
  *  This solves the problem of not awakening threads which may have invoked
- *  cond_wait() after the call to con_broadcast()
+ *  cond_wait() after the call to con_broadcast().
+ *
+ *  Requires that cv->mp be acquired before calling _cond_signal
  *
  *  @param cv Pointer to condition variable cv
  *  @param from_broadcast Boolean set to 1 if called from within
@@ -147,6 +145,7 @@ _cond_signal( cond_t *cv )
 {
 	/* Get front most descheduled thread if queue non_empty */
 	cvar_node_t *front = Q_GET_FRONT(cv->qp);
+
 	if (front) {
 		Q_REMOVE(cv->qp, front, link);
 
@@ -164,8 +163,9 @@ _cond_signal( cond_t *cv )
 		while ((res = make_runnable(tid)) < 0) {
             yield(tid);
         }
+		/* free front */
+		free(front);
 	}
-
 	return;
 }
 
@@ -176,6 +176,7 @@ _cond_signal( cond_t *cv )
 void
 cond_signal( cond_t *cv )
 {
+	assert(cv);
 	mutex_lock(cv->mp);
 	_cond_signal(cv);
 	mutex_unlock(cv->mp);
