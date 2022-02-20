@@ -40,6 +40,32 @@ uint32_t add_one_atomic(uint32_t *at);
 int thread_fork(void *child_stack_start, void *(*func)(void *), void *arg);
 void run_thread(void *rsp, void *(*func)(void *), void *arg);
 
+/* Hashmap */
+
+/** @brief Struct containing information about a node inside the
+ *         map's linked list.
+ *
+ *  @param val Thread status value of the node
+ *  @param next Next node in the linked list */
+typedef struct map_node {
+    thr_status_t *val;
+    struct map_node *next;
+} map_node_t;
+
+/** @brief Struct containing the hashmaps buckets.
+ *
+ *  @param buckets Array with each linked list start
+ *  @param num_buckets Length of buckets array */
+typedef struct {
+    map_node_t **buckets;
+    unsigned int num_buckets;
+} hashmap_t;
+
+void insert(hashmap_t *map, thr_status_t *tstatusp);
+thr_status_t *get(hashmap_t *map, int tid);
+thr_status_t *remove(hashmap_t *map, int tid);
+int new_map(hashmap_t *map, unsigned int num_buckets);
+void destroy_map(hashmap_t *map);
 
 /* Circular Unbounded Arrays */
 

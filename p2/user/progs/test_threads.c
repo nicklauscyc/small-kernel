@@ -25,9 +25,10 @@ int main()
 
 	int x = 1;
 	int tid = thr_create(add_one, &x);
+    lprintf("Created thread with tid %d", tid);
 
     void *out;
-    thr_join(tid, &out);
+    lprintf("thr_join %d", thr_join(tid, &out));
 
     assert(*(int *)out == 2);
 
