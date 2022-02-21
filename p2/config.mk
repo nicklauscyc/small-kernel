@@ -131,7 +131,7 @@ UPDATE_METHOD = afs
 #
 410TESTS = cat stack_test1 getpid_test1 startle actual_wait agility_drill \
            paraguay cyclone join_melee switzerland rwlock_downgrade_read_test \
-		   thr_exit_join misbehave misbehave_wrap
+		   thr_exit_join misbehave misbehave_wrap racer paradise_lost
 
 
 ###########################################################################
@@ -146,7 +146,8 @@ STUDENTTESTS = test_set_status test_threads
 # Object files for your thread library
 ###########################################################################
 THREAD_OBJS = malloc.o panic.o mutex.o add_one_atomic.o thread.o \
-              thread_fork.o uba.o hashmap.o cond.o rwlock.o thr_internals.o
+              thread_fork.o uba.o hashmap.o cond.o rwlock.o thr_internals.o \
+			  sem.o
 
 # Thread Group Library Support.
 #

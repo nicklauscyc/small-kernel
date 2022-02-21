@@ -104,7 +104,6 @@ cond_wait( cond_t *cv, mutex_t *mp )
 
 	/* Mark as descheduled so other threads know this thread not runnable */
 	cn->descheduled = 1;
-	tprintf("marked as descheduled");
 
 	/* Add to cv queue tail */
 	Q_INSERT_TAIL(cv->qp, cn, link);
