@@ -43,6 +43,8 @@ cond_init( cond_t *cv )
 	Q_INIT_HEAD(&(cv->qhead));
 	assert(!Q_GET_FRONT(&(cv->qhead)));
 	assert(!Q_GET_TAIL(&(cv->qhead)));
+	cv->qp = &(cv->qhead);
+    cv->mp = &(cv->mux);
 	cv->initialized = 1;
 	return 0;
 }
@@ -70,7 +72,7 @@ cond_destroy( cond_t *cv )
 	free(cv->qp);
 
 	/* Mark as unitialized so no one else may use this cv */
-	cv->init = 0;
+	cv->initialized = 0;
 
 	/* Release lock and deactivate mutex */
 	mutex_unlock(cv->mp);
@@ -82,7 +84,7 @@ void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
 	/* If cv has been de-initialized, release lock and do nothing */
-	affirm_msg(cv != NULL && cv->init,
+	affirm_msg(cv != NULL && cv->initialized,
             "Trying to wait on uninitialized cond variable.");
 
     // TODO: cond_destroy could happen here (Illegal, however)

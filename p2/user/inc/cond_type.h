@@ -43,6 +43,8 @@ Q_NEW_HEAD(cvar_queue_t, cvar_node);
 /** @brief struct for the condition variable
  */
 typedef struct cond {
+	mutex_t *mp;
+	cvar_queue_t *qp;
 	mutex_t mux; /**< mutex for the condition variable */
 	cvar_queue_t qhead; /**< queue head for the condition variable */
 	int initialized; /**< 1 if condition variable initialized, 0 otherwise */
