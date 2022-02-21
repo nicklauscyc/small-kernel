@@ -20,9 +20,10 @@
 #include <stdint.h>  /* uint32_t */
 #include <assert.h> /* assert() */
 #include <thr_internals.h> /* THR_INITIALIZED */
+#include <simics.h> /* MAGIC_BREAK */
 
 /* Lowest bit P=0 if fault by non-present page, 1 o/w (intel-sys.pdf pg 182) */
-#define ERR_P_PROTECTION_VIOLATION_MASK 1
+#define PERMISSION_ERR 1
 
 /* Word size is 16 bit so 2 bytes */
 #define WORD_SIZE 2
@@ -106,24 +107,21 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	if (THR_INITIALIZED) return;
 
 	/* Get relevant info */
-	int cause = ureg->cause;
-
-	/* Memory address resulting in fault */
+	unsigned int cause = ureg->cause;
 	unsigned int cr2 = ureg->cr2;
-
-	/* Why memory address was inaccessible */
 	unsigned int error_code = ureg->error_code;
 
-	/* Only deal with pagefault exceptions caused by non-present page */
+	/* deal with non-present pagefaults within PAGE_SIZE away from stack top */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
-		&& !(ERR_P_PROTECTION_VIOLATION_MASK & error_code)) {
+		&& !(PERMISSION_ERR & error_code)
+		&& cr2 >= ((unsigned int) global_stack_low) - PAGE_SIZE) {
 
 		/* Allocate new memory for user space stack */
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
-		global_stack_low = (void *) base; // TODO delete this after stop debug
+		global_stack_low = (void *) base;
 
-		/* Panic if cannot grow user space stack for initial single thread */
+		/* Panic if cannot grow user space stack for root thread */
 		if (res < 0)
 			panic("FATAL: Unable to grow user space stack, error: %d\n", res);
 

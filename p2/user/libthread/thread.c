@@ -41,6 +41,21 @@ hashmap_t tid2thr_status;
 hashmap_t *tid2thr_statusp = &tid2thr_status;
 mutex_t thr_status_mux;
 
+/** @brief Child threads are not supposed to use more than their allocated
+ *         stack space and thus if this handler is ever invoked we invoke
+ *         panic
+ *  @param arg Argument which should always be 0 for user thread library.
+ *  @param ureg Struct containing information on page fault.
+ *  @return Void.
+ */
+
+void child_pf_handler( void *arg, ureg_t *ureg )
+{
+	assert(arg == 0);
+	assert(ureg);
+	panic("FATAL: Child thread should never page fault");
+}
+
 /** @brief Initializes the size all thread stacks will have if the thread
  *         is not the initial thread.
  *
@@ -106,11 +121,11 @@ thr_create( void *(*func)(void *), void *arg )
 	/* thr_init() was not called prior, return error */
 	if (!THR_INITIALIZED) return THR_UNINIT;
 
-	/* Allocate memory for thread stack, round the
+	/* Allocate memory for thread stack and thread exception stack, round the
      * stack size up to a multiple of ALIGN bytes. */
     // TODO: Do we really need this?
 	unsigned int ROUND_UP_THR_STACK_SIZE =
-		((THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
+		((PAGE_SIZE + THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
     /* Allocate child stack */
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
@@ -131,6 +146,10 @@ thr_create( void *(*func)(void *), void *arg )
 
 	child_tp->thr_stack_low = thr_stack;
 	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE - ALIGN;
+
+	//TODO install child handler test this
+	Swexn(child_tp->thr_stack_high + ALIGN, child_pf_handler, 0, 0);
+
 	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
     /* Get mutex so that child_tp is stored before child exits (and writes to it) */

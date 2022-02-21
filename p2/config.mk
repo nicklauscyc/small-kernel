@@ -131,7 +131,8 @@ UPDATE_METHOD = afs
 #
 410TESTS = cat stack_test1 getpid_test1 startle actual_wait agility_drill \
            paraguay cyclone join_melee switzerland rwlock_downgrade_read_test \
-		   thr_exit_join misbehave misbehave_wrap racer paradise_lost
+		   thr_exit_join misbehave misbehave_wrap racer paradise_lost \
+		   wild_test1
 
 
 ###########################################################################
