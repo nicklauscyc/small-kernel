@@ -75,22 +75,22 @@ thr_init( unsigned int size )
             "Failed to initialize mutex used in thread library");
 
     /* Initialize hashmap to store thread status information */
-    if (new_map(tid2thr_statusp, NUM_BUCKETS) < 0)
+    if (new_map(tid2thr_statusp, NUM_BUCKETS) < 0) {
         return -1;
-
+	}
 	/* Store root thread info on hashmap. */
 	thr_status_t *tp = malloc(sizeof(thr_status_t));
 	affirm(tp);
-    memset(tp, 0, sizeof(thr_status_t));
+	memset(tp, 0, sizeof(thr_status_t));
 
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
 	affirm(exit_cvar);
 	affirm(cond_init(exit_cvar) == 0);
 
-    tp->tid = gettid();
+	tp->tid = gettid();
 	tp->exit_cvar = exit_cvar;
 
-    insert(tid2thr_statusp, tp);
+	insert(tid2thr_statusp, tp);
 
 	return 0;
 }
@@ -140,8 +140,7 @@ thr_create( void *(*func)(void *), void *arg )
 	// byte in the stack
 	// highest writable
 	// thr_stack_high is 1 + (highest accessible byte address in child stack)
-	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE; 
-
+	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE;
 
 	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
