@@ -23,9 +23,12 @@
 #include <string.h> /* memset() */
 #include <cond.h> /* con_wait(), con_signal() */
 #include <simics.h> /* MAGIC_BREAK */
+#include <ureg.h> /* ureg_t */
+#include <autostack_internals.h> /* child_pf_handler(), Swexn() */
 
+/* Align child thread stack to 4 bytes */
+#define ALIGN 4
 
-#define ALIGN 16
 #define NUM_BUCKETS 1024
 
 #define THR_UNINIT -2
@@ -44,6 +47,7 @@ hashmap_t *tid2thr_statusp = &tid2thr_status;
 
 /** @brief Mutex for thread status info. */
 mutex_t thr_status_mux;
+
 
 /** @brief Initializes the size all thread stacks will have if the thread
  *         is not the initial thread.
@@ -108,7 +112,6 @@ thr_create( void *(*func)(void *), void *arg )
 {
 	if (!THR_INITIALIZED) return THR_UNINIT;
 
-	/* Allocate memory for thread status */
 	thr_status_t *child_tp = malloc(sizeof(thr_status_t));
 	affirm(child_tp);
     memset(child_tp, 0, sizeof(thr_status_t));
@@ -123,7 +126,15 @@ thr_create( void *(*func)(void *), void *arg )
     /* Set child_tp values */
 	child_tp->exit_cvar = exit_cvar;
 	child_tp->thr_stack_low = thr_stack;
-	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE - ALIGN;
+
+	// TODO why do we - ALIGN here thr_stack high is 1 + highest addressable
+	// byte in the stack
+	// highest writable
+	// thr_stack_high is 1 + (highest accessible byte address in child stack)
+	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE; // - ALIGN;
+
+	//TODO install child handler test this
+
 	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
     /* Get mutex to avoid conflicts between parent and child */
@@ -187,7 +198,6 @@ thr_join( int tid, void **statusp )
     free(thr_statusp);
 
     mutex_unlock(&thr_status_mux);
-    tprintf("successfully joined tid[%d]", tid);
 
     return 0;
 }
@@ -219,7 +229,6 @@ thr_exit( void *status )
 
     mutex_unlock(&thr_status_mux);
 
-	tprintf("successfully exited");
 
     /* Exit thread */
     vanish();

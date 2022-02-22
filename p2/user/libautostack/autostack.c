@@ -1,12 +1,23 @@
 /** @file autostack.c
  *
- *  @brief Automatically grows the stack for the single-threaded environment
- *         set up before main().
+ *  @brief Contains functions for automatic growth of root thread stack
+ *         (legacy thread) and pagefault exception handlers as well.
  *
-  *   We allocate memory at address stack_low + PAGE_SIZE so that userspace
- *   execution can continue to execute and still trigger a pagefault if it
- *   accesses memory addresses < stack_low. This also guarantees that
- *   the exception stack and userspace stack regions do not overlap.
+ *  Root thread stack autogrowth:
+ *
+ *  Pagefault handlers:
+ *
+ *  When installing pagefault exception handlers with swexn(), the spec
+ *  says that argument esp3 "points to an address one word (16 bit == 2 bytes)
+ *  higher than the first address that the kernel should use to push values
+ *  onto the exception stack". Let exn_stack be the lowest address in use
+ *  for any exception handler stack. exn_stack + PAGE_SIZE - 1 be the highest
+ *  address in use. However, we have 4 byte alignment for stacks and so the
+ *  first address that the kernel should use to push values onto the
+ *  exception stack should be exn_stack + PAGE_SIZE - 4. Thus an address
+ *  one word higher than exn_stack + PAGE_SIZE - 4 is exactly
+ *  exn_stack + PAGE_SIZE - 2 == exn_stack + PAGE_SIZE - WORD_SIZE
+ *
  *
  *   TODO what about multithreaded stacks? The above assumes single thread.
 
@@ -20,20 +31,44 @@
 #include <stdint.h>  /* uint32_t */
 #include <assert.h> /* assert() */
 #include <thr_internals.h> /* THR_INITIALIZED */
+#include <simics.h> /* MAGIC_BREAK */
+#include <autostack_internals.h> /* Fuction prototypes of this file */
 
-/* Lowest bit P=0 if fault by non-present page, 1 o/w (intel-sys.pdf pg 182) */
-#define ERR_P_PROTECTION_VIOLATION_MASK 1
-
-/* Word size is 16 bit so 2 bytes */
+/* Number of bytes in a word (16-bit according to ia32-summary.pdf page 2) */
 #define WORD_SIZE 2
 
-void *global_stack_low = 0;
+/* Lowest bit P=0 if fault by non-present page, 1 o/w (intel-sys.pdf pg 182) */
+#define PERMISSION_ERR 1
+
+volatile void *global_stack_low = 0;
 
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
 
-void install_autostack(void * stack_high, void * stack_low);
-void pf_swexn_handler(void *arg, ureg_t *ureg);
+/** @brief Installs pagefault handler at a region of memory that will never
+ *         be touched by main() and all other function calls descending from
+ *         main().
+ *
+ *  The handler is installed on a "stack" exn_stack. exn_stack is a private
+ *  global char array of PAGE_SIZE bytes and is thus in a region of
+ *  virtual memory that will not overlap with the execution stack which main()
+ *  is on.
+ *
+ *  @param stack_high Highest virtual address of the initial stack
+ *  @param stack_low Lowest virtual address of the initial stack
+ *  @return Void.
+ */
+void
+install_autostack(void *stack_high, void *stack_low)
+{
+	assert(global_stack_low == 0);
+	global_stack_low = stack_low;
+
+	/* esp3 argument points to an address 1 word higher than first address */
+	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
+
+	return;
+}
 
 /** @ brief Wrapper that deals with error return values for swexn() syscall.
  *
@@ -60,36 +95,50 @@ Swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
 
 	int res = 0;
 	if ((res = swexn(esp3, eip, arg, newureg)) < 0) {
-		panic("FATAL: swexn() failed installing pagefault handler, error:%d\n",
+		panic("Syscall swexn() failed installing pagefault handler, error:%d\n",
 		      res);
 	}
 	return;
 }
-
-/** @brief Installs pagefault handler at a region of memory that will never
- *         be touched by main() and all other function calls descending from
- *         main().
- *
- *  The handler is installed on a "stack" exn_stack. exn_stack is a private
- *  global char array of PAGE_SIZE bytes and is thus in a region of
- *  virtual memory that will not overlap with the execution stack which main()
- *  is on.
- *
- *  @param stack_high Highest virtual address of the initial stack
- *  @param stack_low Lowest virtual address of the initial stack
+/** @brief Child threads are not supposed to use more than their allocated
+ *         stack space and thus if this handler is ever invoked we invoke
+ *         panic().
+ *  @param arg Argument which should always be 0 for user thread library.
+ *  @param ureg Struct containing information on page fault.
  *  @return Void.
  */
-void
-install_autostack(void *stack_high, void *stack_low)
+void child_pf_handler( void *arg, ureg_t *ureg )
 {
-	assert(global_stack_low == 0);
-	global_stack_low = stack_low;
+	assert(arg == 0);
+	affirm_msg(ureg, "Supplied ureg cannot be NULL");
 
-	/* esp3 argument points to an address 1 word higher than first address */
-	Swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, 0);
+    /* Get relevant info */
+	unsigned int cause = ureg->cause;
+	unsigned int cr2 = ureg->cr2;
+	unsigned int error_code = ureg->error_code;
+	MAGIC_BREAK;
+	tprintf("cause: %x, cr2: %x, error_code: %x", cause, cr2, error_code);
 
-	return;
+	if (cause == SWEXN_CAUSE_PAGEFAULT
+		&& !(PERMISSION_ERR & error_code)) {
+		panic("Pagefaulted at address: %x, disallow allocating more memory to child thread stack", cr2);
+	} else {
+		panic("Non-Pagefault software exception encountered, error: %d",
+		      error_code);
+	}
 }
+
+
+
+
+
+void
+install_child_pf_handler( void *child_thr_stack_high )
+{
+	Swexn(child_thr_stack_high + PAGE_SIZE, child_pf_handler, 0, 0);
+}
+
+
 
 /** @brief Page fault exception handler.
  *
@@ -106,29 +155,28 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	if (THR_INITIALIZED) return;
 
 	/* Get relevant info */
-	int cause = ureg->cause;
-
-	/* Memory address resulting in fault */
+	unsigned int cause = ureg->cause;
 	unsigned int cr2 = ureg->cr2;
-
-	/* Why memory address was inaccessible */
 	unsigned int error_code = ureg->error_code;
+	tprintf("cause: %x, cr2: %x, error_code: %x", cause, cr2, error_code);
 
-	/* Only deal with pagefault exceptions caused by non-present page */
+	/* deal with non-present pagefaults within PAGE_SIZE away from stack top */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
-		&& !(ERR_P_PROTECTION_VIOLATION_MASK & error_code)) {
+		&& !(PERMISSION_ERR & error_code)
+		&& cr2 >= ((unsigned int) global_stack_low) - PAGE_SIZE) {
 
 		/* Allocate new memory for user space stack */
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
-		global_stack_low = (void *) base; // TODO delete this after stop debug
+		global_stack_low = (void *) base;
 
-		/* Panic if cannot grow user space stack for initial single thread */
+		/* Panic if cannot grow user space stack for root thread */
 		if (res < 0)
 			panic("FATAL: Unable to grow user space stack, error: %d\n", res);
 
 		/* Always register page fault exception handler again */
-		Swexn(exn_stack + PAGE_SIZE + 1, pf_swexn_handler, 0, ureg);
+		Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, ureg);
+	} else {
 	}
 	return;
 }

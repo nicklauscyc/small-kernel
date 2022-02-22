@@ -131,7 +131,8 @@ UPDATE_METHOD = afs
 #
 410TESTS = cat stack_test1 getpid_test1 startle actual_wait agility_drill \
            paraguay cyclone join_melee switzerland rwlock_downgrade_read_test \
-		   thr_exit_join misbehave misbehave_wrap racer paradise_lost
+		   thr_exit_join misbehave misbehave_wrap racer paradise_lost \
+		   wild_test1
 
 
 ###########################################################################
@@ -140,7 +141,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory
 #
-STUDENTTESTS = test_set_status test_threads
+STUDENTTESTS = test_set_status test_threads childpf
 
 ###########################################################################
 # Object files for your thread library

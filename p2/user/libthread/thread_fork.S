@@ -26,9 +26,14 @@ thread_fork:
 
 
 child_continue:
+	movl %edx, %edi     /* save the function to call later */
     leal -4(%ecx), %esp /* Update our child esp (previously stored in ecx). */
-    movl %esp, %ebp     /* TODO: Is this necessary? */
-    calll *%edx         /* Call func, previously stored in edx */
+    movl %esp, %ebp     /* Update %ebp since we use base pointers */
+	leal 4(%ebp), %ecx  /* Calculate top of exn stack */
+	pushl %ecx          /* Push top of exn stack address for argument setup */
+	calll install_child_pf_handler /* Install child's pagefault handler */
+	addl $4, %esp       /* Restore %esp to deallocate arg space for pf handler*/
+    calll *%edi         /* Call func, previously stored in edx */
     pushl %eax          /* Push return value onto stack for call to thr_exit */
     call thr_exit
 
