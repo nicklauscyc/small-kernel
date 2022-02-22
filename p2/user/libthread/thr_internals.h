@@ -18,7 +18,11 @@ void vtprintf( const char *format, va_list args );
 
 
 /* Global variable set to 1 when thr_init() is called, 0 before */
-extern int THR_INITIALIZED;
+extern volatile int THR_INITIALIZED;
+
+volatile thr_status_t root_tstatus;
+volatile thr_status_t *root_tstatusp;
+volatile cond_t root_exit_cvar;
 
 /** @brief Struct containing all necesary information about a thread.
  *
@@ -38,13 +42,12 @@ typedef struct {
     void *status;
 } thr_status_t;
 
-thr_status_t *get_thr_status( int tid );
-
 uint32_t add_one_atomic(uint32_t *at);
 int thread_fork(void *child_stack_start, void *(*func)(void *), void *arg);
 void run_thread(void *rsp, void *(*func)(void *), void *arg);
 
 /* Hashmap */
+#define NUM_BUCKETS 1024
 
 /** @brief Struct containing information about a node inside the
  *         map's linked list.
@@ -59,17 +62,15 @@ typedef struct map_node {
 /** @brief Struct containing the hashmaps buckets.
  *
  *  @param buckets Array with each linked list start
- *  @param num_buckets Length of buckets array */
+ */
 typedef struct {
-    map_node_t **buckets;
-    unsigned int num_buckets;
+    map_node_t *buckets[NUM_BUCKETS];
 } hashmap_t;
 
-void insert(hashmap_t *map, thr_status_t *tstatusp);
-thr_status_t *get(hashmap_t *map, int tid);
-thr_status_t *remove(hashmap_t *map, int tid);
-int new_map(hashmap_t *map, unsigned int num_buckets);
-void destroy_map(hashmap_t *map);
+void init_map( void );
+void insert( thr_status_t *tstatusp );
+thr_status_t *get( int tid );
+thr_status_t *remove( int tid );
 
 /* Circular Unbounded Arrays */
 

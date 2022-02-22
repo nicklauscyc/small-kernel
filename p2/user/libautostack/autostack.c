@@ -64,6 +64,18 @@ install_autostack(void *stack_high, void *stack_low)
 	assert(global_stack_low == 0);
 	global_stack_low = stack_low;
 
+	/* Initialize legacy / root thread status */
+	root_tstatus.thr_stack_low = stack_low;
+	root_tstatus.thr_stack_high = stack_high;
+	root_tstatus.tid = gettid();
+	root_tstatus.exit_cvar = 0;
+	root_tstatus.exited = 0;
+	root_tstatus.status = 0;
+	root_tstatusp = &(root_tstatus);
+
+	/* Multi-threads not yet initialized */
+	THR_INITIALIZED = 0;
+
 	/* esp3 argument points to an address 1 word higher than first address */
 	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
 

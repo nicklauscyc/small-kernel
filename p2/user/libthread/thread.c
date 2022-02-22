@@ -27,18 +27,16 @@
 /* Align child thread stack to 4 bytes */
 #define ALIGN 4
 
-#define NUM_BUCKETS 1024
-
 #define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
-extern void *global_stack_low; /* In autostack.c */
+extern volatile void *global_stack_low; /* In autostack.c */
 mutex_t malloc_mutex; /* global mutex for malloc family functions */
 
 /* Global variable to indicate that thr library has been initialized */
 // FIXME: Might not need this as programs are well behaved (section 5.3)
-int THR_INITIALIZED = 0;
+volatile int THR_INITIALIZED = 0;
 
 hashmap_t tid2thr_status;
 hashmap_t *tid2thr_statusp = &tid2thr_status;
@@ -57,41 +55,27 @@ thr_init( unsigned int size )
 	if (size == 0 || THR_INITIALIZED)
         return -1;
 
-	/* Initialize the mutex for malloc family functions. */
-	affirm_msg(mutex_init(&malloc_mutex) == 0,
-            "Failed to initialize mutex used in malloc library");
-
-    /* Initialize mutex for thread status array, which contains all threads
-     * in this library. */
+	/* Initializing mutexes should never fail as no memory allocation needed */
+	/* Initialize mutex for malloc family functions, thread status hashtable. */
+	affirm_msg(mutex_init(&malloc_mutex) == 0, "Failed to initialize mutex "
+	           "used for threadsafe malloc library");
 	affirm_msg(mutex_init(&thr_status_mux) == 0,
-            "Failed to initialize mutex used in thread library");
+               "Failed to initialize mutex used for thread library");
 
 	THR_STACK_SIZE = size;
     THR_INITIALIZED = 1;
 
     /* Initialize hashmap to store thread status information */
-    if (new_map(tid2thr_statusp, NUM_BUCKETS) < 0)
-        return -1;
+    init_map();
 
-    /* Store current threads info in tid2thr_statusp, as it is the only
-     * thread in this task not created through thr_create. */
+    /* Initialize cvar for root thread */
+    memset(&root_exit_cvar, 0, sizeof(cond_t));
+    if (cond_init(&root_exit_cvar) < 0)
+		return -1;
+	root_tstatusp->exit_cvar = &root_exit_cvar;
 
-	/* Allocate memory for root thread thr_status_t */
-	thr_status_t *tp = malloc(sizeof(thr_status_t));
-	affirm_msg(tp, "Failed to allocate memory for thread status.");
-    memset(tp, 0, sizeof(thr_status_t));
-
-    /* Set tp for root thread */
-    tp->tid = gettid();
-
-	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
-	affirm_msg(exit_cvar, "Failed to allocate memory for root thread cvar.");
-    memset(exit_cvar, 0, sizeof(cond_t));
-
-	affirm(cond_init(exit_cvar) == 0);
-	tp->exit_cvar = exit_cvar;
-
-    insert(tid2thr_statusp, tp);
+	/* Add root thread status to hashtable */
+    insert(root_tstatusp);
 
 	return 0;
 }
@@ -155,7 +139,7 @@ thr_create( void *(*func)(void *), void *arg )
     /* In parent thread, update child information. */
     child_tp->tid = tid;
 
-    insert(tid2thr_statusp, child_tp);
+    insert(child_tp);
 
     /* Only release lock after setting tid2thr_statusp[tid] so that
      * the child knows where to write its exit status. */
@@ -174,7 +158,7 @@ thr_join( int tid, void **statusp )
 	while (1) {
 		/* If some other thread already cleaned up (or if that thread was
          * never created), do nothing more, return */
-		if ((thr_statusp = get(tid2thr_statusp, tid)) == NULL) {
+		if ((thr_statusp = get(tid)) == NULL) {
 			mutex_unlock(&thr_status_mux);
 			return -1;
 		}
@@ -191,7 +175,7 @@ thr_join( int tid, void **statusp )
         *statusp = thr_statusp->status;
 
     /* Remove from hashmap, signaling we've cleaned up this thread */
-    remove(tid2thr_statusp, tid);
+    remove(tid);
 
     /* Free child stack and thread status and cond var */
     if (thr_statusp->thr_stack_low)
@@ -212,7 +196,7 @@ thr_exit( void *status )
 
     mutex_lock(&thr_status_mux);
 
-    thr_status_t *tp = get(tid2thr_statusp, tid);
+    thr_status_t *tp = get(tid);
     assert(tp);
 
     assert(tp->tid == tid);
