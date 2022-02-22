@@ -112,12 +112,21 @@ thr_create( void *(*func)(void *), void *arg )
 {
 	if (!THR_INITIALIZED) return THR_UNINIT;
 
+
+	/* Allocate memory for thread stack and thread exception stack, round the
+     * stack size up to a multiple of ALIGN bytes. */
+    // TODO: Do we really need this?
+	unsigned int ROUND_UP_THR_STACK_SIZE =
+		((PAGE_SIZE + THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
+
+    /* Allocate child stack */
+	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
+	affirm_msg(thr_stack, "Failed to allocate child stack.");
+
+	/* Allocate memory for thr_status_t */
 	thr_status_t *child_tp = malloc(sizeof(thr_status_t));
 	affirm(child_tp);
     memset(child_tp, 0, sizeof(thr_status_t));
-
-	char *thr_stack = malloc(THR_STACK_SIZE);
-	affirm(thr_stack);
 
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
 	affirm(exit_cvar);
@@ -131,9 +140,8 @@ thr_create( void *(*func)(void *), void *arg )
 	// byte in the stack
 	// highest writable
 	// thr_stack_high is 1 + (highest accessible byte address in child stack)
-	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE; // - ALIGN;
+	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE; 
 
-	//TODO install child handler test this
 
 	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
