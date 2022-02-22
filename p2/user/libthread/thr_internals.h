@@ -13,7 +13,6 @@
 
 void tprintf( const char *format, ... );
 
-void Swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg);
 
 /* Global variable set to 1 when thr_init() is called, 0 before */
 extern int THR_INITIALIZED;

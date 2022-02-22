@@ -14,6 +14,7 @@
 void *
 add_one(void *arg)
 {
+	tprintf("running add_one");
 	int *iarg = (int *) arg;
 	*iarg = *iarg + 1;
     return arg;

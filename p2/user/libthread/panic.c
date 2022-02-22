@@ -49,7 +49,7 @@
  *  @param ... Other arguments put into fmt
  *  @return Void.
  */
-void panic(const char *fmt, ...)
+void panic( const char *fmt, ... )
 {
 	/* Print error that occurred */
 	va_list args;
