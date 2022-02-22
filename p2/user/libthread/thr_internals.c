@@ -31,7 +31,7 @@ vtprintf( const char *format, va_list args )
 	int offset = snprintf(str, sizeof(str) - 1, "tid[%d]: ", tid);
 
 	/* Print rest of output */
-	vsnprintf(str + offset, sizeof(str) - 1, format, args);
+	vsnprintf(str + offset, sizeof(str) - offset - 1, format, args);
 	sim_puts(str);
 
 	return;
