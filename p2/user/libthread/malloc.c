@@ -2,6 +2,7 @@
  *  @brief thread safe wrappers for the malloc family of functions using
  *         mutexes.
  *
+ *  @author Nicklaus Choo (nchoo)
  */
 
 #include <stdlib.h>
