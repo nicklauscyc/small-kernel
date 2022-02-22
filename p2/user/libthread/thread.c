@@ -120,7 +120,6 @@ thr_create( void *(*func)(void *), void *arg )
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
 	affirm_msg(thr_stack, "Failed to allocate child stack.");
 
-	tprintf("last address exclusive: %x", (unsigned int) thr_stack + ROUND_UP_THR_STACK_SIZE);
 
 	/* Allocate memory for thr_status_t */
 	thr_status_t *child_tp = malloc(sizeof(thr_status_t));
@@ -151,10 +150,7 @@ thr_create( void *(*func)(void *), void *arg )
     mutex_lock(&thr_status_mux);
 
 	/* Run func on a new thread */ //TODO: How about fork_and_run instead?
-	tprintf("before thread_fork thr_stack_high:%x, func:%x, arg:%x",
-	child_tp->thr_stack_high, func, arg);
 	int tid = thread_fork(child_tp->thr_stack_high, func, arg);
-	tprintf("after thread_fork");
 
     /* In parent thread, update child information. */
     child_tp->tid = tid;
@@ -205,7 +201,6 @@ thr_join( int tid, void **statusp )
     free(thr_statusp);
 
     mutex_unlock(&thr_status_mux);
-    tprintf("successfully joined tid[%d]", tid);
 
     return 0;
 }
@@ -231,7 +226,6 @@ thr_exit( void *status )
 
     mutex_unlock(&thr_status_mux);
 
-	tprintf("successfully exited");
 
     /* Exit thread */
     vanish();

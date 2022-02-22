@@ -125,7 +125,6 @@ install_autostack(void *stack_high, void *stack_low)
 
 	/* esp3 argument points to an address 1 word higher than first address */
 	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
-	tprintf("installed autostack");
 
 	return;
 }
@@ -133,9 +132,7 @@ install_autostack(void *stack_high, void *stack_low)
 void
 install_child_pf_handler( void *child_thr_stack_high )
 {
-	tprintf("child_thr_stack_high: %x", (unsigned int) child_thr_stack_high);
 	Swexn(child_thr_stack_high + PAGE_SIZE, child_pf_handler, 0, 0);
-	tprintf("installed child pf handler");
 }
 
 
@@ -153,7 +150,6 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 
 	/* If other user threads initialized, don't grow stack */
 	if (THR_INITIALIZED) return;
-	tprintf("pf swexn handler");
 
 	/* Get relevant info */
 	unsigned int cause = ureg->cause;
@@ -178,7 +174,6 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		/* Always register page fault exception handler again */
 		Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, ureg);
 	} else {
-		tprintf("bad address");
 	}
 	return;
 }
