@@ -25,7 +25,7 @@ tprintf(const char *format, ... )
 	/* Print rest of output */
 	va_list args;
 	va_start(args, format);
-	vsnprintf(str + offset, sizeof(str) - 1, format, args);
+	vsnprintf(str + offset, sizeof(str) - offset - 1, format, args);
 	sim_puts(str);
 
 	return;
