@@ -1,24 +1,20 @@
 /** @file mutex.c
  *  @brief A mutex object
  *
- *  The mutex is implemented via a ticketing system.
+ *  The mutex is implemented via a ticketing system. On lock
+ *  a thread atomically gets a ticket (add_one_atomic) and
+ *  waits until it is their turn. To solve the problem of
+ *  communication among threads (ie. thread 7 should let
+ *  thread 8 know it is done) we use a shared memory location,
+ *  namely the now_serving variable.
  *
- *  Taking a ticket:
- *  A given thread does an atomic add to m->ticket
- *  and the results is their ticket.
+ *  Threads repeatedly check it, yielding to the current lock
+ *  owner to avoid wasting cycles, and eventually acquire the lock.
  *
- *  Taking the lock:
- *  If serving == my_ticket, finish taking lock.
- *  Otherwise yield (optimization: deschedule and have last person make_runnable on self).
- *  OPTIM: Can use ticket to serialize threads -> Somehow use this to request make_run from previous thread.
+ *  Unlocking simply consists of update the now_serving variable
+ *  with a blind write.
  *
- *  Releasing lock:
- *  Update serving = my_ticket + 1 (optim: make_runnable thread with tid == buffer[serving])
- *
- *  Destroying lock:
- *  Check there are no descheduled waiting threads, if there are fail (if now_serving != ticket).
- *  Otherwise, free and return;
- *
+ *  @author Andre Nascimento (anascime)
  *  */
 
 #include <mutex_type.h>
@@ -27,6 +23,11 @@
 #include <assert.h>     /* affirm_msg() */
 #include <syscall.h>    /* yield() */
 
+/** @brief Initialize a mutex
+ *  @param mp Pointer to memory location where mutex should be initialized
+ *
+ *  @return 0 on success, negative number on error
+ *  */
 int
 mutex_init( mutex_t *mp )
 {
@@ -39,6 +40,11 @@ mutex_init( mutex_t *mp )
     return 0;
 }
 
+/** @brief Destroy a mutex
+ *  @param mp Pointer to memory location where mutex should be destroyed
+ *
+ *  @return Void
+ *  */
 void
 mutex_destroy( mutex_t *mp )
 {
@@ -52,7 +58,11 @@ mutex_destroy( mutex_t *mp )
     mp->initialized = 0;
 }
 
-/* TODO: Make this re-entrant, ie no-op if calling thread already owns mutex */
+/** @brief Lock mutex. Re-entrant.
+ *  @param mp Mutex to lock
+ *
+ *  @return Void
+ *  */
 void
 mutex_lock( mutex_t *mp )
 {
@@ -74,6 +84,12 @@ mutex_lock( mutex_t *mp )
     mp->owner_tid = gettid();
 }
 
+/** @brief Unlock mutex.
+ *  @param mp Mutex to unlock. Has to be previously locked
+ *            by calling thread
+ *
+ *  @return Void
+ *  */
 void
 mutex_unlock( mutex_t *mp )
 {
