@@ -21,9 +21,12 @@
 #include <string.h> /* memset() */
 #include <cond.h> /* con_wait(), con_signal() */
 #include <simics.h> /* MAGIC_BREAK */
+#include <ureg.h> /* ureg_t */
+#include <autostack_internals.h> /* child_pf_handler(), Swexn() */
 
+/* Align child thread stack to 4 bytes */
+#define ALIGN 4
 
-#define ALIGN 16
 #define NUM_BUCKETS 1024
 
 #define THR_UNINIT -2
@@ -40,6 +43,7 @@ int THR_INITIALIZED = 0;
 hashmap_t tid2thr_status;
 hashmap_t *tid2thr_statusp = &tid2thr_status;
 mutex_t thr_status_mux;
+
 
 /** @brief Initializes the size all thread stacks will have if the thread
  *         is not the initial thread.
@@ -106,15 +110,16 @@ thr_create( void *(*func)(void *), void *arg )
 	/* thr_init() was not called prior, return error */
 	if (!THR_INITIALIZED) return THR_UNINIT;
 
-	/* Allocate memory for thread stack, round the
+	/* Allocate memory for thread stack and thread exception stack, round the
      * stack size up to a multiple of ALIGN bytes. */
     // TODO: Do we really need this?
 	unsigned int ROUND_UP_THR_STACK_SIZE =
-		((THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
+		((PAGE_SIZE + THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
     /* Allocate child stack */
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
 	affirm_msg(thr_stack, "Failed to allocate child stack.");
+
 
 	/* Allocate memory for thr_status_t */
 	thr_status_t *child_tp = malloc(sizeof(thr_status_t));
@@ -130,7 +135,15 @@ thr_create( void *(*func)(void *), void *arg )
 	child_tp->exit_cvar = exit_cvar;
 
 	child_tp->thr_stack_low = thr_stack;
-	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE - ALIGN;
+
+	// TODO why do we - ALIGN here thr_stack high is 1 + highest addressable
+	// byte in the stack
+	// highest writable
+	// thr_stack_high is 1 + (highest accessible byte address in child stack)
+	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE; // - ALIGN;
+
+	//TODO install child handler test this
+
 	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
     /* Get mutex so that child_tp is stored before child exits (and writes to it) */
@@ -188,7 +201,6 @@ thr_join( int tid, void **statusp )
     free(thr_statusp);
 
     mutex_unlock(&thr_status_mux);
-    tprintf("successfully joined tid[%d]", tid);
 
     return 0;
 }
@@ -214,7 +226,6 @@ thr_exit( void *status )
 
     mutex_unlock(&thr_status_mux);
 
-	tprintf("successfully exited");
 
     /* Exit thread */
     vanish();
