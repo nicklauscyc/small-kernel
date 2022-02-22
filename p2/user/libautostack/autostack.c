@@ -128,26 +128,21 @@ void child_pf_handler( void *arg, ureg_t *ureg )
 	unsigned int cause = ureg->cause;
 	unsigned int cr2 = ureg->cr2;
 	unsigned int error_code = ureg->error_code;
-	MAGIC_BREAK;
-	tprintf("cause: %x, cr2: %x, error_code: %x", cause, cr2, error_code);
 
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(PERMISSION_ERR & error_code)) {
-		panic("Pagefaulted at address: %x, disallow allocating more memory to child thread stack", cr2);
+		panic("Pagefaulted at address: 0x%x, disallow allocating more memory "
+		      "to child thread stack", cr2);
 	} else {
-		panic("Non-Pagefault software exception encountered, error: %d",
-		      error_code);
+        panic("Non-Pagefault software exception encountered, cause: 0x%x, "
+		      "cr2: 0x%x, error_code: 0x%x", cause, cr2, error_code);
 	}
 }
-
-
-
-
 
 void
 install_child_pf_handler( void *child_thr_stack_high )
 {
-	Swexn(child_thr_stack_high + PAGE_SIZE, child_pf_handler, 0, 0);
+	Swexn(child_thr_stack_high + PAGE_SIZE - WORD_SIZE, child_pf_handler, 0, 0);
 }
 
 
@@ -170,7 +165,6 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	unsigned int cause = ureg->cause;
 	unsigned int cr2 = ureg->cr2;
 	unsigned int error_code = ureg->error_code;
-	tprintf("cause: %x, cr2: %x, error_code: %x", cause, cr2, error_code);
 
 	/* deal with non-present pagefaults within PAGE_SIZE away from stack top */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
@@ -184,11 +178,26 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 
 		/* Panic if cannot grow user space stack for root thread */
 		if (res < 0)
-			panic("FATAL: Unable to grow user space stack, error: %d\n", res);
+			panic("Unable to grow user space stack, error: %d\n", res);
 
 		/* Always register page fault exception handler again */
 		Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, ureg);
+
 	} else {
+		if (cause == SWEXN_CAUSE_PAGEFAULT) {
+			if (cr2 < ((unsigned int) global_stack_low) - PAGE_SIZE) {
+				panic("Root thread pagefaulted at address 0x%x that was too "
+				      "far from lowest stack address", cr2);
+			}
+			if (PERMISSION_ERR & error_code) {
+				panic("Root thread pagefaulted at address 0x%x that "
+				      "caused permission access error", cr2);
+			}
+		} else {
+            panic("Non-Pagefault software exception encountered, "
+			      "cause: 0x%x, cr2: 0x%x, error_code: 0x%x", cause, cr2,
+				  error_code);
+		}
 	}
 	return;
 }
