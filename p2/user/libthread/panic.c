@@ -54,7 +54,7 @@ void panic( const char *fmt, ... )
 	/* Print error that occurred */
 	va_list args;
 	va_start(args, fmt);
-	tprintf(fmt, args);
+	vtprintf(fmt, args);
 	va_end(args);
 
 	/* Print that all other threads will crash */

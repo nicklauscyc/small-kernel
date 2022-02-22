@@ -10,8 +10,11 @@
 #include <stdint.h> /* uint32_t */
 #include <cond_type.h> /* cond_t */
 #include <syscall.h>
+#include <stdarg.h> /* va_list */
+
 
 void tprintf( const char *format, ... );
+void vtprintf( const char *format, va_list args );
 
 
 /* Global variable set to 1 when thr_init() is called, 0 before */

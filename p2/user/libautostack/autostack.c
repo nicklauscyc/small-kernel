@@ -40,37 +40,34 @@
 /* Lowest bit P=0 if fault by non-present page, 1 o/w (intel-sys.pdf pg 182) */
 #define PERMISSION_ERR 1
 
-void *global_stack_low = 0;
+volatile void *global_stack_low = 0;
 
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
 
-/** @brief Child threads are not supposed to use more than their allocated
- *         stack space and thus if this handler is ever invoked we invoke
- *         panic().
- *  @param arg Argument which should always be 0 for user thread library.
- *  @param ureg Struct containing information on page fault.
+/** @brief Installs pagefault handler at a region of memory that will never
+ *         be touched by main() and all other function calls descending from
+ *         main().
+ *
+ *  The handler is installed on a "stack" exn_stack. exn_stack is a private
+ *  global char array of PAGE_SIZE bytes and is thus in a region of
+ *  virtual memory that will not overlap with the execution stack which main()
+ *  is on.
+ *
+ *  @param stack_high Highest virtual address of the initial stack
+ *  @param stack_low Lowest virtual address of the initial stack
  *  @return Void.
  */
-void child_pf_handler( void *arg, ureg_t *ureg )
+void
+install_autostack(void *stack_high, void *stack_low)
 {
-	assert(arg == 0);
-	affirm_msg(ureg, "Supplied ureg cannot be NULL");
+	assert(global_stack_low == 0);
+	global_stack_low = stack_low;
 
-    /* Get relevant info */
-	unsigned int cause = ureg->cause;
-	unsigned int cr2 = ureg->cr2;
-	unsigned int error_code = ureg->error_code;
-	MAGIC_BREAK;
-	tprintf("cause: %x, cr2: %x, error_code: %x", cause, cr2, error_code);
+	/* esp3 argument points to an address 1 word higher than first address */
+	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
 
-	if (cause == SWEXN_CAUSE_PAGEFAULT
-		&& !(PERMISSION_ERR & error_code)) {
-		panic("Pagefaulted at address: %x, disallow allocating more memory to child thread stack", cr2);
-	} else {
-		panic("Non-Pagefault software exception encountered, error: %d",
-		      error_code);
-	}
+	return;
 }
 
 /** @ brief Wrapper that deals with error return values for swexn() syscall.
@@ -103,31 +100,37 @@ Swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
 	}
 	return;
 }
-
-/** @brief Installs pagefault handler at a region of memory that will never
- *         be touched by main() and all other function calls descending from
- *         main().
- *
- *  The handler is installed on a "stack" exn_stack. exn_stack is a private
- *  global char array of PAGE_SIZE bytes and is thus in a region of
- *  virtual memory that will not overlap with the execution stack which main()
- *  is on.
- *
- *  @param stack_high Highest virtual address of the initial stack
- *  @param stack_low Lowest virtual address of the initial stack
+/** @brief Child threads are not supposed to use more than their allocated
+ *         stack space and thus if this handler is ever invoked we invoke
+ *         panic().
+ *  @param arg Argument which should always be 0 for user thread library.
+ *  @param ureg Struct containing information on page fault.
  *  @return Void.
  */
-void
-install_autostack(void *stack_high, void *stack_low)
+void child_pf_handler( void *arg, ureg_t *ureg )
 {
-	assert(global_stack_low == 0);
-	global_stack_low = stack_low;
+	assert(arg == 0);
+	affirm_msg(ureg, "Supplied ureg cannot be NULL");
 
-	/* esp3 argument points to an address 1 word higher than first address */
-	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
+    /* Get relevant info */
+	unsigned int cause = ureg->cause;
+	unsigned int cr2 = ureg->cr2;
+	unsigned int error_code = ureg->error_code;
+	MAGIC_BREAK;
+	tprintf("cause: %x, cr2: %x, error_code: %x", cause, cr2, error_code);
 
-	return;
+	if (cause == SWEXN_CAUSE_PAGEFAULT
+		&& !(PERMISSION_ERR & error_code)) {
+		panic("Pagefaulted at address: %x, disallow allocating more memory to child thread stack", cr2);
+	} else {
+		panic("Non-Pagefault software exception encountered, error: %d",
+		      error_code);
+	}
 }
+
+
+
+
 
 void
 install_child_pf_handler( void *child_thr_stack_high )
