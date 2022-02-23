@@ -33,7 +33,7 @@ static uint32_t hash(uint32_t x) {
  *  @return Void.
  *  */
 void insert(thr_status_t *tstatusp) {
-    uint32_t index = hash(tstatusp->tid) % map.num_buckets;
+    uint32_t index = hash(tstatusp->tid) % NUM_BUCKETS;
     map_node_t *curr = map.buckets[index];
     if (!curr) {
         curr = malloc(sizeof(map_node_t));
@@ -59,7 +59,7 @@ void insert(thr_status_t *tstatusp) {
  *
  *  @return Status, NULL if not found. */
 thr_status_t *get(int tid) {
-    uint32_t index = hash(tid) % map.num_buckets;
+    uint32_t index = hash(tid) % NUM_BUCKETS;
     map_node_t *curr = map.buckets[index];
 
     while (curr && curr->val->tid != tid)
@@ -80,7 +80,7 @@ thr_status_t *get(int tid) {
  *          negative number on failure.
  * */
 thr_status_t *remove(int tid) {
-    uint32_t index = hash(tid) % map.num_buckets;
+    uint32_t index = hash(tid) % NUM_BUCKETS;
     map_node_t *curr = map.buckets[index];
     if (!curr)
         return NULL;

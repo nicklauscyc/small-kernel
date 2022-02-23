@@ -64,7 +64,6 @@ typedef struct map_node {
  *  @param num_buckets Length of buckets array */
 typedef struct {
     map_node_t *buckets[NUM_BUCKETS];
-    unsigned int num_buckets;
 } hashmap_t;
 
 hashmap_t map;
