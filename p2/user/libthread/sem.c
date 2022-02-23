@@ -9,8 +9,6 @@
 #include <assert.h> /* affirm_msg() */
 #include <thr_internals.h> /* tprintf() */
 
-
-
 int
 sem_init( sem_t *sem, int count )
 {
@@ -27,11 +25,8 @@ sem_init( sem_t *sem, int count )
 
 	/* Exclusive access to initialize the count */
 	mutex_lock(&(sem->mux));
-	sem->total = count;
 	sem->count = count;
 	sem->initialized = 1;
-	sem->muxp = &(sem->mux);
-	sem->cvp = &(sem->cv);
 	mutex_unlock(&(sem->mux));
 
 	return 0;
@@ -49,17 +44,17 @@ sem_wait( sem_t *sem )
 	affirm_msg(sem->initialized, "argument sem_t *sem must be initialized!");
 
 	/* Acquire exclusive access */
-	mutex_lock(sem->muxp);
+	mutex_lock(&(sem->mux));
 
 	while (sem->count <= 0) {
 		affirm_msg(sem->count == 0, "sem->count cannot go below 0");
-		cond_wait(sem->cvp, sem->muxp);
+		cond_wait(&(sem->cv), &(sem->mux));
 	}
     affirm_msg(sem->count > 0, "sem->count cannot must be nonzero");
 	--(sem->count);
 
 	/* Release exclusive accesss */
-	mutex_unlock(sem->muxp);
+	mutex_unlock(&(sem->mux));
 
 	return;
 }
@@ -71,34 +66,29 @@ sem_destroy( sem_t *sem )
 	affirm_msg(sem->initialized, "argument sem_t *sem must be initialized!");
 
 	/* Destroy */
-    mutex_lock(sem->muxp);
+    mutex_lock(&(sem->mux));
 
 	/* How to know if one is waiting? > 0? */
 	affirm_msg(sem->count >= 0, "cannot destroy when threads waiting");
 	sem->initialized = 0;
-	mutex_unlock(sem->muxp);
+	mutex_unlock(&(sem->mux));
 
 	return;
 }
 
-/* TODO What if signal will cause count > total? */
 void
 sem_signal( sem_t *sem)
 {
 	affirm_msg(sem->initialized, "argument sem_t *sem must be initialized!");
 
 	/* Returning something to semaphore */
-	mutex_lock(sem->muxp);
+	mutex_lock(&(sem->mux));
 
 	++(sem->count);
 	/* cond signal if some thread is waiting */
-	cond_signal(sem->cvp);
-	mutex_unlock(sem->muxp);
+	cond_signal(&(sem->cv));
+	mutex_unlock(&(sem->mux));
 
 	return;
 }
-
-
-
-
 
