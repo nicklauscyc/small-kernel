@@ -10,8 +10,6 @@
  *
  *  @author Nicklaus Choo (nchoo)
  *  @author Andre Nascimento (anascime)
- *
- *  @bugs Sometimes malloc_mutex.owner_tid == 0;
  */
 
 #include <malloc.h> /* malloc() */
@@ -32,19 +30,17 @@
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
-extern void *global_stack_low; /* In autostack.c */
-mutex_t malloc_mutex; /* global mutex for malloc family functions */
+/* In autostack.c */
+extern void *global_stack_low;
+
+/* global mutex for malloc family functions */
+mutex_t malloc_mutex;
 
 /** @brief Indicates whether thr library has been initialized */
 int THR_INITIALIZED = 0;
 
-/** @brief Map to store information from each existing thread */
-hashmap_t tid2thr_status;
-hashmap_t *tid2thr_statusp = &tid2thr_status;
-
 /** @brief Mutex for thread status info. */
 mutex_t thr_status_mux;
-
 
 /** @brief Initializes the size of all non-root thread stacks
  *
@@ -98,12 +94,11 @@ thr_init( unsigned int size )
  *
  *  To prevent overlaps of the create thread's stack memory and the stack
  *  memory of the initial thread, we malloc() a char array called thr_stack of
- *  THR_STACK_SIZE bytes. %ebp and %esp is set to thr_stack_high, which points to index
- *  THR_STACK_SIZE-1 of thr_stack, %eip is set to func
+ *  THR_STACK_SIZE bytes. %ebp and %esp is set to thr_stack_high, which points
+ *  to index
  *
  *  @param func Function to run in new thread
  *  @param arg Argument to pass into func
- *
  *  @return 0 on success, negative number on failure
  */
 int
@@ -114,39 +109,45 @@ thr_create( void *(*func)(void *), void *arg )
 
 	/* Allocate memory for thread stack and thread exception stack, round the
      * stack size up to a multiple of ALIGN bytes. */
-    // TODO: Do we really need this?
 	unsigned int ROUND_UP_THR_STACK_SIZE =
 		((PAGE_SIZE + THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
     /* Allocate child stack */
 	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
-	affirm_msg(thr_stack, "Failed to allocate child stack.");
+	if (!thr_stack)
+		return -1;
 
 	/* Allocate memory for thr_status_t */
 	thr_status_t *child_tp = malloc(sizeof(thr_status_t));
-	affirm(child_tp);
+	if (!child_tp) {
+		free(thr_stack);
+		return -1;
+	}
     memset(child_tp, 0, sizeof(thr_status_t));
 
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
-	affirm(exit_cvar);
-	affirm(cond_init(exit_cvar) == 0);
+	if (!exit_cvar) {
+		free(thr_stack);
+		free(child_tp);
+		return -1;
+	}
+
+	if (cond_init(exit_cvar) < 0) {
+		return -1;
+	}
 
     /* Set child_tp values */
 	child_tp->exit_cvar = exit_cvar;
 	child_tp->thr_stack_low = thr_stack;
-
-	// TODO why do we - ALIGN here thr_stack high is 1 + highest addressable
-	// byte in the stack
-	// highest writable
-	// thr_stack_high is 1 + (highest accessible byte address in child stack)
 	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE;
-
 	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
 
     /* Get mutex to avoid conflicts between parent and child */
     mutex_lock(&thr_status_mux);
 
 	int tid = thread_fork(child_tp->thr_stack_high, func, arg);
+	if (tid < 0)
+		return -1;
 
     /* In parent thread, update child information. */
     child_tp->tid = tid;
@@ -164,7 +165,6 @@ thr_create( void *(*func)(void *), void *arg )
  *
  *  @param tid ID of thread to join
  *  @param statusp Memory location where to store exit status.
- *
  *  @return 0 on success, negative number on failure
  */
 int
@@ -187,13 +187,11 @@ thr_join( int tid, void **statusp )
 
         cond_wait(thr_statusp->exit_cvar, &thr_status_mux);
     }
-
     /* Collect exit status if statusp non-NULL */
     assert(thr_statusp->exited);
     if (statusp) {
         *statusp = thr_statusp->status;
 	}
-
     /* Remove from hashmap, signaling we've cleaned up this thread */
     remove(tid);
 
@@ -205,8 +203,11 @@ thr_join( int tid, void **statusp )
         free(thr_statusp->thr_stack_low);
 	}
     cond_destroy(thr_statusp->exit_cvar);
+
+	/* Free the exit_cvar TODO CLEAN THIS UP NO NEED TO ALLOC CVAR */
     free(thr_statusp->exit_cvar);
 
+    /* Free statusp if not root */
 	if (thr_statusp != &root_tstatus) {
 		free(thr_statusp);
 	}
@@ -218,7 +219,6 @@ thr_join( int tid, void **statusp )
 /** @brief Exit calling thread.
  *
  *  @param status Status with which to exit
- *
  *  @return Void
  */
 void
@@ -230,7 +230,6 @@ thr_exit( void *status )
 
     thr_status_t *tp = get(tid);
     assert(tp);
-
     assert(tp->tid == tid);
 
     /* Store exit status for retrieval in thr_join */
@@ -239,7 +238,6 @@ thr_exit( void *status )
 
 	/* Tell all waiting joining threads of exit */
     cond_broadcast(tp->exit_cvar);
-
     mutex_unlock(&thr_status_mux);
 
 
@@ -250,7 +248,6 @@ thr_exit( void *status )
 /** @brief Yield to another thread.
  *
  *  @param tid Id of thread to yield to
- *
  *  @return Void
  */
 int
