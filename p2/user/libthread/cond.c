@@ -25,7 +25,11 @@
 #include <string.h> /* memset() */
 
 
-/* condition variable functions */
+/** @brief Initializes condition variables
+ *
+ *  @param cv Pointer to condition variable to be initialized
+ *  @return 0 on success, -1 on error
+ */
 int
 cond_init( cond_t *cv )
 {
@@ -57,6 +61,7 @@ cond_init( cond_t *cv )
  *  when cv->queue is not empty.
  *
  *  @param cv Pointer to condition variable to deallocate memory
+ *  @return Void.
  */
 void
 cond_destroy( cond_t *cv )
@@ -82,6 +87,13 @@ cond_destroy( cond_t *cv )
 	free(cv->mp); //TODO is it ok to free this guy?
 }
 
+/** @brief Causes the thread that calls con_wait() to be descheduled until
+ *         woken up by con_signal.
+ *
+ *  @param cv Pointer to condition variable
+ *  @param mp Mutex that thread is holding on to when calling con_wait()
+ *  @return Void.
+ */
 void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
@@ -140,6 +152,7 @@ cond_wait( cond_t *cv, mutex_t *mp )
  *  @param cv Pointer to condition variable cv
  *  @param from_broadcast Boolean set to 1 if called from within
  *  	   con_broadcast(), 0 otherwise.
+ *  @return Void.
  */
 void
 _cond_signal( cond_t *cv )
@@ -158,9 +171,10 @@ _cond_signal( cond_t *cv )
 		int tid = front->tid;
         int res;
 
-        /* Make runnable will only fail if the thread has not been descheduled yet.
-         * However since we know front->descheduled is 1, then that thread is set
-         * to be deschedule soon - where soon means in a few instructions. */
+        /* Make runnable will only fail if thread has not been descheduled yet.
+         * However since we know front->descheduled is 1, then that thread will
+         * be deschedule soon - where soon means in a few instructions.
+		 */
 		while ((res = make_runnable(tid)) < 0) {
             yield(tid);
         }
@@ -173,6 +187,7 @@ _cond_signal( cond_t *cv )
 /** @brief Wakes up the first descheduled thread on the queue
  *
  *  @param cv Pointer to condition variable
+ *  @return Void.
  */
 void
 cond_signal( cond_t *cv )
@@ -186,6 +201,7 @@ cond_signal( cond_t *cv )
 /** @brief Locks the cv and wakes up all sleeping threads in queue
  *
  *  @param cv Pointer to condition variable
+ *  @return Void.
  */
 void
 cond_broadcast( cond_t *cv )
