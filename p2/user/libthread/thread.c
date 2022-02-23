@@ -25,17 +25,14 @@
 #include <simics.h> /* MAGIC_BREAK */
 #include <ureg.h> /* ureg_t */
 #include <autostack_internals.h> /* child_pf_handler(), Swexn() */
+#include <lib_errors.h> /* EINVALIDARG, ETHR_LIB */
 
 /* Align child thread stack to 4 bytes */
 #define ALIGN 4
 
-#define USER_ERR -1
-#define THR_LIB_ERR -2
-#define THR_UNINIT -3
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
-extern volatile void *global_stack_low; /* In autostack.c */
 mutex_t malloc_mutex; /* global mutex for malloc family functions */
 
 /** @brief Indicates whether thr library has been initialized */
@@ -52,41 +49,44 @@ mutex_t thr_status_mux;
 /** @brief Initializes the size all thread stacks will have if the thread
  *         is not the initial thread.
  *
- *  If the multithread environment cannot be used because of
- *  a failure to thr_init() for any reason, we give the user program the choice to
- *  use only the single legacy root thread and thus don't crash on
- *  error (If the user program requires that they need a multithreaded
- *  environment, they can then choose to crash on receipt of -1)
-
+ *  If thr_init() fails because of reasons beyond the user's control the user
+ *  can still decide if they want to continue
+ *  using a multithreaded environment or not.
+ *
  *  @param size Stack size for thread in bytes, must be greater than  0
- *  @return 0 if successful, negative value on failure
+ *  @return 0 if successful, negative value on failure and THR_INITIALIZED set
+ *          to 1.
  */
 int
 thr_init( unsigned int size )
 {
-	if (size == 0 || THR_INITIALIZED)
-        return USER_ERR;
-
-	/* Initializing mutexes should almost never fail since no memory allocation.
+	/* If size == 0 we want the user to know that this is an error so a
+	 * subsequent calls to thr_create() will not surprise the user. If
+	 * thr_init() has been previously called that is also an error since the
+	 * user is supposed to call thr_init() exactly once
 	 */
+	if (size == 0 || THR_INITIALIZED)
+        return -1;
+	THR_STACK_SIZE = ((size + ALIGN - 1) / ALIGN) * ALIGN;
+
+	/* Initializing mutexes should almost never fail as no memory allocation. */
 	/* Initialize mutex for malloc family functions, thread status hashtable. */
 	if (mutex_init(&malloc_mutex) < 0)
-		return THR_LIB_ERR;
+		return -1;
 
 	if (mutex_init(&thr_status_mux) < 0) {
 		mutex_destroy(&malloc_mutex);
-		return THR_LIB_ERR;
+		return -1;
 	}
     /* Initialize hashmap to store thread status information */
     init_map();
 
     /* Initialize cvar for root thread, add to hashtable */
-    memset(&root_exit_cvar, 0, sizeof(cond_t));
-    if (cond_init(&root_exit_cvar) < 0)
-		return THR_LIB_ERR;
-	root_tstatusp->exit_cvar = &root_exit_cvar;
+	affirm(root_tstatusp == &root_tstatus);
+    memset(root_tstatusp->exit_cvar, 0, sizeof(cond_t));
+    if (cond_init(root_tstatusp->exit_cvar) < 0)
+		return -1;
     insert(root_tstatusp);
-
 	THR_INITIALIZED = 1;
 
 	return 0;
@@ -94,61 +94,51 @@ thr_init( unsigned int size )
 
 /** @brief Creates a new thread to run func(arg)
  *
- *  To prevent overlaps of the create thread's stack memory and the stack
- *  memory of the initial thread, we malloc() a char array called thr_stack of
- *  THR_STACK_SIZE bytes. %ebp and %esp is set to thr_stack_high, which points to index
- *  THR_STACK_SIZE-1 of thr_stack, %eip is set to func
+ *  Each child thread needs memory allocation for 2 things. The first is
+ *  the child's stack itself, where we also extend the allocation size to
+ *  have enough space for the child's exception handler; the second is
+ *  the struct thr_status_t which contains information about the child thread.
+ *  This is essentially a thread control block.
  *
  *  @param func Function to run in new thread
  *  @param arg Argument to pass into func
- *
  *  @return 0 on success, negative number on failure
  */
 int
 thr_create( void *(*func)(void *), void *arg )
 {
-	if (!THR_INITIALIZED) return THR_UNINIT;
+	if (!THR_INITIALIZED)
+		return -1;
 
-
-	/* Allocate memory for thread stack and thread exception stack, round the
-     * stack size up to a multiple of ALIGN bytes. */
-    // TODO: Do we really need this?
+	/* Get total size of child thread stack and child exception stack */
 	unsigned int ROUND_UP_THR_STACK_SIZE =
 		((PAGE_SIZE + THR_STACK_SIZE + ALIGN - 1) / ALIGN) * ALIGN;
 
     /* Allocate child stack */
-	char *thr_stack = malloc(ROUND_UP_THR_STACK_SIZE);
-	affirm_msg(thr_stack, "Failed to allocate child stack.");
+	char *thr_stack = calloc(1, ROUND_UP_THR_STACK_SIZE);
+	if (!thr_stack)
+		return -1;
 
-	/* Allocate memory for thr_status_t */
-	thr_status_t *child_tp = malloc(sizeof(thr_status_t));
-	affirm(child_tp);
-    memset(child_tp, 0, sizeof(thr_status_t));
+	/* Allocate memory for child status struct thr_status_t */
+	thr_status_t *child_tp = calloc(1, sizeof(thr_status_t));
+	if (!child_tp)
+		return -1;
 
-	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
-	affirm(exit_cvar);
-	affirm(cond_init(exit_cvar) == 0);
-
-    /* Set child_tp values */
-	child_tp->exit_cvar = exit_cvar;
+	/* Set all fields for child_tp apart from tid which will be set later */
 	child_tp->thr_stack_low = thr_stack;
-
-	// TODO why do we - ALIGN here thr_stack high is 1 + highest addressable
-	// byte in the stack
-	// highest writable
-	// thr_stack_high is 1 + (highest accessible byte address in child stack)
 	child_tp->thr_stack_high = thr_stack + THR_STACK_SIZE;
-
-	assert(((uint32_t)child_tp->thr_stack_high) % ALIGN == 0);
+	child_tp->exited = 0;
+	child_tp->status = 0;
+	child_tp->exit_cvar = &(child_tp->_exit_cvar);
+	if (cond_init(child_tp->exit_cvar) < 0)
+		return -1;
 
     /* Get mutex to avoid conflicts between parent and child */
     mutex_lock(&thr_status_mux);
 
+	/* In parent thread, update child tid, insert to hashtable. */
 	int tid = thread_fork(child_tp->thr_stack_high, func, arg);
-
-    /* In parent thread, update child information. */
     child_tp->tid = tid;
-
     insert(child_tp);
 
     /* Unlock after storing child_tp, so child may store its exit status */
@@ -173,6 +163,7 @@ thr_join( int tid, void **statusp )
 	/* con_wait for thread with tid to exit */
     thr_status_t *thr_statusp;
 	while (1) {
+
 		/* If some other thread already cleaned up (or if that thread was
          * never created), do nothing more, return */
 		if ((thr_statusp = get(tid)) == NULL) {
@@ -195,10 +186,21 @@ thr_join( int tid, void **statusp )
     remove(tid);
 
     /* Free child stack and thread status and cond var */
-    if (thr_statusp->thr_stack_low)
-        free(thr_statusp->thr_stack_low);
+    if (thr_statusp->thr_stack_low) {
+
+		/* Deallocate stack of non-root thread */
+		if (thr_statusp->thr_stack_low != global_stack_low) {
+			free(thr_statusp->thr_stack_low);
+
+		/* Deallocate stack of root thread */
+		} else {
+			tprintf("joining a root thread");
+			affirm(thr_statusp->thr_stack_low == global_stack_low);
+			if (remove_pages(thr_statusp->thr_stack_low) < 0)
+				return -1;
+		}
+	}
     cond_destroy(thr_statusp->exit_cvar);
-    free(thr_statusp->exit_cvar);
     free(thr_statusp);
 
     mutex_unlock(&thr_status_mux);

@@ -40,10 +40,13 @@
 /* Lowest bit P=0 if fault by non-present page, 1 o/w (intel-sys.pdf pg 182) */
 #define PERMISSION_ERR 1
 
-volatile void *global_stack_low = 0;
+void *global_stack_low = 0;
 
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
+
+thr_status_t root_tstatus;
+thr_status_t *root_tstatusp = &root_tstatus;
 
 /** @brief Installs pagefault handler at a region of memory that will never
  *         be touched by main() and all other function calls descending from
@@ -68,16 +71,18 @@ install_autostack(void *stack_high, void *stack_low)
 	root_tstatus.thr_stack_low = stack_low;
 	root_tstatus.thr_stack_high = stack_high;
 	root_tstatus.tid = gettid();
-	root_tstatus.exit_cvar = 0;
 	root_tstatus.exited = 0;
 	root_tstatus.status = 0;
-	root_tstatusp = &(root_tstatus);
+	root_tstatus.exit_cvar = &(root_tstatus._exit_cvar);
 
 	/* Multi-threads not yet initialized */
 	THR_INITIALIZED = 0;
 
 	/* esp3 argument points to an address 1 word higher than first address */
 	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
+
+	tprintf("installed autostack");
+	MAGIC_BREAK;
 
 	return;
 }
@@ -131,6 +136,9 @@ void child_pf_handler( void *arg, ureg_t *ureg )
 
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(PERMISSION_ERR & error_code)) {
+        panic("Pagefault software exception encountered, cause: 0x%x, "
+		      "cr2: 0x%x, error_code: 0x%x", cause, cr2, error_code);
+
 		panic("Pagefaulted at address: 0x%x, disallow allocating more memory "
 		      "to child thread stack", cr2);
 	} else {
@@ -175,6 +183,7 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
 		global_stack_low = (void *) base;
+		root_tstatusp->thr_stack_low = global_stack_low;
 
 		/* Panic if cannot grow user space stack for root thread */
 		if (res < 0)

@@ -36,6 +36,7 @@
 
 #include <stdarg.h> /* va_list(), va_end() */
 #include <thr_internals.h> /* tprintf() */
+#include <simics.h> /* MAGIC_BREAK */
 
 /** @brief This function is called by the assert() macro defined in assert.h;
  *         it's also a nice simple general-purpose panic function. Ceases
@@ -51,6 +52,7 @@
  */
 void panic( const char *fmt, ... )
 {
+	MAGIC_BREAK;
 	/* Print error that occurred */
 	va_list args;
 	va_start(args, fmt);
