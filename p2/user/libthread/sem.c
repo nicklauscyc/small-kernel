@@ -37,7 +37,7 @@
  *  @param sem Pointer to initialized semaphore to be checked
  */
 int
-is_sem( semt_t *sem )
+is_sem( sem_t *sem )
 {
 	/* Cannot be NULL */
 	assert(sem);
