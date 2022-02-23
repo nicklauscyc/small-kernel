@@ -33,6 +33,7 @@ mutex_init( mutex_t *mp )
 {
     if (!mp)
         return -1;
+
     mp->initialized = 1;
     mp->serving = 0;
     mp->next_ticket = 0;
@@ -52,7 +53,7 @@ mutex_destroy( mutex_t *mp )
     if (!mp || !mp->initialized)
         return;
     /* However, crash if threads have or are waiting for lock. */
-    affirm_msg(mp->serving == mp->next_ticket,
+    affirm_msg(mp->serving == mp->next_ticket && mp->owner_tid == -1,
             "tid[%d]: Tried to destroy mutex in use by other threads",
 			gettid());
     mp->initialized = 0;

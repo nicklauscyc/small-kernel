@@ -5,6 +5,18 @@
 @author Nicklaus Choo (nchoo)
 @author Andre Nascimento (anascime)
 
+## Illegal operations
+
+Our approach to illegal operations is to do everything in our immediate means to
+deal with them. Some illegal operations, however, are quite hard to deal with
+such as locking a mutex which is being destroyed. To the extent possible we
+panic and crash the application in these cases, but at times, it simply leads
+to undocumented behavior. We believe this is reasonable as the resources
+required to better deal with these errors are not worth pursuing:
+it's not reasonable to lockdown the entire park and begin an investigation
+because someone littered. It's also not reasonable to have a guard closely
+monitoring each visitant to stop them and deal with their littering.
+
 ## Error handling
 
 We performed case analysis on how to deal with each bug. We have found, though,
