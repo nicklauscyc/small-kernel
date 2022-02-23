@@ -2,14 +2,70 @@
 
 @mainpage 15-410 Project 2
 
-@author Name1 (id1)
-@author Name2 (id2)
-
-Same drill as last time.
-
-Ideally, this is not a place to say which functions appear
-in which files, or to narrate what code does step by step.
-Please use most of the README to document design decisions
-that you made.
+@author Nicklaus Choo (nchoo)
+@author Andre Nascimento (anascime)
 
 */
+
+## Hashmap
+
+The hashmap is implemented as an array of linked lists. Its size
+is fixed to 1024, a reasonable number to avoid collisions. As
+they lead to longer lookup times (linked list traversal).  We
+use a hash function defined in github.com/skeeto/hash-prospector
+for the same purpose.
+The hashmap is used to store thread status information in a
+globally accessible location. It is a global variable.
+
+## Mutex
+
+The mutex is implemented via a ticketing system. On lock
+a thread atomically gets a ticket (add_one_atomic) and
+waits until it is their turn. To solve the problem of
+communication among threads (ie. thread 7 should let
+thread 8 know it is done) we use a shared memory location,
+namely the now_serving variable.
+
+Threads repeatedly check it, yielding to the current lock
+owner to avoid wasting cycles, and eventually acquire the lock.
+
+Unlocking simply consists of update the now_serving variable
+with a blind write.
+
+## Read/Write locks
+
+A read/write lock must allow either one writer or multiple readers
+at a time. The approach here is to try and serve readers or writers
+roughly in the order of arrival. Suppose the following order of
+requests:
+
+W1 R1 R2 W2
+
+Then, we could avoid starvation of readers and writers by letting
+W1 go first, then once its done we let R1 R2 go simulateneously,
+and lastly, we let W2 go. However, this simple policy is can be rather
+bad. Suppose the following sequence:
+
+W1 R1 R2 W2 R3 R4
+
+Then, if we had known of requests R3 and R4 before W1 gave
+up its lock, we could reorganize our serving order as:
+
+W1 R1 R2 R3 R4 W2
+
+This enables us to serve all 4 readers in parallel. To enable
+this "coalescing" of readers we make the following policy:
+
+- Write requests go into a writer queue
+- Read requests go into a reader queue
+- Whenever we transition from WRITING to READING we service *all*
+  read requests.
+
+This simple policy equates to "coalescing" all reads together.
+Wouldn't this lead to a starvation of writers, though? No. To avoid
+the starvation of writers, we only coalesce when a writer has the lock.
+When we are in the reading phase we accept no new readers.
+
+Formulated more simply, we only "coalesce" readers during phase
+transitions, which allows us to avoid starvation while enabling
+high read parallelism.
