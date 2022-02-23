@@ -75,9 +75,7 @@ thr_init( unsigned int size )
             "Failed to initialize mutex used in thread library");
 
     /* Initialize hashmap to store thread status information */
-    if (new_map(tid2thr_statusp, NUM_BUCKETS) < 0) {
-        return -1;
-	}
+    new_map();
 	/* Store root thread info on hashmap. */
 	thr_status_t *tp = malloc(sizeof(thr_status_t));
 	affirm(tp);
@@ -90,7 +88,7 @@ thr_init( unsigned int size )
 	tp->tid = gettid();
 	tp->exit_cvar = exit_cvar;
 
-	insert(tid2thr_statusp, tp);
+	insert(tp);
 
 	return 0;
 }
@@ -152,7 +150,7 @@ thr_create( void *(*func)(void *), void *arg )
     /* In parent thread, update child information. */
     child_tp->tid = tid;
 
-    insert(tid2thr_statusp, child_tp);
+    insert(child_tp);
 
     /* Unlock after storing child_tp, so child may store its exit status */
     mutex_unlock(&thr_status_mux);
@@ -178,7 +176,7 @@ thr_join( int tid, void **statusp )
 	while (1) {
 		/* If some other thread already cleaned up (or if that thread was
          * never created), do nothing more, return */
-		if ((thr_statusp = get(tid2thr_statusp, tid)) == NULL) {
+		if ((thr_statusp = get(tid)) == NULL) {
 			mutex_unlock(&thr_status_mux);
 			return -1;
 		}
@@ -195,7 +193,7 @@ thr_join( int tid, void **statusp )
         *statusp = thr_statusp->status;
 
     /* Remove from hashmap, signaling we've cleaned up this thread */
-    remove(tid2thr_statusp, tid);
+    remove(tid);
 
     /* Free child stack and thread status and cond var */
     if (thr_statusp->thr_stack_low)
@@ -222,7 +220,7 @@ thr_exit( void *status )
 
     mutex_lock(&thr_status_mux);
 
-    thr_status_t *tp = get(tid2thr_statusp, tid);
+    thr_status_t *tp = get(tid);
     assert(tp);
 
     assert(tp->tid == tid);

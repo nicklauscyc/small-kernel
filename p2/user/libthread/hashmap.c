@@ -32,15 +32,15 @@ static uint32_t hash(uint32_t x) {
  *
  *  @return Void.
  *  */
-void insert(hashmap_t *map, thr_status_t *tstatusp) {
-    uint32_t index = hash(tstatusp->tid) % map->num_buckets;
-    map_node_t *curr = map->buckets[index];
+void insert(thr_status_t *tstatusp) {
+    uint32_t index = hash(tstatusp->tid) % map.num_buckets;
+    map_node_t *curr = map.buckets[index];
     if (!curr) {
         curr = malloc(sizeof(map_node_t));
         affirm(curr);
         curr->val = tstatusp;
         curr->next = NULL;
-        map->buckets[index] = curr;
+        map.buckets[index] = curr;
         return;
     }
 
@@ -58,9 +58,9 @@ void insert(hashmap_t *map, thr_status_t *tstatusp) {
  *  @param tid Id of thread status to look for
  *
  *  @return Status, NULL if not found. */
-thr_status_t *get(hashmap_t *map, int tid) {
-    uint32_t index = hash(tid) % map->num_buckets;
-    map_node_t *curr = map->buckets[index];
+thr_status_t *get(int tid) {
+    uint32_t index = hash(tid) % map.num_buckets;
+    map_node_t *curr = map.buckets[index];
 
     while (curr && curr->val->tid != tid)
         curr = curr->next;
@@ -79,15 +79,15 @@ thr_status_t *get(hashmap_t *map, int tid) {
  *  @return Pointer to removed status on exit,
  *          negative number on failure.
  * */
-thr_status_t *remove(hashmap_t *map, int tid) {
-    uint32_t index = hash(tid) % map->num_buckets;
-    map_node_t *curr = map->buckets[index];
+thr_status_t *remove(int tid) {
+    uint32_t index = hash(tid) % map.num_buckets;
+    map_node_t *curr = map.buckets[index];
     if (!curr)
         return NULL;
 
     if (curr->val->tid == tid) {
-        map_node_t *to_remove = map->buckets[index];
-        map->buckets[index] = to_remove->next;
+        map_node_t *to_remove = map.buckets[index];
+        map.buckets[index] = to_remove->next;
         thr_status_t *statusp = to_remove->val;
         free(to_remove);
         return statusp;
@@ -114,26 +114,10 @@ thr_status_t *remove(hashmap_t *map, int tid) {
  *
  *  @return 0 on success, -1 on failure
  *  */
-int new_map(hashmap_t *map, unsigned int num_buckets) {
-    if (!map || num_buckets == 0)
-        return -1;
-
-    map->buckets = malloc(sizeof(map_node_t) * num_buckets);
-    if (!map->buckets)
-        return -1;
-
-    memset(map->buckets, 0, sizeof(map_node_t) * num_buckets);
-    map->num_buckets = num_buckets;
-    return 0;
+void
+new_map( void ) {
+    memset(map.buckets, 0, sizeof(map_node_t *) * NUM_BUCKETS);
+    return;
 }
 
-/** @brief Destroy hashmap
- *  @param map Map to destroy
- *
- *  @return Void.
- *  */
-void destroy_map(hashmap_t *map) {
-    if (!map || !map->buckets)
-        return;
-    free(map->buckets);
-}
+
