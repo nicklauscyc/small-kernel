@@ -29,9 +29,6 @@
 /* Align child thread stack to 4 bytes */
 #define ALIGN 4
 
-#define NUM_BUCKETS 1024
-
-#define THR_UNINIT -2
 /* Private global variable for non initial threads' stack size */
 static unsigned int THR_STACK_SIZE = 0;
 
@@ -65,17 +62,17 @@ thr_init( unsigned int size )
 	THR_STACK_SIZE = ((size + ALIGN - 1) / ALIGN) * ALIGN;
     THR_INITIALIZED = 1;
 
-	/* Initialize the mutex for malloc family functions. */
-	affirm_msg(mutex_init(&malloc_mutex) == 0,
-            "Failed to initialize mutex used in malloc library");
-
-    /* Initialize mutex for thread status array, which contains all threads
-     * in this library. */
-	affirm_msg(mutex_init(&thr_status_mux) == 0,
-            "Failed to initialize mutex used in thread library");
-
+	/* Initialize the mutex for malloc family functions and thread hashtable */
+	if (mutex_init(&malloc_mutex) < 0) {
+		return -1;
+	}
+	if (mutex_init(&thr_status_mux) < 0) {
+		mutex_destroy(&malloc_mutex);
+		return -1;
+	}
     /* Initialize hashmap to store thread status information */
     new_map();
+
 	/* Store root thread info on hashmap. */
 	thr_status_t *tp = malloc(sizeof(thr_status_t));
 	affirm(tp);
@@ -108,7 +105,7 @@ thr_init( unsigned int size )
 int
 thr_create( void *(*func)(void *), void *arg )
 {
-	if (!THR_INITIALIZED) return THR_UNINIT;
+	if (!THR_INITIALIZED) return -1;
 
 
 	/* Allocate memory for thread stack and thread exception stack, round the
