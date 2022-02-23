@@ -75,6 +75,7 @@ thr_init( unsigned int size )
 		return -1;
 
 	if (mutex_init(&thr_status_mux) < 0) {
+		tprintf("MUTEX DESTROYEDD FOR MALLOC");
 		mutex_destroy(&malloc_mutex);
 		return -1;
 	}
@@ -194,16 +195,24 @@ thr_join( int tid, void **statusp )
 
 		/* Deallocate stack of root thread */
 		} else {
-			tprintf("joining a root thread");
+			tprintf("joining a root thread stack_low: %x", thr_statusp->thr_stack_low);
 			affirm(thr_statusp->thr_stack_low == global_stack_low);
-			if (remove_pages(thr_statusp->thr_stack_low) < 0)
+			if (remove_pages(thr_statusp->thr_stack_low) < 0) {
+				tprintf("remove pages failed");
+				mutex_unlock(&thr_status_mux);
+
 				return -1;
+			}
 		}
 	}
+	tprintf("after clause");
     cond_destroy(thr_statusp->exit_cvar);
+	tprintf("after cond_destroy");
     free(thr_statusp);
 
+	tprintf("before mut unlock");
     mutex_unlock(&thr_status_mux);
+	tprintf("after mut unlock");
 
     return 0;
 }

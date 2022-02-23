@@ -5,6 +5,7 @@
  *  @author Nicklaus Choo (nchoo)
  */
 
+#include <thr_internals.h>
 #include <stdlib.h>
 #include <types.h>
 #include <mutex.h> /* mutex_lock(), mutex_unlock() */
@@ -59,8 +60,12 @@ void *realloc(void *__buf, size_t __new_size)
  *  */
 void free(void *__buf)
 {
+	tprintf("before mut lock free");
 	mutex_lock(&malloc_mutex);
+	tprintf("after mut lock free");
 	_free(__buf);
+	tprintf("after free");
 	mutex_unlock(&malloc_mutex);
+	tprintf("after mutex unlock");
 	return;
 }

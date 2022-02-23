@@ -94,6 +94,7 @@ void
 mutex_unlock( mutex_t *mp )
 {
     /* Ensure lock is valid, locked and owned by this thread*/
+	tprintf("uniinitialized: %d", mp->initialized);
     affirm_msg(mp && mp->initialized,
             "tid[%d]: Tried to unlock invalid or uninitialized lock", gettid());
     affirm_msg(mp->owner_tid == gettid(),

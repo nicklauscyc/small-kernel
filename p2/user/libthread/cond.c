@@ -68,6 +68,8 @@ cond_destroy( cond_t *cv )
 	/* Lock this cv */
 	mutex_lock(cv->mp);
 
+	tprintf("in cond_destroy");
+
  	/* Free queue head */
 	free(cv->qp);
 
@@ -75,9 +77,13 @@ cond_destroy( cond_t *cv )
 	cv->init = 0;
 
 	/* Release lock and deactivate mutex */
-	mutex_unlock(cv->mp);
+	tprintf("right before mutex unlock con");
+	mutex_unlock(cv->mp); /* cv->mp only ever accessed by the other cond functions */
+	tprintf("after mutex unlock con");
 	mutex_destroy(cv->mp);
+	tprintf("after mutex destroy");
 	free(cv->mp); //TODO is it ok to free this guy?
+	tprintf("after free");
 }
 
 void

@@ -1,8 +1,9 @@
 /** @file join_root.c
- *  @brief Test the joining the root thread library API functions
+ *  @brief est the joining the root thread library API functions
  *  @author Nicklaus Choo (nchoo)
  */
 
+#include<malloc.h>
 #include <assert.h> /* assert() */
 //#include "../../410user/inc/thread.h" /* thread() */
 #include <thread.h> /* thread() */
@@ -32,7 +33,7 @@ int main()
 	int tid = thr_create(add_one, &root_tid);
 	lprintf("created thread %d", tid);
 
-	int yp = malloc(sizeof(int));
+	int *yp = malloc(sizeof(int));
 	*yp = 69;
 	thr_exit(yp);
 
