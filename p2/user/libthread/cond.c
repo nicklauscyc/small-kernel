@@ -61,12 +61,12 @@ cond_init( cond_t *cv )
 void
 cond_destroy( cond_t *cv )
 {
+	/* Lock this cv */
+	mutex_lock(cv->mp);
+
 	/* Cannot destroy if queue of blocked threads not empty */
 	affirm_msg(!(Q_GET_FRONT(cv->qp)), "Illegal: attempted to destroy "
 		"condition variable with blocked threads");
-
-	/* Lock this cv */
-	mutex_lock(cv->mp);
 
  	/* Free queue head */
 	free(cv->qp);
@@ -76,6 +76,8 @@ cond_destroy( cond_t *cv )
 
 	/* Release lock and deactivate mutex */
 	mutex_unlock(cv->mp);
+
+	/* TODO if cond_init is called here we are doomed */
 	mutex_destroy(cv->mp);
 	free(cv->mp); //TODO is it ok to free this guy?
 }
