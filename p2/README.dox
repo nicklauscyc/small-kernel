@@ -5,7 +5,32 @@
 @author Nicklaus Choo (nchoo)
 @author Andre Nascimento (anascime)
 
-*/
+## Error handling
+
+We performed case analysis on how to deal with each bug. We have found, though,
+that in the vast majority of cases, we return -1 on functions that are allowed
+to fail and we crash on those that can't if we face an unfixable error. Also,
+whenever we encounter a bug we make sure to cleanup all resources in use.
+
+When a given thread crashes, we call task void and print out to the user both
+the panic message and the ID of the thread calling panic. The kernel is then
+responsible for cleaning up.
+
+## With respect to dynamic memory allocation
+
+Whenever creating structs which have to be malloc'ed, we avoid making its
+fields pointers if possible. By having the fields be values we can make fewer
+calls to malloc and free, and we're less likely to forget to clean someone up.
+
+## On synchronization concerns
+
+We avoid using global locks as much as possible. With respect to the thread
+library, we use a lock to store and retrieve shared status information. For
+the malloc library we also use a global lock to avoid making any assumptions
+about the provided malloc code. Using a global lock allows us to serialize
+requests and have the same behavior as that of a single thread using malloc.
+
+----- BELOW WE LIST ALL COMPONENTS OF THE CODE AND THE DESIGN BEHIND THEM -----
 
 ## Hashmap
 
@@ -69,3 +94,8 @@ When we are in the reading phase we accept no new readers.
 Formulated more simply, we only "coalesce" readers during phase
 transitions, which allows us to avoid starvation while enabling
 high read parallelism.
+
+
+
+*/
+
