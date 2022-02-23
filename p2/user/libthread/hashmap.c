@@ -115,7 +115,7 @@ thr_status_t *remove(int tid) {
  *  @return 0 on success, -1 on failure
  *  */
 void
-new_map( void ) {
+init_map( void ) {
     memset(map.buckets, 0, sizeof(map_node_t *) * NUM_BUCKETS);
     return;
 }

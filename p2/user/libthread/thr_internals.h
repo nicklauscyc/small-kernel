@@ -71,5 +71,5 @@ hashmap_t map;
 void insert(thr_status_t *tstatusp);
 thr_status_t *get(int tid);
 thr_status_t *remove(int tid);
-void new_map(void);
+void init_map(void);
 #endif /* THR_INTERNALS_H */

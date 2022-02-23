@@ -11,7 +11,7 @@
  *  @author Nicklaus Choo (nchoo)
  *  @author Andre Nascimento (anascime)
  *
- *  @bugs No know bugs.
+ *  @bugs Sometimes malloc_mutex.owner_tid == 0;
  */
 
 #include <malloc.h> /* malloc() */
@@ -46,11 +46,18 @@ hashmap_t *tid2thr_statusp = &tid2thr_status;
 mutex_t thr_status_mux;
 
 
-/** @brief Initializes the size all thread stacks will have if the thread
- *         is not the initial thread.
+/** @brief Initializes the size of all non-root thread stacks
  *
- *  @param size Stack size for thread in bytes, must be greater than  0
- *  @return 0 if successful, negative value on failure
+ * 	We define a size of 0 to be an error since this will cause the user
+ * 	to fail to run thr_create() later on, as the stack size will be 0. Thus
+ * 	to prevent user suprises later on, a size of 0 is invalid and thus
+ * 	an error.
+ *
+ * 	Also note that users must only call thr_init() exactly once and so
+ * 	calling thr_init() more than once also returns an error.
+ *
+ *  @param size Stack size for thread in bytes, must be greater than 0.
+ *  @return 0 if successful, negative value on failure.
  */
 int
 thr_init( unsigned int size )
@@ -60,7 +67,6 @@ thr_init( unsigned int size )
 
     /* Round thread stack size up to ALIGN bytes */
 	THR_STACK_SIZE = ((size + ALIGN - 1) / ALIGN) * ALIGN;
-    THR_INITIALIZED = 1;
 
 	/* Initialize the mutex for malloc family functions and thread hashtable */
 	if (mutex_init(&malloc_mutex) < 0) {
@@ -71,7 +77,7 @@ thr_init( unsigned int size )
 		return -1;
 	}
     /* Initialize hashmap to store thread status information */
-    new_map();
+    init_map();
 
 	/* Allocate exit_cvar for root thread */
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
@@ -82,8 +88,8 @@ thr_init( unsigned int size )
 	if (cond_init(exit_cvar) < 0)
 		return -1;
 	root_tstatus.exit_cvar = exit_cvar;
-
 	insert(&root_tstatus);
+    THR_INITIALIZED = 1;
 
 	return 0;
 }
@@ -181,12 +187,10 @@ thr_join( int tid, void **statusp )
 
         cond_wait(thr_statusp->exit_cvar, &thr_status_mux);
     }
-	tprintf("out of while loop, tid: %d", thr_statusp->tid);
 
     /* Collect exit status if statusp non-NULL */
     assert(thr_statusp->exited);
     if (statusp) {
-		tprintf("statusp non-null");
         *statusp = thr_statusp->status;
 	}
 
@@ -196,23 +200,17 @@ thr_join( int tid, void **statusp )
     /* Free child stack and thread status and cond var */
     if (thr_statusp->thr_stack_low == global_stack_low) {
 		/* do nothing */
-		tprintf("freeing root thread stack");
 	} else {
 		/* free child stack */
         free(thr_statusp->thr_stack_low);
 	}
     cond_destroy(thr_statusp->exit_cvar);
-	tprintf("cond_destroyed exit cvar");
     free(thr_statusp->exit_cvar);
-	tprintf("free exit_cvar");
 
 	if (thr_statusp != &root_tstatus) {
 		free(thr_statusp);
-		tprintf("free thr_statusp");
 	}
-
     mutex_unlock(&thr_status_mux);
-	tprintf("unlocked mutex");
 
     return 0;
 }
