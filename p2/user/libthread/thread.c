@@ -73,19 +73,17 @@ thr_init( unsigned int size )
     /* Initialize hashmap to store thread status information */
     new_map();
 
-	/* Store root thread info on hashmap. */
-	thr_status_t *tp = malloc(sizeof(thr_status_t));
-	affirm(tp);
-	memset(tp, 0, sizeof(thr_status_t));
-
+	/* Allocate exit_cvar for root thread */
 	cond_t *exit_cvar = malloc(sizeof(exit_cvar));
-	affirm(exit_cvar);
-	affirm(cond_init(exit_cvar) == 0);
+	if (!exit_cvar)
+		return -1;
 
-	tp->tid = gettid();
-	tp->exit_cvar = exit_cvar;
+	/* Initialize exit_cvar for root thread and add to hashtable */
+	if (cond_init(exit_cvar) < 0)
+		return -1;
+	root_tstatus.exit_cvar = exit_cvar;
 
-	insert(tp);
+	insert(&root_tstatus);
 
 	return 0;
 }
@@ -183,23 +181,38 @@ thr_join( int tid, void **statusp )
 
         cond_wait(thr_statusp->exit_cvar, &thr_status_mux);
     }
+	tprintf("out of while loop, tid: %d", thr_statusp->tid);
 
     /* Collect exit status if statusp non-NULL */
     assert(thr_statusp->exited);
-    if (statusp)
+    if (statusp) {
+		tprintf("statusp non-null");
         *statusp = thr_statusp->status;
+	}
 
     /* Remove from hashmap, signaling we've cleaned up this thread */
     remove(tid);
 
     /* Free child stack and thread status and cond var */
-    if (thr_statusp->thr_stack_low)
+    if (thr_statusp->thr_stack_low == global_stack_low) {
+		/* do nothing */
+		tprintf("freeing root thread stack");
+	} else {
+		/* free child stack */
         free(thr_statusp->thr_stack_low);
+	}
     cond_destroy(thr_statusp->exit_cvar);
+	tprintf("cond_destroyed exit cvar");
     free(thr_statusp->exit_cvar);
-    free(thr_statusp);
+	tprintf("free exit_cvar");
+
+	if (thr_statusp != &root_tstatus) {
+		free(thr_statusp);
+		tprintf("free thr_statusp");
+	}
 
     mutex_unlock(&thr_status_mux);
+	tprintf("unlocked mutex");
 
     return 0;
 }

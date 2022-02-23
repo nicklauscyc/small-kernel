@@ -26,6 +26,7 @@
  *  @bug No known bugs.
  */
 
+#include <simics.h>
 #include <ureg.h> /* ureg_t */
 #include <syscall.h> /* PAGE_SIZE */
 #include <stdint.h>  /* uint32_t */
@@ -41,6 +42,8 @@
 #define PERMISSION_ERR 1
 
 volatile void *global_stack_low = 0;
+
+thr_status_t root_tstatus;
 
 /* Private alternate "stack space" for page fault exception handling */
 static char exn_stack[PAGE_SIZE];
@@ -63,6 +66,13 @@ install_autostack(void *stack_high, void *stack_low)
 {
 	assert(global_stack_low == 0);
 	global_stack_low = stack_low;
+
+	/* Initialize thread status for root thread except for exit_cvar */
+	root_tstatus.thr_stack_low = stack_low;
+	root_tstatus.thr_stack_high = stack_high;
+	root_tstatus.tid = gettid();
+	root_tstatus.exited = 0;
+	root_tstatus.status = 0;
 
 	/* esp3 argument points to an address 1 word higher than first address */
 	Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, 0);
@@ -119,6 +129,7 @@ void child_pf_handler( void *arg, ureg_t *ureg )
 
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(PERMISSION_ERR & error_code)) {
+		MAGIC_BREAK;
 		panic("Pagefaulted at address: 0x%x, disallow allocating more memory "
 		      "to child thread stack", cr2);
 	} else {

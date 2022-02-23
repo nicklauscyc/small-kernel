@@ -19,9 +19,11 @@ add_one(void *root_tid)
 
 	void *status;
     thr_join(*(int *)root_tid, (void **) &status);
+	tprintf("after thr_join");
 
 	assert(*(int *)status == 69);
 	thr_exit(0);
+	tprintf("after thr_exit");
 	return 0;
 }
 

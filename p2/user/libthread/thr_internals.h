@@ -38,7 +38,7 @@ typedef struct {
     void *status;
 } thr_status_t;
 
-thr_status_t *get_thr_status( int tid );
+extern thr_status_t root_tstatus;
 
 uint32_t add_one_atomic(uint32_t *at);
 int thread_fork(void *child_stack_start, void *(*func)(void *), void *arg);
