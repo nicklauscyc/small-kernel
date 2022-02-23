@@ -18,9 +18,13 @@
  *  one word higher than exn_stack + PAGE_SIZE - 4 is exactly
  *  exn_stack + PAGE_SIZE - 2 == exn_stack + PAGE_SIZE - WORD_SIZE
  *
- *
- *   TODO what about multithreaded stacks? The above assumes single thread.
-
+ *  Since the thread handler is "not expected to "correct" or otherwise resolve
+ *  any exceptions other than pagefaults, if the handler receives a fault
+ *  other than pagefaults, we do not resolve the fault, but invoke panic with
+ *  a helpful error message, because the spec does say "What should happen if
+ *  a thread is killed by an exception? ... be a good idea to think about
+ *  whether there is anything reasonable you could do with "a bit" of code and,
+ *  if so, to try to do it."
  *
  *  @author Nicklaus Choo (nchoo)
  *  @bug No known bugs.
@@ -127,11 +131,13 @@ void child_pf_handler( void *arg, ureg_t *ureg )
 	unsigned int cr2 = ureg->cr2;
 	unsigned int error_code = ureg->error_code;
 
+	/* Do not grow stack space of child */
 	if (cause == SWEXN_CAUSE_PAGEFAULT
 		&& !(PERMISSION_ERR & error_code)) {
-		MAGIC_BREAK;
 		panic("Pagefaulted at address: 0x%x, disallow allocating more memory "
 		      "to child thread stack", cr2);
+
+	/* Do not resolve any other exceptions, just call panic with some info */
 	} else {
         panic("Non-Pagefault software exception encountered, cause: 0x%x, "
 		      "cr2: 0x%x, error_code: 0x%x", cause, cr2, error_code);
@@ -182,6 +188,7 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		/* Always register page fault exception handler again */
 		Swexn(exn_stack + PAGE_SIZE - WORD_SIZE, pf_swexn_handler, 0, ureg);
 
+	/* Do not resolve any other exceptions, just call panic with some info */
 	} else {
 		if (cause == SWEXN_CAUSE_PAGEFAULT) {
 			if (cr2 < ((unsigned int) global_stack_low) - PAGE_SIZE) {

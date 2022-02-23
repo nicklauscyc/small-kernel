@@ -142,7 +142,7 @@ UPDATE_METHOD = afs
 # directory
 #
 STUDENTTESTS = test_set_status test_threads test_rwlock childpf join_root \
-               div_zero
+               div_zero child_divzero
 
 ###########################################################################
 # Object files for your thread library
