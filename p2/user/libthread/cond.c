@@ -23,9 +23,38 @@
 #include <thr_internals.h> /* thr_status_t */
 #include <syscall.h> /* gettid() */
 #include <string.h> /* memset() */
+#include <thread.h> /* thr_getid() */
 
+
+mutex_t global_cv_mux;
+
+/** @brief checks if cv has been initialized and gets cv mutex
+ *
+ *  Acquires a global lock and quickly uses it to check if initialized, and
+ *  if it is, grabs the cv lock for the cond_ function to prevent race
+ *  conditions with other threads.
+ *
+ *  @param cv Pointer to condition variable to check
+ *  @return Void. Does not return on error
+ */
+void
+check_init_and_lock( cond_t *cv )
+{
+	tprintf("cond_init_and_lock");
+
+	/* check if cv initialized atomically */
+	mutex_lock(&global_cv_mux);
+	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
+	mutex_lock(&(cv->mux));
+	mutex_unlock(&global_cv_mux);
+}
 
 /** @brief Initializes condition variables
+ *
+ *  cond_init() should be called once and only once by any user program
+ *  per condition variable unless that condition variable is de-initialized
+ *  by cond_destroy(). i.e. illegal for user program to call cond_init()
+ *  on the same condition variable more than once in a row.
  *
  *  @param cv Pointer to condition variable to be initialized
  *  @return 0 on success, -1 on error
@@ -33,23 +62,22 @@
 int
 cond_init( cond_t *cv )
 {
-	/* Allocate memory for mutex and initialize mutex */
-	mutex_t *mp = malloc(sizeof(mutex_t));
-	//TODO malloc -1? What if we put mp in the struct so it doesn't have to be
-	//malloced? We essentially passed the error elsewhere
-	assert(mp);
-	mutex_init(mp);
-	cv->mp = mp;
+	tprintf("cond_init");
+	MAGIC_BREAK;
+	/* Initialize mutex and condition variable */
+	if(mutex_init(&(cv->mux)) < 0)
+		return -1;
+	tprintf("after mutex init");
 
-	/* Allocate memory for queue and initialize queue for waiting threads */
-	cvar_queue_t *qp = malloc(sizeof(cvar_queue_t));
-	assert(qp);
-	//TODO malloc -1?
-	Q_INIT_HEAD(qp);
-	assert(!Q_GET_FRONT(qp));
-	assert(!Q_GET_TAIL(qp));
-	cv->qp = qp;
+	/* Initialize queue of waiting threads, should be empty */
+	Q_INIT_HEAD(&(cv->qh));
+	tprintf("after queue head init");
+	if (Q_GET_FRONT(&(cv->qh)) || Q_GET_TAIL(&(cv->qh)))
+		return -1;
+	tprintf("after last");
+
 	cv->init = 1;
+	tprintf("after cv_init");
 	return 0;
 }
 
@@ -66,29 +94,28 @@ cond_init( cond_t *cv )
 void
 cond_destroy( cond_t *cv )
 {
+	tprintf("cond_destroy");
+
 	/* Lock this cv */
-	mutex_lock(cv->mp);
+	mutex_lock(&(cv->mux));
 
 	/* Cannot destroy if queue of blocked threads not empty */
-	affirm_msg(!(Q_GET_FRONT(cv->qp)), "Illegal: attempted to destroy "
+	affirm_msg(!(Q_GET_FRONT(&(cv->qh))), "Illegal: attempted to destroy "
 		"condition variable with blocked threads");
-
- 	/* Free queue head */
-	free(cv->qp);
 
 	/* Mark as unitialized so no one else may use this cv */
 	cv->init = 0;
 
 	/* Release lock and deactivate mutex */
-	mutex_unlock(cv->mp);
-
-	/* TODO if cond_init is called here we are doomed */
-	mutex_destroy(cv->mp);
-	free(cv->mp); //TODO is it ok to free this guy?
+	mutex_unlock(&(cv->mux));
+	mutex_destroy(&(cv->mux));
 }
 
 /** @brief Causes the thread that calls con_wait() to be descheduled until
  *         woken up by con_signal.
+ *
+ *  Checking that cv is initialized will effectively penalize the illegal
+ *  action of calling cond_wait() on a destroyed mutex.
  *
  *  @param cv Pointer to condition variable
  *  @param mp Mutex that thread is holding on to when calling con_wait()
@@ -97,35 +124,28 @@ cond_destroy( cond_t *cv )
 void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
-	/* If cv has been de-initialized, release lock and do nothing */
-	affirm_msg(cv != NULL && cv->init,
-            "Trying to wait on uninitialized cond variable.");
+	tprintf("cond_wait");
 
-    // TODO: cond_destroy could happen here (Illegal, however)
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
+	affirm_msg(mp, "mutex pointer cannot be NULL");
+	affirm_msg(mp->initialized, "mutex must be initialized");
+	affirm_msg(mp->owner_tid == thr_getid(), "thread must lock the mutex");
 
-	/* Lock cv mutex */
-	mutex_lock(cv->mp);
+	/* Prevent getting cv getting destroyed after checking its initialized */
+	check_init_and_lock(cv);
 
-	/* Allocate memory for linked list element */
-	cvar_node_t *cn = malloc(sizeof(cvar_node_t));
-	//TODO what if malloc fails?
-	assert(cn);
-	memset(cn, 0, sizeof(cvar_node_t));
-
-	/* Initialize the node in queue */
-	cn->mp = mp;
-	cn->tid = gettid();
-
-	/* Mark as descheduled so other threads know this thread not runnable */
-	cn->descheduled = 1;
+	/* Create linked list element and init values */
+	cvar_node_t cn;
+	memset(&cn, 0, sizeof(cvar_node_t));
+	cn.mp = mp;
+	cn.tid = gettid();
+	cn.descheduled = 1;
 
 	/* Add to cv queue tail */
-	Q_INSERT_TAIL(cv->qp, cn, link);
+	Q_INSERT_TAIL(&(cv->qh), &cn, link);
 
-	/* Give up cv mutex */
-	mutex_unlock(cv->mp);
-
-	/* Give up mutex */
+	/* Give up cv mutex and mutex */
+	mutex_unlock(&(cv->mux));
 	mutex_unlock(mp);
 
 	/* Finally deschedule this thread */
@@ -147,7 +167,7 @@ cond_wait( cond_t *cv, mutex_t *mp )
  *  This solves the problem of not awakening threads which may have invoked
  *  cond_wait() after the call to con_broadcast().
  *
- *  Requires that cv->mp be acquired before calling _cond_signal
+ *  Requires that &(cv->mux) be acquired before calling _cond_signal
  *
  *  @param cv Pointer to condition variable cv
  *  @param from_broadcast Boolean set to 1 if called from within
@@ -157,11 +177,13 @@ cond_wait( cond_t *cv, mutex_t *mp )
 void
 _cond_signal( cond_t *cv )
 {
+	tprintf("_cond_signal");
+
 	/* Get front most descheduled thread if queue non_empty */
-	cvar_node_t *front = Q_GET_FRONT(cv->qp);
+	cvar_node_t *front = Q_GET_FRONT(&(cv->qh));
 
 	if (front) {
-		Q_REMOVE(cv->qp, front, link);
+		Q_REMOVE(&(cv->qh), front, link);
 
 		/* Update that this is no longer descheduled */
 		affirm(front->descheduled);
@@ -178,8 +200,6 @@ _cond_signal( cond_t *cv )
 		while ((res = make_runnable(tid)) < 0) {
             yield(tid);
         }
-		/* free front */
-		free(front);
 	}
 	return;
 }
@@ -192,10 +212,14 @@ _cond_signal( cond_t *cv )
 void
 cond_signal( cond_t *cv )
 {
-	assert(cv);
-	mutex_lock(cv->mp);
+	tprintf("cond_signal");
+
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
+
+	/* check if cv initialized atomically */
+	check_init_and_lock(cv);
 	_cond_signal(cv);
-	mutex_unlock(cv->mp);
+	mutex_unlock(&(cv->mux));
 }
 
 /** @brief Locks the cv and wakes up all sleeping threads in queue
@@ -206,16 +230,19 @@ cond_signal( cond_t *cv )
 void
 cond_broadcast( cond_t *cv )
 {
-	assert(cv);
-	/* Lock cv->mp */
-	mutex_lock(cv->mp);
+	tprintf("cond_broadcast");
+
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
+
+	/* check if cv initialized atomically */
+	check_init_and_lock(cv);
 
 	/* Wake up all threads */
-	while(Q_GET_FRONT(cv->qp)) {
+	while(Q_GET_FRONT(&(cv->qh))) {
 		_cond_signal(cv);
 	}
-	/* Unlock cv->mp */
-	mutex_unlock(cv->mp);
+	/* Unlock &(cv->mux) */
+	mutex_unlock(&(cv->mux));
 
 	return;
 }

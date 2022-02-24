@@ -67,8 +67,8 @@ Q_NEW_HEAD(cvar_queue_t, cvar_node);
  *  @param init 1 if condition variable has been initialized, 0 otherwise
  */
 typedef struct cond {
-	mutex_t *mp;
-	cvar_queue_t *qp;
+	mutex_t mux;
+	cvar_queue_t qh;
 	int init;
 } cond_t;
 

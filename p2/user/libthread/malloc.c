@@ -9,6 +9,8 @@
 #include <types.h>
 #include <mutex.h> /* mutex_lock(), mutex_unlock() */
 #include <assert.h> /* assert() */
+#include <simics.h>
+
 extern mutex_t malloc_mutex;
 
 /** @brief Perform dynamic memory allocation on the heap.
@@ -18,6 +20,7 @@ extern mutex_t malloc_mutex;
  *  */
 void *malloc(size_t __size)
 {
+	MAGIC_BREAK;
 	mutex_lock(&malloc_mutex);
 	void *p = _malloc(__size);
 	mutex_unlock(&malloc_mutex);
@@ -32,6 +35,7 @@ void *malloc(size_t __size)
  *  */
 void *calloc(size_t __nelt, size_t __eltsize)
 {
+	MAGIC_BREAK;
 	mutex_lock(&malloc_mutex);
 	void *p = _calloc(__nelt, __eltsize);
 	mutex_unlock(&malloc_mutex);
@@ -46,6 +50,7 @@ void *calloc(size_t __nelt, size_t __eltsize)
  *  */
 void *realloc(void *__buf, size_t __new_size)
 {
+	MAGIC_BREAK;
 	mutex_lock(&malloc_mutex);
 	void *p = realloc(__buf, __new_size);
 	mutex_unlock(&malloc_mutex);
@@ -59,6 +64,7 @@ void *realloc(void *__buf, size_t __new_size)
  *  */
 void free(void *__buf)
 {
+	MAGIC_BREAK;
 	mutex_lock(&malloc_mutex);
 	_free(__buf);
 	mutex_unlock(&malloc_mutex);
