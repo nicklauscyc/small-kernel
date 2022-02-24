@@ -180,6 +180,7 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 		uint32_t base = ((cr2 / PAGE_SIZE) * PAGE_SIZE);
 		int res = new_pages((void *) base, PAGE_SIZE);
 		global_stack_low = (void *) base;
+		root_tstatus.thr_stack_low = (void *) base;
 
 		/* Panic if cannot grow user space stack for root thread */
 		if (res < 0)

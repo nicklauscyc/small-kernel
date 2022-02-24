@@ -29,6 +29,14 @@ add_one(void *root_tid)
 
 int main()
 {
+	char s[655463];
+	int sum = 0;
+	for (int i = 0; i < 655463; i++) {
+		s[i] = 1;
+		sum = sum + s[i];
+	}
+	lprintf("sum:%d", sum);
+
 	assert(thr_init(PAGE_SIZE) == 0);
 
 	int root_tid = gettid();

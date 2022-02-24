@@ -198,7 +198,8 @@ thr_join( int tid, void **statusp )
 
     /* Free child stack and thread status and cond var */
     if (thr_statusp->thr_stack_low == global_stack_low) {
-		/* do nothing */
+		if (remove_pages(thr_statusp->thr_stack_low) < 0)
+			return -1;
 	} else {
 		/* free child stack */
         free(thr_statusp->thr_stack_low);
