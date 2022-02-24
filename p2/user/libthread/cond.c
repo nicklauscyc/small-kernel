@@ -23,8 +23,9 @@
 #include <thr_internals.h> /* thr_status_t */
 #include <syscall.h> /* gettid() */
 #include <string.h> /* memset() */
+#include <thread.h> /* thr_getid() */
 
-mutex_t global_cv_mux;
+extern mutex_t global_cv_mux;
 
 /** @brief checks if cv has been initialized and gets cv mutex
  *
@@ -38,12 +39,10 @@ mutex_t global_cv_mux;
 void
 check_init_and_lock( cond_t *cv )
 {
-	tprintf("cond_init_and_lock");
-
 	/* check if cv initialized atomically */
 	mutex_lock(&global_cv_mux);
 	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
-	mutex_lock(cv->mp));
+	mutex_lock(cv->mp);
 	mutex_unlock(&global_cv_mux);
 }
 

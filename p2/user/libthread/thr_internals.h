@@ -16,6 +16,8 @@
 void tprintf( const char *format, ... );
 void vtprintf( const char *format, va_list args );
 
+extern mutex_t global_cv_mux;
+
 
 /* Global variable set to 1 when thr_init() is called, 0 before */
 extern int THR_INITIALIZED;

@@ -42,6 +42,8 @@ int THR_INITIALIZED = 0;
 /** @brief Mutex for thread status info. */
 mutex_t thr_status_mux;
 
+mutex_t global_cv_mux;
+
 /** @brief Initializes the size of all non-root thread stacks
  *
  * 	We define a size of 0 to be an error since this will cause the user
@@ -72,6 +74,12 @@ thr_init( unsigned int size )
 		mutex_destroy(&malloc_mutex);
 		return -1;
 	}
+	if (mutex_init(&global_cv_mux) < 0) {
+		mutex_destroy(&malloc_mutex);
+		mutex_destroy(&thr_status_mux);
+		return -1;
+	}
+
     /* Initialize hashmap to store thread status information */
     init_map();
 
