@@ -24,6 +24,28 @@
 #include <syscall.h> /* gettid() */
 #include <string.h> /* memset() */
 
+mutex_t global_cv_mux;
+
+/** @brief checks if cv has been initialized and gets cv mutex
+ *
+ *  Acquires a global lock and quickly uses it to check if initialized, and
+ *  if it is, grabs the cv lock for the cond_ function to prevent race
+ *  conditions with other threads.
+ *
+ *  @param cv Pointer to condition variable to check
+ *  @return Void. Does not return on error
+ */
+void
+check_init_and_lock( cond_t *cv )
+{
+	tprintf("cond_init_and_lock");
+
+	/* check if cv initialized atomically */
+	mutex_lock(&global_cv_mux);
+	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
+	mutex_lock(cv->mp));
+	mutex_unlock(&global_cv_mux);
+}
 
 /** @brief Initializes condition variables
  *
@@ -97,14 +119,13 @@ cond_destroy( cond_t *cv )
 void
 cond_wait( cond_t *cv, mutex_t *mp )
 {
-	/* If cv has been de-initialized, release lock and do nothing */
-	affirm_msg(cv != NULL && cv->init,
-            "Trying to wait on uninitialized cond variable.");
-
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
+	affirm_msg(mp, "mutex pointer cannot be NULL");
+	affirm_msg(mp->initialized, "mutex must be initialized");
+	affirm_msg(mp->owner_tid == thr_getid(), "thread must lock the mutex");
     // TODO: cond_destroy could happen here (Illegal, however)
 
-	/* Lock cv mutex */
-	mutex_lock(cv->mp);
+	check_init_and_lock(cv);
 
 	/* Allocate memory for linked list element */
 	cvar_node_t cn;
@@ -185,7 +206,7 @@ void
 cond_signal( cond_t *cv )
 {
 	assert(cv);
-	mutex_lock(cv->mp);
+	check_init_and_lock(cv);
 	_cond_signal(cv);
 	mutex_unlock(cv->mp);
 }
@@ -200,8 +221,7 @@ cond_broadcast( cond_t *cv )
 {
 	assert(cv);
 	/* Lock cv->mp */
-	mutex_lock(cv->mp);
-
+	check_init_and_lock(cv);
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
 		_cond_signal(cv);
