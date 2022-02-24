@@ -56,19 +56,24 @@ cond_init( cond_t *cv )
 {
 	/* Allocate memory for mutex and initialize mutex */
 	mutex_t *mp = malloc(sizeof(mutex_t));
-	//TODO malloc -1? What if we put mp in the struct so it doesn't have to be
-	//malloced? We essentially passed the error elsewhere
-	assert(mp);
+	if (!mp)
+		return -1;
 	mutex_init(mp);
 	cv->mp = mp;
 
 	/* Allocate memory for queue and initialize queue for waiting threads */
 	cvar_queue_t *qp = malloc(sizeof(cvar_queue_t));
-	assert(qp);
-	//TODO malloc -1?
+	if (!qp) {
+		free(mp);
+		return -1;
+	}
+	/* Q head should be empty */
 	Q_INIT_HEAD(qp);
-	assert(!Q_GET_FRONT(qp));
-	assert(!Q_GET_TAIL(qp));
+	if (Q_GET_FRONT(qp) || Q_GET_TAIL(qp)) {
+		free(mp);
+		free(qp);
+		return -1;
+	}
 	cv->qp = qp;
 	cv->init = 1;
 	return 0;
@@ -102,10 +107,8 @@ cond_destroy( cond_t *cv )
 
 	/* Release lock and deactivate mutex */
 	mutex_unlock(cv->mp);
-
-	/* TODO if cond_init is called here we are doomed */
 	mutex_destroy(cv->mp);
-	free(cv->mp); //TODO is it ok to free this guy?
+	free(cv->mp);
 }
 
 /** @brief Causes the thread that calls con_wait() to be descheduled until
@@ -122,11 +125,10 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	affirm_msg(mp, "mutex pointer cannot be NULL");
 	affirm_msg(mp->initialized, "mutex must be initialized");
 	affirm_msg(mp->owner_tid == thr_getid(), "thread must lock the mutex");
-    // TODO: cond_destroy could happen here (Illegal, however)
 
 	check_init_and_lock(cv);
 
-	/* Allocate memory for linked list element */
+	/* Initialize linked list element */
 	cvar_node_t cn;
 	memset(&cn, 0, sizeof(cvar_node_t));
 	cn.mp = mp;
@@ -171,6 +173,7 @@ cond_wait( cond_t *cv, mutex_t *mp )
 void
 _cond_signal( cond_t *cv )
 {
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
 	/* Get front most descheduled thread if queue non_empty */
 	cvar_node_t *front = Q_GET_FRONT(cv->qp);
 
@@ -204,8 +207,9 @@ _cond_signal( cond_t *cv )
 void
 cond_signal( cond_t *cv )
 {
-	assert(cv);
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
 	check_init_and_lock(cv);
+
 	_cond_signal(cv);
 	mutex_unlock(cv->mp);
 }
@@ -218,9 +222,9 @@ cond_signal( cond_t *cv )
 void
 cond_broadcast( cond_t *cv )
 {
-	assert(cv);
-	/* Lock cv->mp */
+	affirm_msg(cv, "cond variable pointer cannot be NULL");
 	check_init_and_lock(cv);
+
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
 		_cond_signal(cv);
