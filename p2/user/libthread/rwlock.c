@@ -1,42 +1,7 @@
 /** @file rwlock.c
  *  @brief A read/write lock
  *
- *  Design:
- *  A read/write lock must allow either one writer or multiple readers
- *  at a time. The approach here is to try and serve readers or writers
- *  roughly in the order of arrival. Suppose the following order of requests:
- *
- *  W1 R1 R2 W2
- *
- *  Then, we could avoid starvation of readers and writers by letting
- *  W1 go first, then once its done we let R1 R2 go simulateneously, and
- *  lastly, we let W2 go. However, this simple policy is can be rather
- *  bad. Suppose the following sequence:
- *
- *  W1 R1 R2 W2 R3 R4
- *
- *  Then, if we had known of requests R3 and R4 before W1 gave
- *  up its lock, we could reorganize our serving order as:
- *
- *  W1 R1 R2 R3 R4 W2
- *
- *  This enables us to serve all 4 readers in parallel. To enable
- *  this "coalescing" of readers we make the following policy:
- *
- *  - Write requests go into a writer queue
- *  - Read requests go into a reader queue
- *  - Whenever we transition from WRITING to READING we service *all*
- *    read requests.
- *
- *  This simple policy equates to "coalescing" all reads together.
- *  Wouldn't this lead to a starvation of writers, though? No. To avoid
- *  the starvation of writers, we only coalesce when a writer has the lock.
- *  When we are in the reading phase we accept no new readers.
- *
- *  Formulated more simply, we only "coalesce" readers during phase
- *  transitions, which allows us to avoid starvation while enabling
- *  high read parallelism.
- *
+ *  Design discussion in README.dox
  *
  *  @author Andre Nascimento (anascime)
  *  */
@@ -58,7 +23,8 @@ static void start_writer_phase( rwlock_t *rwlock );
 int
 rwlock_init( rwlock_t *rwlock )
 {
-    affirm(rwlock);
+    if (!rwlock)
+        return -1;
 
     rwlock->state = NONE;
     rwlock->initialized = 1;

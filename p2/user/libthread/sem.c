@@ -48,7 +48,7 @@ is_sem( sem_t *sem )
 	//assert(sem->mux);
 	//
 	return 1;
-	}
+}
 
 
 /** @brief Initializes the semaphore. Negative count is possible as that does

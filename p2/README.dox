@@ -23,6 +23,9 @@ We performed case analysis on how to deal with each bug. We have found, though,
 that in the vast majority of cases, we return -1 on functions that are allowed
 to fail and we crash on those that can't if we face an unfixable error. Also,
 whenever we encounter a bug we make sure to cleanup all resources in use.
+A notable case is locks: In case lock fails, it always crashes as a silent
+return would give a thread the wrong notion that it has exclusive access to
+the critical section.
 
 When a given thread crashes, we call task void and print out to the user both
 the panic message and the ID of the thread calling panic. The kernel is then

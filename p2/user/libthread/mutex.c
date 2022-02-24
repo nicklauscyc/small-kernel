@@ -67,14 +67,14 @@ mutex_destroy( mutex_t *mp )
 void
 mutex_lock( mutex_t *mp )
 {
-	/* If calling thread already owns mutex, no-op */
-	if (gettid() == mp->owner_tid) return;
-
     /* Exit if impossible to lock mutex, as just returning would give
      * thread the false impression that lock was acquired. */
     affirm_msg(mp && mp->initialized,
             "tid[%d]: Tried to acquire invalid or uninitialized lock",
 			 gettid());
+
+	/* If calling thread already owns mutex, no-op */
+	if (gettid() == mp->owner_tid) return;
 
     /* Get ticket. add_one_atomic returns after addition, so subtract 1 */
     uint32_t my_ticket = add_one_atomic(&mp->next_ticket);

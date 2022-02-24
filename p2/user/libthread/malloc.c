@@ -10,6 +10,7 @@
 #include <mutex.h> /* mutex_lock(), mutex_unlock() */
 #include <assert.h> /* assert() */
 extern mutex_t malloc_mutex;
+extern int THR_INITIALIZED;
 
 /** @brief Perform dynamic memory allocation on the heap.
  *  @param size Size of allocation to perform
@@ -18,9 +19,15 @@ extern mutex_t malloc_mutex;
  *  */
 void *malloc(size_t __size)
 {
-	mutex_lock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_lock(&malloc_mutex);
+    }
+
 	void *p = _malloc(__size);
-	mutex_unlock(&malloc_mutex);
+
+    if (THR_INITIALIZED) {
+	    mutex_unlock(&malloc_mutex);
+    }
 	return p;
 }
 
@@ -32,9 +39,13 @@ void *malloc(size_t __size)
  *  */
 void *calloc(size_t __nelt, size_t __eltsize)
 {
-	mutex_lock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_lock(&malloc_mutex);
+    }
 	void *p = _calloc(__nelt, __eltsize);
-	mutex_unlock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_unlock(&malloc_mutex);
+    }
 	return p;
 }
 
@@ -46,9 +57,13 @@ void *calloc(size_t __nelt, size_t __eltsize)
  *  */
 void *realloc(void *__buf, size_t __new_size)
 {
-	mutex_lock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_lock(&malloc_mutex);
+    }
 	void *p = realloc(__buf, __new_size);
-	mutex_unlock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_unlock(&malloc_mutex);
+    }
 	return p;
 }
 
@@ -59,8 +74,12 @@ void *realloc(void *__buf, size_t __new_size)
  *  */
 void free(void *__buf)
 {
-	mutex_lock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_lock(&malloc_mutex);
+    }
 	_free(__buf);
-	mutex_unlock(&malloc_mutex);
+    if (THR_INITIALIZED) {
+	    mutex_unlock(&malloc_mutex);
+    }
 	return;
 }
