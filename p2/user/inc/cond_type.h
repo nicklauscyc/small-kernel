@@ -33,12 +33,14 @@
  *  @param tid Thread ID of thread waiting on this condition variable
  *  @param mp Mutex that thread was holding on to on cond_wait() call
  *  @param descheduled 1 if thread is set to be descheduled, 0 otherwise
+ *  @param should_wakeup Whether the thread should return from cond_wait
  */
 typedef struct cvar_node {
 	Q_NEW_LINK(cvar_node) link;
 	int tid;
 	mutex_t *mp;
 	int descheduled;
+    int should_wakeup;
 } cvar_node_t;
 
 /** @brief Struct for queue head of the condition variable

@@ -9,6 +9,11 @@
  * 	struct containing info for that thread is set to indicate the the
  * 	waiting thread is descheduled. cv->mp is unlocked, then the mutex lock for
  * 	the mutex protected state is unlocked.
+ *
+ *  To avoid interference from other programs calling make_runnable we use
+ *  a variable named should_wakeup to keep track of whether cond_signal was
+ *  the one who woke us up.
+ *
  *  @author Nicklaus Choo (nchoo)
  */
 
@@ -113,9 +118,11 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	cn.mp = mp;
 	cn.tid = gettid();
 	cn.descheduled = 1;
+    cn.should_wakeup = 0;
 
 	/* Add to cv queue tail */
 	Q_INSERT_TAIL(cv->qp, &cn, link);
+
 
 	/* Give up cv mutex */
 	mutex_unlock(cv->mp);
@@ -125,10 +132,14 @@ cond_wait( cond_t *cv, mutex_t *mp )
 
 	/* Finally deschedule this thread */
 	int runnable = 0;
-	int res = deschedule(&runnable);
 
-	/* res should be 0 on successful return */
-	assert(!res);
+    /* Wait until we are woken up by cond_signal */
+    while (!cn.should_wakeup) {
+	    int res = deschedule(&runnable);
+        /* res should be 0 on successful return */
+        assert(!res);
+    }
+
 
 	/* On wake up, reacquire mutex */
 	mutex_lock(mp);
@@ -171,6 +182,7 @@ _cond_signal( cond_t *cv )
          * However since we know front->descheduled is 1, then that thread will
          * be deschedule soon - where soon means in a few instructions.
 		 */
+        front->should_wakeup = 1;
 		while ((res = make_runnable(tid)) < 0) {
             yield(tid);
         }

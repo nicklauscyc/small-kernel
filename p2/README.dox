@@ -101,12 +101,9 @@ was significantly slowed down. Because this race can only arise from an
 illegal call to con_destroy(), we do not sacrifice such great time
 resource just to avoid it.
 
-Furthemore our cond var implementation will still work with other sync calls
-to make_runnable() or deschedule(). If a thread is woken up too early the
-standard use of cond vars will cause it to go back to call con_wait() again.
-If a thread receives a deschedule() invoked from other sync functions, in
-cond_signal() and cond_broadcast() we repeatedly call make_runnable() since
-the thread needs to wake up.
+To avoid interference from other programs calling make_runnable we use
+a variable named should_wakeup to keep track of whether cond_signal was
+the one who woke us up.
 
 
 ## Thread API
