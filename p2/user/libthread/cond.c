@@ -107,20 +107,14 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	mutex_lock(cv->mp);
 
 	/* Allocate memory for linked list element */
-	cvar_node_t *cn = malloc(sizeof(cvar_node_t));
-	//TODO what if malloc fails?
-	assert(cn);
-	memset(cn, 0, sizeof(cvar_node_t));
-
-	/* Initialize the node in queue */
-	cn->mp = mp;
-	cn->tid = gettid();
-
-	/* Mark as descheduled so other threads know this thread not runnable */
-	cn->descheduled = 1;
+	cvar_node_t cn;
+	memset(&cn, 0, sizeof(cvar_node_t));
+	cn.mp = mp;
+	cn.tid = gettid();
+	cn.descheduled = 1;
 
 	/* Add to cv queue tail */
-	Q_INSERT_TAIL(cv->qp, cn, link);
+	Q_INSERT_TAIL(cv->qp, &cn, link);
 
 	/* Give up cv mutex */
 	mutex_unlock(cv->mp);
@@ -178,8 +172,6 @@ _cond_signal( cond_t *cv )
 		while ((res = make_runnable(tid)) < 0) {
             yield(tid);
         }
-		/* free front */
-		free(front);
 	}
 	return;
 }
