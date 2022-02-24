@@ -5,6 +5,7 @@
 @author Nicklaus Choo (nchoo)
 @author Andre Nascimento (anascime)
 
+
 ## Illegal operations
 
 Our approach to illegal operations is to do everything in our immediate means to
@@ -16,6 +17,7 @@ required to better deal with these errors are not worth pursuing:
 it's not reasonable to lockdown the entire park and begin an investigation
 because someone littered. It's also not reasonable to have a guard closely
 monitoring each visitant to stop them and deal with their littering.
+
 
 ## Error handling
 
@@ -31,11 +33,14 @@ When a given thread crashes, we call task void and print out to the user both
 the panic message and the ID of the thread calling panic. The kernel is then
 responsible for cleaning up.
 
+
 ## With respect to dynamic memory allocation
 
-Whenever creating structs which have to be malloc'ed, we avoid making its
-fields pointers if possible. By having the fields be values we can make fewer
-calls to malloc and free, and we're less likely to forget to clean someone up.
+A global mutex is used to ensure mutual exclusion when calling any malloc
+family of functions. This ensures thread-safety as we will never context
+switch away in the middle of a malloc() call and again perform another
+malloc() call.
+
 
 ## On synchronization concerns
 
@@ -47,7 +52,8 @@ requests and have the same behavior as that of a single thread using malloc.
 
 ----- BELOW WE LIST ALL COMPONENTS OF THE CODE AND THE DESIGN BEHIND THEM -----
 
-## Hashmap
+
+## Hashmap for thread control blocks
 
 The hashmap is implemented as an array of linked lists. Its size
 is fixed to 1024, a reasonable number to avoid collisions. As
@@ -56,6 +62,7 @@ use a hash function defined in github.com/skeeto/hash-prospector
 for the same purpose.
 The hashmap is used to store thread status information in a
 globally accessible location. It is a global variable.
+
 
 ## Mutex
 
@@ -71,6 +78,59 @@ owner to avoid wasting cycles, and eventually acquire the lock.
 
 Unlocking simply consists of update the now_serving variable
 with a blind write.
+
+
+## Condition Variables
+
+Condition variables were implemented with a queue of waiting threads that
+are descheduled. When a thread calls con_wait() on a condition variable
+cv, it is added to a queue of sleeping threads and then descheduled. Note
+that we refrain from memory allocation by stack allocating the node which
+we are putting into the queue. This node has a fixed size and does not
+use much memory on the stack. Furthermore, note that if users illegally
+call cond_destroy() on a condition variable while another thread is
+in the midst of calling cond_wait(), cond_signal(), or cond_broadcast() on the
+same condition variable, we will have undefined behavior in the form of a race
+condition. This is because con_wait(), con_signal(), con_broadcast() first
+affirm that the cond var is initialized before grabbing the mutex lock. Between
+checking for initialization and grabbing the lock, an illegal call to
+cond_destroy() will present a race, destroying the con var before the lock
+can be grabbed. However, we had implemented a global mutex lock for all
+cond vars to prevent this from happening, and multi threaded performance
+was significantly slowed down. Because this race can only arise from an
+illegal call to con_destroy(), we do not sacrifice such great time
+resource just to avoid it.
+
+Furthemore our cond var implementation will still work with other sync calls
+to make_runnable() or deschedule(). If a thread is woken up too early the
+standard use of cond vars will cause it to go back to call con_wait() again.
+If a thread receives a deschedule() invoked from other sync functions, in
+cond_signal() and cond_broadcast() we repeatedly call make_runnable() since
+the thread needs to wake up.
+
+
+## Thread API
+
+Only the root thread will be running on the initial stack space allocated
+by the kernel. Since all threads share the same virtual address space, child
+thread stacks are allocated in the heap via thread safe calls to malloc().
+Fundamentally allocating stacks in the virtual address stack or the heap uses
+calls to new_pages and so there is not an overly significant difference in
+performance.
+
+Every child thread stack also has an exception handler stack at its base. This
+allows zero overlap between exception stacks of different children. All
+important information of a thread is stored in a thread control block of
+type thr_status_t. And this is stored in a global hashtable to enable quick
+lookup when cleaning up after an exited thread.
+
+
+## Semaphore
+
+Semaphores were implemented with mutexes and condition variabls since
+cond vars have an implicit queue. The OSC 10 definition of semaphores is used
+where we block threads while count <= 0, and unblock otherwise.
+
 
 ## Read/Write locks
 
