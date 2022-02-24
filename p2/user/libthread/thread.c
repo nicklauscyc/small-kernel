@@ -42,7 +42,6 @@ int THR_INITIALIZED = 0;
 /** @brief Mutex for thread status info. */
 mutex_t thr_status_mux;
 
-mutex_t global_cv_mux;
 
 /** @brief Initializes the size of all non-root thread stacks
  *
@@ -74,12 +73,6 @@ thr_init( unsigned int size )
 		mutex_destroy(&malloc_mutex);
 		return -1;
 	}
-	if (mutex_init(&global_cv_mux) < 0) {
-		mutex_destroy(&malloc_mutex);
-		mutex_destroy(&thr_status_mux);
-		return -1;
-	}
-
     /* Initialize hashmap to store thread status information */
     init_map();
 
@@ -211,8 +204,6 @@ thr_join( int tid, void **statusp )
         free(thr_statusp->thr_stack_low);
 	}
     cond_destroy(thr_statusp->exit_cvar);
-
-	/* Free the exit_cvar TODO CLEAN THIS UP NO NEED TO ALLOC CVAR */
     free(thr_statusp->exit_cvar);
 
     /* Free statusp if not root */
@@ -264,8 +255,6 @@ thr_yield( int tid )
 	return yield(tid);
 }
 
-// TODO anything less expensive than a full blown syscall?
-// somehow cache this value?
 /** @brief Get id of calling thread
  *
  *  @return Id of calling thread

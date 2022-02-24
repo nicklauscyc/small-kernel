@@ -8,9 +8,7 @@
  * 	first acquires the lock for cv->mp and is added to cv->queue and the
  * 	struct containing info for that thread is set to indicate the the
  * 	waiting thread is descheduled. cv->mp is unlocked, then the mutex lock for
- * 	the mutex protected state is unlocked. TODO does the order of unlocking
- * 	matter?
- *
+ * 	the mutex protected state is unlocked.
  *  @author Nicklaus Choo (nchoo)
  */
 
@@ -25,26 +23,6 @@
 #include <string.h> /* memset() */
 #include <thread.h> /* thr_getid() */
 
-extern mutex_t global_cv_mux;
-
-/** @brief checks if cv has been initialized and gets cv mutex
- *
- *  Acquires a global lock and quickly uses it to check if initialized, and
- *  if it is, grabs the cv lock for the cond_ function to prevent race
- *  conditions with other threads.
- *
- *  @param cv Pointer to condition variable to check
- *  @return Void. Does not return on error
- */
-void
-check_init_and_lock( cond_t *cv )
-{
-	/* check if cv initialized atomically */
-	mutex_lock(&global_cv_mux);
-	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
-	mutex_lock(cv->mp);
-	mutex_unlock(&global_cv_mux);
-}
 
 /** @brief Initializes condition variables
  *
@@ -125,8 +103,9 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	affirm_msg(mp, "mutex pointer cannot be NULL");
 	affirm_msg(mp->initialized, "mutex must be initialized");
 	affirm_msg(mp->owner_tid == thr_getid(), "thread must lock the mutex");
+	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
+	mutex_lock(cv->mp);
 
-	check_init_and_lock(cv);
 
 	/* Initialize linked list element */
 	cvar_node_t cn;
@@ -208,7 +187,8 @@ void
 cond_signal( cond_t *cv )
 {
 	affirm_msg(cv, "cond variable pointer cannot be NULL");
-	check_init_and_lock(cv);
+	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
+	mutex_lock(cv->mp);
 
 	_cond_signal(cv);
 	mutex_unlock(cv->mp);
@@ -223,7 +203,8 @@ void
 cond_broadcast( cond_t *cv )
 {
 	affirm_msg(cv, "cond variable pointer cannot be NULL");
-	check_init_and_lock(cv);
+	affirm_msg(cv->init, "Trying to use uninitialized cond variable.");
+	mutex_lock(cv->mp);
 
 	/* Wake up all threads */
 	while(Q_GET_FRONT(cv->qp)) {
