@@ -31,26 +31,6 @@
 #include <assert.h> /* affirm_msg() */
 #include <thr_internals.h> /* tprintf() */
 
-/** @brief Checks to see if a semaphore that has been initialized is
- *         well-formed
- *
- *  @param sem Pointer to initialized semaphore to be checked
- */
-int
-is_sem( sem_t *sem )
-{
-	/* Cannot be NULL */
-	assert(sem);
-
-	/* Must be intialized */
-	assert(sem->initialized == 1);
-
-	//assert(sem->mux);
-	//
-	return 1;
-}
-
-
 /** @brief Initializes the semaphore. Negative count is possible as that does
  *         not violate the definition of a semaphore.
  *
@@ -64,11 +44,6 @@ sem_init( sem_t *sem, int count )
 {
 	/* sem cannot be NULL */
 	if (!sem) return -1;
-
-	//TODO error for initialized and in use
-	/* check if initialized and in use */
-	//if (sem->initialized) {
-	//	if (Q_GET_FRONT(
 
 	if (mutex_init(&(sem->mux)) < 0) return -1;
 	if (cond_init(&(sem->cv)) < 0) {
@@ -90,7 +65,6 @@ sem_init( sem_t *sem, int count )
  *
  *  @param sem Pointer to semaphore
  */
-/* TODO what if sem points to garbage values */
 void
 sem_wait( sem_t *sem )
 {
@@ -150,6 +124,7 @@ sem_signal( sem_t *sem)
 	mutex_lock(&(sem->mux));
 
 	++(sem->count);
+
 	/* cond signal if some thread is waiting */
 	cond_signal(&(sem->cv));
 	mutex_unlock(&(sem->mux));
