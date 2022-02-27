@@ -1,35 +1,35 @@
 
-# ignore all files in user/progs
-/p2/user/progs/*
-
-# don't ignore .c, README, .h files in user/progs
-!/p2/user/progs/*.c
-!/p2/user/progs/*.h
-!/p2/user/progs/README*
-
-
 # ignore everything
 /*
 
-# unignore /p2
+# unignore /p2 /p3
 !/p2
+!/p3
 
 # ignore everything in /p2
 /p2/*
+/p3/*
 
 # unignore the below
 !/p2/user
 !/p2/config.mk
 !/p2/README.dox
-
+!/p3/kern
+!/p3/user
+!/p3/config.mk
+!/p3/README.dox
 
 # ignore all files in user/progs
 /p2/user/progs/*
+/p3/user/progs/*
 
 # don't ignore .c, README, .h files in user/progs
 !/p2/user/progs/*.c
 !/p2/user/progs/*.h
 !/p2/user/progs/README*
+!/p3/user/progs/*.c
+!/p3/user/progs/*.h
+!/p3/user/progs/README*
 
 # don't ignore the variable queue thing
 !/p2/vq_challenge
