@@ -5,10 +5,14 @@
 # unignore /p2 /p3
 !/p2
 !/p3
+!/nick-p1
+!/andre-p1
 
 # ignore everything in /p2
 /p2/*
 /p3/*
+/nick-p1/*
+/andre-p1/*
 
 # unignore the below
 !/p2/user
@@ -18,6 +22,8 @@
 !/p3/user
 !/p3/config.mk
 !/p3/README.dox
+!/nick-p1/kern
+!/andre-p1/kern
 
 # ignore all files in user/progs
 /p2/user/progs/*
