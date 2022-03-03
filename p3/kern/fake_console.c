@@ -20,27 +20,27 @@
 //  (void)ch; // placate compiler
 //  return ch;
 //}
-//
+
 //void
 //putbytes( const char *s, int len )
 //{
 //  (void)s; // placate compiler
 //  (void)len; // placate compiler
 //}
-//
+
 //int
 //set_term_color( int color )
 //{
 //  (void)color; // placate compiler
 //  return -1;
 //}
-//
+
 //void
 //get_term_color( int *color )
 //{
 //  (void)color; // placate compiler
 //}
-//
+
 //int
 //set_cursor( int row, int col )
 //{
@@ -48,19 +48,19 @@
 //  (void)col; // placate compiler
 //  return -1;
 //}
-//
+
 //void
 //get_cursor( int *row, int *col )
 //{
 //  (void)row; // placate compiler
 //  (void)col; // placate compiler
 //}
-//
+
 //void
 //hide_cursor(void)
 //{
 //}
-//
+
 //void
 //show_cursor(void)
 //{

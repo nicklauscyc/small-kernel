@@ -26,6 +26,8 @@
 
 volatile static int __kernel_all_done = 0;
 
+//int readline(char *buf, int len);
+
 /** @brief Kernel entrypoint.
  *
  *  This is the entrypoint for the kernel.
@@ -51,7 +53,14 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
     lprintf( "Hello from a brand new kernel!" );
 
     while (!__kernel_all_done) {
-        continue;
+     //	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
+     //	char s[n];
+
+	 //	/* Display prompt */
+     //	putbytes("pebbles>",8);
+     //	//int res = readline(s, n);
+	 //   //lprintf("read %d bytes: \"%s\"", res, s);
+     //	continue;
     }
 
     return 0;
