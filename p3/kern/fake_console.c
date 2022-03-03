@@ -15,75 +15,75 @@
 
 #include <console.h>
 
-int putbyte( char ch )
-{
-  (void)ch; // placate compiler
-  return ch;
-}
+//int putbyte( char ch )
+//{
+//  (void)ch; // placate compiler
+//  return ch;
+//}
 
-void
-putbytes( const char *s, int len )
-{
-  (void)s; // placate compiler
-  (void)len; // placate compiler
-}
+//void
+//putbytes( const char *s, int len )
+//{
+//  (void)s; // placate compiler
+//  (void)len; // placate compiler
+//}
 
-int
-set_term_color( int color )
-{
-  (void)color; // placate compiler
-  return -1;
-}
+//int
+//set_term_color( int color )
+//{
+//  (void)color; // placate compiler
+//  return -1;
+//}
 
-void
-get_term_color( int *color )
-{
-  (void)color; // placate compiler
-}
+//void
+//get_term_color( int *color )
+//{
+//  (void)color; // placate compiler
+//}
 
-int
-set_cursor( int row, int col )
-{
-  (void)row; // placate compiler
-  (void)col; // placate compiler
-  return -1;
-}
+//int
+//set_cursor( int row, int col )
+//{
+//  (void)row; // placate compiler
+//  (void)col; // placate compiler
+//  return -1;
+//}
 
-void
-get_cursor( int *row, int *col )
-{
-  (void)row; // placate compiler
-  (void)col; // placate compiler
-}
+//void
+//get_cursor( int *row, int *col )
+//{
+//  (void)row; // placate compiler
+//  (void)col; // placate compiler
+//}
 
-void
-hide_cursor(void)
-{
-}
+//void
+//hide_cursor(void)
+//{
+//}
 
-void
-show_cursor(void)
-{
-}
+//void
+//show_cursor(void)
+//{
+//}
 
-void
-clear_console(void)
-{
-}
+//void
+//clear_console(void)
+//{
+//}
 
-void
-draw_char( int row, int col, int ch, int color )
-{
-  (void)row; // placate compiler
-  (void)col; // placate compiler
-  (void)ch; // placate compiler
-  (void)color; // placate compiler
-}
+//void
+//draw_char( int row, int col, int ch, int color )
+//{
+//  (void)row; // placate compiler
+//  (void)col; // placate compiler
+//  (void)ch; // placate compiler
+//  (void)color; // placate compiler
+//}
 
-char
-get_char( int row, int col )
-{
-  (void)row; // placate compiler
-  (void)col; // placate compiler
-  return ' ';
-}
+//char
+//get_char( int row, int col )
+//{
+//  (void)row; // placate compiler
+//  (void)col; // placate compiler
+//  return ' ';
+//}

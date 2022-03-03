@@ -32,7 +32,7 @@
 # If you use tabstops set to something other than the international
 # standard of eight characters, this is your opportunity to inform
 # our print scripts.
-TABSTOP = 8
+TABSTOP = 4
 
 ###########################################################################
 # Compiler
@@ -162,7 +162,7 @@ AUTOSTACK_OBJS = autostack.o
 #
 # Kernel object files you provide in from kern/
 #
-KERNEL_OBJS = fake_console.o kernel.o loader.o malloc_wrappers.o
+KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your
