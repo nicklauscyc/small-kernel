@@ -160,9 +160,53 @@ AUTOSTACK_OBJS = autostack.o
 #
 410KERNEL_OBJS = load_helper.o
 #
+# Library directories in kern/ e.g. kern/lib_console from which to build from
+#
+LIB_CON_DIR = lib_console
+LIB_LIF_DIR = lib_life_cycle
+LIB_MEM_DIR = lib_memory_management
+LIB_OTH_DIR = lib_other
+LIB_THR_DIR = lib_thread_management
+#
 # Kernel object files you provide in from kern/
 #
-KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
+KERNEL_OBJS = kernel.o loader.o
+#
+# Files in kern/lib_console to build from
+#
+LIB_CON_OBJS = console.o
+#
+# Files in kern/lib_life_cycle to build from
+#
+LIB_LIF_OBJS =
+#
+# Files in kern/lib_memory_management to build from
+#
+LIB_MEM_OBJS = malloc_wrappers.o
+#
+# Files in kern/lib_other to build from
+#
+LIB_OTH_OBJS =
+#
+# Files in kern/lib_thread_management to build from
+#
+LIB_THR_OBJS =
+#
+# Stuff to add to KERNEL_OBJS, DO NOT EDIT unless creating new director to
+# build from in kern/
+#
+ALL_LIB_CON_OBJS = $(LIB_CON_OBJS:%=$(LIB_CON_DIR)/%)
+ALL_LIB_LIF_OBJS = $(LIB_LIF_OBJS:%=$(LIB_LIF_DIR)/%)
+ALL_LIB_MEM_OBJS = $(LIB_MEM_OBJS:%=$(LIB_MEM_DIR)/%)
+ALL_LIB_OTH_OBJS = $(LIB_OTH_OBJS:%=$(LIB_OTH_DIR)/%)
+ALL_LIB_THR_OBJS = $(LIB_THR_OBJS:%=$(LIB_THR_DIR)/%)
+KERNEL_OBJS += $(ALL_LIB_CON_OBJS)
+KERNEL_OBJS += $(ALL_LIB_LIF_OBJS)
+KERNEL_OBJS += $(ALL_LIB_MEM_OBJS)
+KERNEL_OBJS += $(ALL_LIB_OTH_OBJS)
+KERNEL_OBJS += $(ALL_LIB_THR_OBJS)
+
+#KERNEL_OBJS = lib_console/console.o kernel.o loader.o lib_memory_management/malloc_wrappers.o \
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your
