@@ -91,7 +91,7 @@ void init_timer(void (*tickback)(unsigned int)) {
   outb(TIMER_PERIOD_IO_PORT, lsb);
 
   /* Send the most significant byte */
-  short msb = (cycles_between_interrupts & SHORT_MSB_MASK) >> sizeof(char *);
+  short msb = (cycles_between_interrupts & SHORT_MSB_MASK) >> 8;
   outb(TIMER_PERIOD_IO_PORT, msb);
 
   /* Set application provided tickback function */
