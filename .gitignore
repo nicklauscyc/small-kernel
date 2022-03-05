@@ -22,6 +22,8 @@
 !/p3/user
 !/p3/config.mk
 !/p3/README.dox
+!/p3/update.sh
+!/p3/Makefile
 !/nick-p1/kern
 !/andre-p1/kern
 
