@@ -96,7 +96,7 @@ int
  *  @return Void.
  */
 void
-buffer_add( buffer_t *bufp, void *elem)
+buffer_add( buffer_t *bufp, void *elem )
 {
 	assert(is_buffer(bufp));
 
@@ -105,41 +105,42 @@ buffer_add( buffer_t *bufp, void *elem)
 		return;
 	}
 	/* Insert at index one after last element in buffer */
-	bufp->data + last * [bufp->last] = elem;
+	*(bufp->data + (last * bufp->elem_size)) = elem;
 
 	/* Update last index and increment size*/
 	bufp->last = (bufp->last + 1) % bufp->limit;
 	bufp->size += 1;
 	assert(is_buffer(buf));
-
-	/* Resize if necessary */
-	buf = buffer_resize(buf);
-	assert(is_buffer(buf));
 }
 
 /** @brief Removes first character of the buffer
- *  @param buf Pointer to buffer
+
+ *  @param bufp Pointer to buffer
  *  @return First character of the buffer
  */
-uint8_t buffer_rem(buffer *buf) {
-  assert(is_buffer(buf));
+void *
+buffer_rem( buffer *bufp )
+{
+	assert(is_buffer(bufp));
 
-  /* Get first element and 'remove' from the bufay, decrement size */
-  uint8_t elem = bufp->data[bufp->first];
-  bufp->first = (bufp->first + 1) % bufp->limit;
-  bufp->size -= 1;
-  assert(is_buffer(buf));
+	/* Get first element and 'remove' from the bufay, decrement size */
+	void *elem = *(bufp->data + first * bufp->elem_size);
+	bufp->first = (bufp->first + 1) % bufp->limit;
+	bufp->size -= 1;
+	assert(is_buffer(bufp));
 
-  /* Return 'popped off' element */
-  return elem;
+	/* Return 'popped off' element */
+	return elem;
 }
 
 /** @brief Checks if buffer is empty
  *  @param buf Pointer to buffer
  *  @return 1 if empty, 0 otherwise.
  */
-int buffer_empty(buffer *buf) {
-  assert(is_buffer(buf));
-  return bufp->size == 0;
+int
+buffer_empty( buffer *bufp )
+{
+	assert(is_buffer(bufp));
+	return bufp->size == 0;
 }
 
