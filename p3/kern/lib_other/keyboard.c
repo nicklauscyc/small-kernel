@@ -19,7 +19,7 @@
 #include "./keybd_driver.h" /* uba */
 
 /* Keyboard buffer */
-static uba *key_buf = NULL;
+static uba *key_buf = 0;
 
 /*********************************************************************/
 /*                                                                   */
@@ -325,7 +325,7 @@ int readline(char *buf, int len) {
         assert(i > 0);
 
         /* Print to screen and update intial cursor position if needed*/
-        _putbyte(ch, &scrolled);
+        scrolled_putbyte(ch, &ogrow, &ogcol);
         if (scrolled) ogrow -= 1;
 
         /* update i and buffer */
@@ -343,7 +343,7 @@ int readline(char *buf, int len) {
     } else {
 
       /* print on screen and update initial cursor position if needed */
-      _putbyte(ch, &scrolled);
+      scrolled_putbyte(ch, &ogrow, &ogcol);
       if (scrolled) ogrow -= 1;
 
       /* write to buffer */
