@@ -3,9 +3,9 @@
  * @name loader.c
  *
  * Functions for the loading
- * of user programs from binary 
+ * of user programs from binary
  * files should be written in
- * this file. The function 
+ * this file. The function
  * elf_load_helper() is provided
  * for your use.
  */
@@ -20,8 +20,21 @@
 #include <elf_410.h>
 
 
-/* --- Local function prototypes --- */ 
+/* --- Local function prototypes --- */
 
+///* Format of entries in the table of contents. */
+//typedef struct {
+//  const char execname[MAX_EXECNAME_LEN];
+//  const char* execbytes;
+//  int execlen;
+//} exec2obj_userapp_TOC_entry;
+//
+///* The number of user executables in the table of contents. */
+//extern const int exec2obj_userapp_count;
+//
+///* The table of contents. */
+//extern const exec2obj_userapp_TOC_entry exec2obj_userapp_TOC[MAX_NUM_APP_ENTRIES];
+//
 
 /**
  * Copies data from a file into a buffer.

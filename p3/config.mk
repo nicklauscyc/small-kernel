@@ -89,7 +89,7 @@ CONFIG_NDEBUG =
 # "offline" is strongly not recommended as you may miss important project
 # updates.
 #
-UPDATE_METHOD = afs
+UPDATE_METHOD = web
 
 ###########################################################################
 # WARNING: When we test your code, the two TESTS variables below will be
