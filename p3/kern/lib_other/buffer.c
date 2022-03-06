@@ -61,7 +61,7 @@ is_buffer( buffer_t *bufp )
  *  @return 0 on success, negative value on error
  */
 int
-*init_buffer( buffer_t *bufp, int limit, void **data, int elem_size )
+init_buffer( buffer_t *bufp, int limit, void **data, int elem_size )
 {
 	/* Check argument validity */
 	if (!bufp) {
@@ -74,10 +74,10 @@ int
 		return -1;
 	}
 	if (elem_size <= 0) {
-		return -1
+		return -1;
 	}
 	/* Set fields */
-	bufp->elem_size = elem_size:
+	bufp->elem_size = elem_size;
 	bufp->size = 0;
 	bufp->limit = limit;
 	bufp->first = 0;
@@ -105,12 +105,12 @@ buffer_add( buffer_t *bufp, void *elem )
 		return;
 	}
 	/* Insert at index one after last element in buffer */
-	*(bufp->data + (last * bufp->elem_size)) = elem;
+	*(bufp->data + (bufp->last * bufp->elem_size)) = elem;
 
 	/* Update last index and increment size*/
 	bufp->last = (bufp->last + 1) % bufp->limit;
 	bufp->size += 1;
-	assert(is_buffer(buf));
+	assert(is_buffer(bufp));
 }
 
 /** @brief Removes first character of the buffer
@@ -119,12 +119,12 @@ buffer_add( buffer_t *bufp, void *elem )
  *  @return First character of the buffer
  */
 void *
-buffer_rem( buffer *bufp )
+buffer_rem( buffer_t *bufp )
 {
 	assert(is_buffer(bufp));
 
 	/* Get first element and 'remove' from the bufay, decrement size */
-	void *elem = *(bufp->data + first * bufp->elem_size);
+	void *elem = *(bufp->data + bufp->first * bufp->elem_size);
 	bufp->first = (bufp->first + 1) % bufp->limit;
 	bufp->size -= 1;
 	assert(is_buffer(bufp));
@@ -138,7 +138,7 @@ buffer_rem( buffer *bufp )
  *  @return 1 if empty, 0 otherwise.
  */
 int
-buffer_empty( buffer *bufp )
+buffer_empty( buffer_t *bufp )
 {
 	assert(is_buffer(bufp));
 	return bufp->size == 0;

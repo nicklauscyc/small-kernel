@@ -173,7 +173,7 @@ AUTOSTACK_OBJS = autostack.o
 KERNEL_OBJS = kernel.o loader.o \
 	lib_console/console.o \
 	lib_memory_management/malloc_wrappers.o \
-	lib_other/buffer.o
+	lib_other/buffer.o \
 	lib_other/keyboard.o
 
 ###########################################################################

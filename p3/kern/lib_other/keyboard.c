@@ -10,7 +10,6 @@
 #include <malloc.h> /* calloc */
 #include <stddef.h> /* NULL */
 #include <assert.h> /* assert() */
-#include <p1kern.h> /* putbyte() */
 #include <string.h> /* memcpy() */
 #include <x86/asm.h> /* process_scancode() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT */

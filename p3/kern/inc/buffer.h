@@ -15,16 +15,16 @@
  *         be changed if implementation details are changed.
  */
 typedef struct {
-	int elem_size /* size of each element in bytes */
+	int elem_size; /* size of each element in bytes */
 	int size; /* 0 <= size && size < limit */
 	int limit; /* 0 < limit */
 	int first; /* if first <= last, then size == last - first */
 	int last; /* else last < first, then size == limit - first + last */
 	void **data;
-} bufer_t;
+} buffer_t;
 
 int is_buffer( buffer_t *bufp );
-buffer_t *init_buffer( buffer_t *bufp, int limit, void **data );
+int init_buffer( buffer_t *bufp, int limit, void **data, int elem_size );
 void buffer_add( buffer_t *bufp, void *elem );
 void *buffer_rem( buffer_t *bufp );
 int buffer_empty( buffer_t *bufp );
