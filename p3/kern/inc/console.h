@@ -156,4 +156,7 @@ void draw_char(int row, int col, int ch, int color);
  */
 char get_char(int row, int col);
 
+/* helper for keybd */
+int scrolled_putbyte( char ch, int *start_rowp, int *start_colp );
+
 #endif /* _CONSOLE_H */
