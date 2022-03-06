@@ -43,8 +43,9 @@ void keybd_int_handler(void) {
  *  @return Void.
  */
 void init_keybd(void) {
-  init_buffer(&key_buf);
-  assert(is_buffer(&key_buf);
+  init_buffer(&key_buf, CONSOLE_HEIGHT * CONSOLE_WIDTH, &key_buf,
+              ELEM_SIZE_BYTES);
+  assert(is_buffer(&key_buf));
 }
 
 /*********************************************************************/

@@ -11,8 +11,11 @@
 #include <buffer.h> /* buffer_t */
 #include <assert.h> /* assert() */
 
-/* Size of a data element in buffer */
-#define ELEM_SIZE_BYTES 4
+/* Size of a data element in keyboard buffer */
+#define ELEM_SIZE_BYTES 1
+
+/* Keyboard buffer of raw bytes */
+uint8_t key_buf[CONSOLE_SIZE * CONSOLE_WIDTH];
 
 /** @brief Checks invariants for buffer_t
  *
