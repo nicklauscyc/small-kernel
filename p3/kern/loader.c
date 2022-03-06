@@ -48,16 +48,18 @@
  */
 int getbytes( const char *filename, int offset, int size, char *buf )
 {
-    // placate compiler
-    (void)filename;
-    (void)offset;
-    (void)size;
-    (void)buf;
-    /*
-     * You fill in this function.
-     */
-
-  return -1;
+	if (!filename) {
+		return -1;
+	}
+	if (!buf) {
+		return -1;
+	}
+	char *current = filename;
+	current += offset;
+	for (int i = 0; i < size; i++) {
+		*(current) = *(buf + i);
+	}
+	return 0;
 }
 
 /*@}*/
