@@ -25,7 +25,7 @@
 
 #include <console.h> /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
-
+#include <loader.h> /* execute_user_program() */
 
 volatile static int __kernel_all_done = 0;
 
@@ -65,6 +65,11 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
      */
 
     lprintf( "Hello from a brand new kernel!" );
+	putbytes("executable user programs:\n", 26);
+	putbytes("loader_test1\n", 13);
+	putbytes("loader_test2\n", 13);
+	putbytes("getpid_test1\n", 13);
+
 
     while (!__kernel_all_done) {
      	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
@@ -74,6 +79,7 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
      	putbytes("pebbles>",8);
      	int res = readline(s, n);
 	    lprintf("read %d bytes: \"%s\"", res, s);
+		res = execute_user_program(s);
     }
 
     return 0;

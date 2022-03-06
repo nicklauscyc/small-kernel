@@ -3,24 +3,38 @@
  * @name loader.c
  *
  * Functions for the loading
- * of user programs from binary 
+ * of user programs from binary
  * files should be written in
- * this file. The function 
+ * this file. The function
  * elf_load_helper() is provided
  * for your use.
  */
 /*@{*/
 
 /* --- Includes --- */
-#include <string.h>
+#include <string.h> /* memset() */
 #include <stdio.h>
 #include <malloc.h>
 #include <exec2obj.h>
 #include <loader.h>
 #include <elf_410.h>
+#include <assert.h> /* assert() */
+#include <simics.h> /* lprintf() */
+/* --- Local function prototypes --- */
 
-
-/* --- Local function prototypes --- */ 
+///* Format of entries in the table of contents. */
+//typedef struct {
+//  const char execname[MAX_EXECNAME_LEN];
+//  const char* execbytes;
+//  int execlen;
+//} exec2obj_userapp_TOC_entry;
+//
+///* The number of user executables in the table of contents. */
+//extern const int exec2obj_userapp_count;
+//
+///* The table of contents. */
+//extern const exec2obj_userapp_TOC_entry exec2obj_userapp_TOC[MAX_NUM_APP_ENTRIES];
+//
 
 
 /**
@@ -35,16 +49,41 @@
  */
 int getbytes( const char *filename, int offset, int size, char *buf )
 {
-    // placate compiler
-    (void)filename;
-    (void)offset;
-    (void)size;
-    (void)buf;
-    /*
-     * You fill in this function.
-     */
-
-  return -1;
+	if (!filename) {
+		return -1;
+	}
+	if (!buf) {
+		return -1;
+	}
+	const char *current = filename;
+	current += offset;
+	int i = 0;
+	while (i < size) {
+		*(buf + i) = *(current + i);
+		i++;
+	}
+	/* Quick test for correct copying */
+	for (int j = 0; j < size; j++) {
+		assert(*(filename + offset + j) == *(buf + j));
+	}
+	return i;
 }
+
+/** @brief Given user program name such as './getpid', loads the program and
+  *	       runs it
+  */
+
+int
+execute_user_program( const char *fname )
+{
+	/* Load user program into helper struct */
+	simple_elf_t se_hdr;
+	memset(&se_hdr, 0, sizeof(simple_elf_t));
+	int res = elf_load_helper(&se_hdr, fname);
+	if(res == ELF_SUCCESS) lprintf("ELF_SUCCESS");
+	if (res == ELF_NOTELF) lprintf("ELF_NOTELF");
+	return 0;
+}
+
 
 /*@}*/

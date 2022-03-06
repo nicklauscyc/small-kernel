@@ -8,12 +8,12 @@
 
 #ifndef _LOADER_H
 #define _LOADER_H
-     
+
 
 /* --- Prototypes --- */
 
 int getbytes( const char *filename, int offset, int size, char *buf );
-
+int execute_user_program( const char *fname );
 /*
  * Declare your loader prototypes here.
  */
