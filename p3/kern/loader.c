@@ -12,7 +12,7 @@
 /*@{*/
 
 /* --- Includes --- */
-#include <string.h>
+#include <string.h> /* memset() */
 #include <stdio.h>
 #include <malloc.h>
 #include <exec2obj.h>
@@ -61,5 +61,22 @@ int getbytes( const char *filename, int offset, int size, char *buf )
 	}
 	return 0;
 }
+
+/** @brief Given user program name such as './getpid', loads the program and
+  *	       runs it
+  */
+
+int
+execute_user_program( const char *fname )
+{
+	/* Load user program into helper struct */
+	simple_elf_t se_hdr;
+	memset(&se_hdr, 0, sizeof(simple_elf_t));
+	int res = elf_load_helper(&se_hdr, fname);
+	if (res < 0) {
+		return res;
+	}
+}
+
 
 /*@}*/

@@ -119,7 +119,7 @@ STUDENTTESTS =
 # A list of the data files you want built in from the 410user/files
 # directory.
 #
-410FILES =
+410FILES = loader_test1 loader_test2 getpid_test1
 
 ###########################################################################
 # Data files you have created which you wish to build into the RAM disk
