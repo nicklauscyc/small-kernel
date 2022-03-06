@@ -10,7 +10,6 @@
  */
 
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
-#include <p1kern.h> /* interface functions */
 #include <x86/asm.h> /* outb() */
 #include <assert.h> /* assert() */
 #include "stddef.h" /* NULL */

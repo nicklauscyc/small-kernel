@@ -55,7 +55,7 @@
 #include <malloc.h> /* calloc */
 #include <stddef.h> /* NULL */
 #include <assert.h> /* assert() */
-#include <p1kern.h> /* putbyte() */
+#include <console.h> /* putbyte() */
 #include <string.h> /* memcpy() */
 #include <x86/asm.h> /* process_scancode() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT */
@@ -65,6 +65,8 @@
 
 /* Keyboard buffer */
 static uba *key_buf = NULL;
+
+int readchar(void);
 
 /*********************************************************************/
 /*                                                                   */
@@ -373,14 +375,11 @@ int readline(char *buf, int len) {
   if (len == 0) return 0;
 
   /* get original cursor position for start of line relative to scroll */
-  int ogrow, ogcol;
-  get_cursor(&ogrow, &ogcol);
+  int start_row, start_col;
+  get_cursor(&start_row, &start_col);
 
   /* Allocate space for temporary buffer */
-  char *temp_buf = calloc(len, sizeof(char));
-
-  /* len > 0 but unreasonably large since calloc failed, so return -1 */
-  if (temp_buf == NULL) return -1;
+  char temp_buf[len];
 
   /* Initialize index into temp_buf */
   int i = 0;
@@ -393,22 +392,18 @@ int readline(char *buf, int len) {
     assert(0 <= i && i < len);
     assert(0 <= written && written < len);
 
-    /* tracks if scrolling occured or not */
-    int scrolled = 0;
-
     /* If at front of buffer, Delete the character if backspace */
     if (ch == '\b') {
 
-      /* If at ogrow, ogcol, do nothing as don't delete prompt */
+      /* If at start_row, start_col, do nothing as don't delete prompt */
       int row, col;
       get_cursor(&row, &col);
-      assert (row * CONSOLE_WIDTH + col >= ogrow * CONSOLE_WIDTH + ogcol);
-      if (!(row == ogrow && col == ogcol)) {
+      assert (row * CONSOLE_WIDTH + col >= start_row * CONSOLE_WIDTH + start_col);
+      if (!(row == start_row && col == start_col)) {
         assert(i > 0);
 
         /* Print to screen and update intial cursor position if needed*/
-        _putbyte(ch, &scrolled);
-        if (scrolled) ogrow -= 1;
+        scrolled_putbyte(ch, &start_row, &start_col);
 
         /* update i and buffer */
         i--;
@@ -418,15 +413,14 @@ int readline(char *buf, int len) {
     } else if (ch == '\r') {
 
       /* Set cursor to start of line w.r.t start of call, i to buffer start */
-      set_cursor(ogrow, ogcol);
+      set_cursor(start_row, start_col);
       i = 0;
 
     /* Regular characters just write, unprintables do nothing */
     } else {
 
       /* print on screen and update initial cursor position if needed */
-      _putbyte(ch, &scrolled);
-      if (scrolled) ogrow -= 1;
+      scrolled_putbyte(ch, &start_row, &start_col);
 
       /* write to buffer */
       if (isprint(ch)) {
