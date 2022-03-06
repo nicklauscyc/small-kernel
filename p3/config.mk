@@ -103,7 +103,7 @@ UPDATE_METHOD = web
 # A list of the test programs you want compiled in from the 410user/progs
 # directory.
 #
-410TESTS =
+410TESTS = loader_test1 loader_test2 getpid_test1
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -119,7 +119,7 @@ STUDENTTESTS =
 # A list of the data files you want built in from the 410user/files
 # directory.
 #
-410FILES = loader_test1 loader_test2 getpid_test1
+410FILES =
 
 ###########################################################################
 # Data files you have created which you wish to build into the RAM disk

@@ -25,7 +25,7 @@
 
 #include <console.h> /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
-
+#include <loader.h> /* execute_user_program() */
 
 volatile static int __kernel_all_done = 0;
 
@@ -65,10 +65,10 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
      */
 
     lprintf( "Hello from a brand new kernel!" );
-	putbytes("executable user programs:\n");
-	putbytes("./loader_test1\n");
-	putbytes("./loader_test2\n");
-	putbytes("./getpid_test1\n");
+	putbytes("executable user programs:\n", 26);
+	putbytes("loader_test1\n", 13);
+	putbytes("loader_test2\n", 13);
+	putbytes("getpid_test1\n", 13);
 
 
     while (!__kernel_all_done) {

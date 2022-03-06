@@ -19,7 +19,7 @@
 #include <loader.h>
 #include <elf_410.h>
 #include <assert.h> /* assert() */
-
+#include <simics.h> /* lprintf() */
 /* --- Local function prototypes --- */
 
 ///* Format of entries in the table of contents. */
@@ -80,9 +80,9 @@ execute_user_program( const char *fname )
 	simple_elf_t se_hdr;
 	memset(&se_hdr, 0, sizeof(simple_elf_t));
 	int res = elf_load_helper(&se_hdr, fname);
-	if (res < 0) {
-		return res;
-	}
+	if(res == ELF_SUCCESS) lprintf("ELF_SUCCESS");
+	if (res == ELF_NOTELF) lprintf("ELF_NOTELF");
+	return 0;
 }
 
 
