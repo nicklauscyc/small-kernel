@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <malloc.h>
+#include <elf/elf_410.h>
 
 #define PAGE_ENTRY_SIZE 64
 #define PAGE_TABLE_SIZE (1024 * PAGE_ENTRY_SIZE)
@@ -27,20 +28,19 @@
  * To ensure page tables/directories are aligned, always use
  *  smemalign() and sfree() * */
 
-/* FIXME: Temporary variable for enabling only allocation of physical frames.
+/* FIXME: Temporary variable for enabling allocation of physical frames.
  *        Only to be used for user memory. Starts at USER_MEM_START, where
- *        the first phys frames are availabe*/
-static void *next_free_phys_frame = USER_MEM_START;
+ *        the first phys frames are available. */
+static void *next_free_phys_frame;
 
 /** Initialize virtual memory */
 int
 vm_init( void )
 {
-    // Currently paging is disabled
 
-    // First allocate page directory and page table and create
-    // entries for kernel memory (direct mapped) up to USER_MEM_START;
+    next_free_phys_frame = USER_MEM_START;
 
+    return 0;
 }
 
 /** Allocate new pages in a given process' virtual memory. */
@@ -50,11 +50,20 @@ vm_new_pages ( void *ptd_start, void *base, int len )
     return -1;
 }
 
-/** Allocate memory for new task, stores address of new page
- *  table directory in ptd_start */
+/** Allocate memory for new task at given page table directory.
+ *
+ *  TODO: Create a subroutine suitable for cloning. */
 int
-vm_new_task ( void **ptd_start, simple_elf_t *elf )
+vm_new_task ( void *ptd_start, simple_elf_t *elf )
 {
+    /* Allocate phys frames and assign to virtual memory */
+
+    /* Allocate rodata, text with read-only permissions */
+
+    /* Allocate code with execute permissions */
+
+    /* Allocate data with read-write permissions */
+
     return -1;
 }
 
