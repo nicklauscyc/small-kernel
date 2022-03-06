@@ -85,6 +85,7 @@ init_buffer( buffer_t *bufp, int limit, void **data, int elem_size )
 	memset(data, 0, elem_size * limit);
 	bufp->data = data;
 
+	assert(is_buffer(bufp));
 	return 0;
 }
 
