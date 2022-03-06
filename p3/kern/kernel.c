@@ -65,6 +65,11 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
      */
 
     lprintf( "Hello from a brand new kernel!" );
+	putbytes("executable user programs:\n");
+	putbytes("./loader_test1\n");
+	putbytes("./loader_test2\n");
+	putbytes("./getpid_test1\n");
+
 
     while (!__kernel_all_done) {
      	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
@@ -74,6 +79,7 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
      	putbytes("pebbles>",8);
      	int res = readline(s, n);
 	    lprintf("read %d bytes: \"%s\"", res, s);
+		res = execute_user_program(s);
     }
 
     return 0;
