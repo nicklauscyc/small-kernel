@@ -9,6 +9,7 @@
  *  @bug No known bugs.
  */
 
+#include <install_handler.h> /* handler_install() */
 #include <common_kern.h>
 
 /* libc includes. */
@@ -22,11 +23,18 @@
 #include <x86/asm.h>                /* enable_interrupts() */
 
 
-#include <console.h> /* clear_console() */
+#include <console.h> /* clear_console(), putbytes() */
+#include <keybd_driver.h> /* readline() */
+
 
 volatile static int __kernel_all_done = 0;
 
-//int readline(char *buf, int len);
+/* Think about where this declaration
+ * should be... probably not here!
+ */
+void tick(unsigned int numTicks) {
+  //lprintf("numTicks: %d\n", numTicks);
+}
 
 /** @brief Kernel entrypoint.
  *
@@ -42,6 +50,12 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
     (void)argv;
     (void)envp;
 
+	/* initialize device-driver library */
+	int res = handler_install(tick);
+	lprintf("res of handler_install: %d", res);
+
+
+
 	clear_console();
 
     /*
@@ -53,14 +67,13 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
     lprintf( "Hello from a brand new kernel!" );
 
     while (!__kernel_all_done) {
-     //	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
-     //	char s[n];
+     	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
+     	char s[n];
 
-	 //	/* Display prompt */
-     //	putbytes("pebbles>",8);
-     //	//int res = readline(s, n);
-	 //   //lprintf("read %d bytes: \"%s\"", res, s);
-     //	continue;
+	 	/* Display prompt */
+     	putbytes("pebbles>",8);
+     	int res = readline(s, n);
+	    lprintf("read %d bytes: \"%s\"", res, s);
     }
 
     return 0;
