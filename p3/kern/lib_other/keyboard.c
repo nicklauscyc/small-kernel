@@ -17,6 +17,8 @@
 /* Keyboard buffer */
 static buffer_t key_buf;
 
+typedef int aug_char;
+
 /** @brief Interrupt handler which reads in raw bytes from keystrokes. Reads
  *         incoming bytes to the keyboard buffer key_buf, which has an
  *         amortized constant time complexity for adding elements. So it
@@ -27,8 +29,7 @@ static buffer_t key_buf;
 void keybd_int_handler(void) {
 
   /* Read raw byte and put into raw character buffer */
-  uint8_t raw_byte = inb(KEYBOARD_PORT);
-  uba_add(key_buf, raw_byte);
+  buffer_add(&key_buf, inb(KEYBOARD_PORT));
 
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
@@ -44,23 +45,6 @@ void keybd_int_handler(void) {
 void init_keybd(void) {
   init_buffer(&key_buf);
   assert(is_buffer(&key_buf);
-}
-
-/** @brief Keeps calling readchar() until another valid char is read and
- *         returns it.
- *
- *  @return A valid character when readchar() doesn't return -1.
- */
-char get_next_char(void) {
-
-    /* Get the next char value off the keyboard buffer */
-    int res;
-    while((res = readchar()) == -1) continue;
-    assert(res >= 0);
-
-    /* Tricky type conversions to avoid undefined behavior */
-    char char_value = (uint8_t) (unsigned int) res;
-    return char_value;
 }
 
 /*********************************************************************/
@@ -82,31 +66,24 @@ char get_next_char(void) {
  **/
 int readchar(void) {
 
-  assert(key_buf != NULL);
+	disable_interrupts();
 
-  /* uba invariants are checked whenever we access the data structure, and so
-   * interrupts are disabled during the entire call in order to prevent
-   * changes to the data structure at the start of and at the end of a call.
-   */
-  disable_interrupts();
-  if (uba_empty(key_buf)) {
-    enable_interrupts();
-    return -1;
-  }
-  raw_byte next_byte = uba_rem(key_buf);
-  enable_interrupts();
+	/* Keep getting the next character while buffer is not empty */
+	while (!buffer_empty(&key_buf)) {
+		uint8_t next_byte = (uint8_t) buffer_rem(&key_buf);
+		enable_interrupts();
 
-  /* Get augmented character */
-  aug_char next_char = process_scancode(next_byte);
+		/* Get augmented character */
+		aug_char next_char = process_scancode(next_byte);
 
-  /* Get simplified character */
-  if (KH_HASDATA(next_char)) {
-    if (KH_ISMAKE(next_char)) {
-      unsigned char next_char_value = KH_GETCHAR(next_char);
-      return (int) (unsigned int) next_char_value;
-    }
-  }
-  return -1;
+		/* Get simplified character */
+		if (KH_HASDATA(next_char) && KH_ISMAKE(next_char)) {
+			unsigned char next_char_value = KH_GETCHAR(next_char);
+			return (int) (unsigned int) next_char_value;
+		}
+		continue;
+	}
+	return -1;
 }
 
 /** @brief Reads a line of characters into a specified buffer
@@ -148,7 +125,7 @@ int readchar(void) {
 int readline(char *buf, int len) {
 
   /* buf == NULL so invalid buf */
-  if (buf == NULL) return -1;
+  if (!buf) return -1;
 
   /* len < 0 so invalid len */
   if (len < 0) return -1;
@@ -157,8 +134,8 @@ int readline(char *buf, int len) {
   if (len == 0) return 0;
 
   /* get original cursor position for start of line relative to scroll */
-  int ogrow, ogcol;
-  get_cursor(&ogrow, &ogcol);
+  int start_row, start_col;
+  get_cursor(&start_row, &start_col);
 
   /* Allocate space for temporary buffer */
   char *temp_buf = calloc(len, sizeof(char));
@@ -183,16 +160,16 @@ int readline(char *buf, int len) {
     /* If at front of buffer, Delete the character if backspace */
     if (ch == '\b') {
 
-      /* If at ogrow, ogcol, do nothing as don't delete prompt */
+      /* If at start_row, start_col, do nothing as don't delete prompt */
       int row, col;
       get_cursor(&row, &col);
-      assert (row * CONSOLE_WIDTH + col >= ogrow * CONSOLE_WIDTH + ogcol);
-      if (!(row == ogrow && col == ogcol)) {
+      assert (row * CONSOLE_WIDTH + col >= start_row * CONSOLE_WIDTH + start_col);
+      if (!(row == start_row && col == start_col)) {
         assert(i > 0);
 
         /* Print to screen and update intial cursor position if needed*/
-        scrolled_putbyte(ch, &ogrow, &ogcol);
-        if (scrolled) ogrow -= 1;
+        scrolled_putbyte(ch, &start_row, &start_col);
+        if (scrolled) start_row -= 1;
 
         /* update i and buffer */
         i--;
@@ -202,15 +179,15 @@ int readline(char *buf, int len) {
     } else if (ch == '\r') {
 
       /* Set cursor to start of line w.r.t start of call, i to buffer start */
-      set_cursor(ogrow, ogcol);
+      set_cursor(start_row, start_col);
       i = 0;
 
     /* Regular characters just write, unprintables do nothing */
     } else {
 
       /* print on screen and update initial cursor position if needed */
-      scrolled_putbyte(ch, &ogrow, &ogcol);
-      if (scrolled) ogrow -= 1;
+      scrolled_putbyte(ch, &start_row, &start_col);
+      if (scrolled) start_row -= 1;
 
       /* write to buffer */
       if (isprint(ch)) {
