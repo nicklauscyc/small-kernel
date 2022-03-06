@@ -18,7 +18,7 @@
 #include <exec2obj.h>
 #include <loader.h>
 #include <elf_410.h>
-
+#include <assert.h> /* assert() */
 
 /* --- Local function prototypes --- */
 
@@ -35,6 +35,7 @@
 ///* The table of contents. */
 //extern const exec2obj_userapp_TOC_entry exec2obj_userapp_TOC[MAX_NUM_APP_ENTRIES];
 //
+
 
 /**
  * Copies data from a file into a buffer.
@@ -54,12 +55,18 @@ int getbytes( const char *filename, int offset, int size, char *buf )
 	if (!buf) {
 		return -1;
 	}
-	char *current = filename;
+	const char *current = filename;
 	current += offset;
-	for (int i = 0; i < size; i++) {
-		*(current) = *(buf + i);
+	int i = 0;
+	while (i < size) {
+		*(buf + i) = *(current + i);
+		i++;
 	}
-	return 0;
+	/* Quick test for correct copying */
+	for (int j = 0; j < size; j++) {
+		assert(*(filename + offset + j) == *(buf + j));
+	}
+	return i;
 }
 
 /** @brief Given user program name such as './getpid', loads the program and
