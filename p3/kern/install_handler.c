@@ -15,8 +15,9 @@
 #include <simics.h> /* lprintf */
 #include "./asm_interrupt_handler.h" /* call_timer_int_handler(),
                                         call_keybd_int_handler() */
-#include "./timer_driver.h" /* init_timer() */
-#include "./keybd_driver.h" /* init_keybd() */
+#include <timer_driver.h> /* init_timer() */
+#include <keybd_driver.h> /* init_keybd() */
+#include <install_handler.h>
 
 /* Number of bits in a byte */
 #define BYTE_LEN 8

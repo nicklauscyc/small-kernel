@@ -444,7 +444,6 @@ int readline(char *buf, int len) {
     assert(written == len);
   }
   memcpy(buf, temp_buf, written);
-  free(temp_buf);
   return written;
 }
 
