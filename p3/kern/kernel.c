@@ -76,7 +76,8 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	lprintf("cr2: %p", (void *) get_cr3());
 	lprintf("cr3: %p", (void *) get_cr3());
 	lprintf("cr4: %p", (void *) get_cr3());
-	lprintf("garbage at address 0x0:%d", *0);
+	char * nullp = 0;
+	lprintf("garbage at address 0x0:%d", *nullp);
 
 
     while (!__kernel_all_done) {
