@@ -72,7 +72,10 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	putbytes("getpid_test1\n", 13);
 
 	/* show cr3 */
-	lprintf("cr3: 0x%p", get_cr3());
+	lprintf("cr1: 0x%p", (void *) get_cr3());
+	lprintf("cr2: 0x%p", (void *) get_cr3());
+	lprintf("cr3: 0x%p", (void *) get_cr3());
+	lprintf("cr4: 0x%p", (void *) get_cr3());
 
 
     while (!__kernel_all_done) {
