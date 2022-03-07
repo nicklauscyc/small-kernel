@@ -59,6 +59,8 @@ int getbytes( const char *filename, int offset, int size, char *buf )
 	current += offset;
 	int i = 0;
 	while (i < size) {
+		lprintf("i:%d", i);
+		assert(*(current + i));
 		*(buf + i) = *(current + i);
 		i++;
 	}
@@ -73,23 +75,23 @@ int
 copy2physical( simple_elf_t *se_hdr )
 {
 	/* copy text segment into physical memory */
-	lprintf("e_entry:%p, e_txtstart:%p, e_datstart:%p, e_rodatstart:%p, "
-	        "e_bssstart:%p", se_hdr->e_entry, se_hdr->e_txtstart,
+	lprintf("e_entry:%lx, e_txtstart:%lx, e_datstart:%lx, e_rodatstart:%lx, "
+	        "e_bssstart:%lx", se_hdr->e_entry, se_hdr->e_txtstart,
 			se_hdr->e_datstart, se_hdr->e_rodatstart, se_hdr->e_bssstart);
 
 	/* I feel like buf is physical memory. No buff is virtual memory */
 	getbytes(se_hdr->e_fname,
-	         (char *) se_hdr->e_txtoff,
+	         (unsigned int) se_hdr->e_txtoff,
 			 (unsigned int) se_hdr->e_txtlen,
 	         (char *) se_hdr->e_txtstart);
 
 	getbytes(se_hdr->e_fname,
-	         (char *) se_hdr->e_datoff,
+	         (unsigned int) se_hdr->e_datoff,
 			 (unsigned int) se_hdr->e_datlen,
 	         (char *) se_hdr->e_datstart);
 
 	getbytes(se_hdr->e_fname,
-	         (char *) se_hdr->e_rodatoff,
+	         (unsigned int) se_hdr->e_rodatoff,
 			 (unsigned int) se_hdr->e_rodatlen,
 	         (char *) se_hdr->e_rodatstart);
 
