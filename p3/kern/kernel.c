@@ -22,6 +22,7 @@
 /* x86 specific includes */
 #include <x86/asm.h>                /* enable_interrupts() */
 
+#include <x86/cr.h> /* get_cr3() */
 
 #include <console.h> /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
@@ -69,6 +70,9 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	putbytes("loader_test1\n", 13);
 	putbytes("loader_test2\n", 13);
 	putbytes("getpid_test1\n", 13);
+
+	/* show cr3 */
+	lprintf("cr3: 0x%p", get_cr3());
 
 
     while (!__kernel_all_done) {

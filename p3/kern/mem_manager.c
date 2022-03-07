@@ -8,9 +8,21 @@
 #include <stddef.h>
 #include <malloc.h>
 #include <elf/elf_410.h>
+#include <x86/cr.h> /* set_cr0() */
+#include <common_kern.h> /* machine_phys_frame() */
 
 #define PAGE_ENTRY_SIZE 64
 #define PAGE_TABLE_SIZE (1024 * PAGE_ENTRY_SIZE)
+
+#define PAGE_DIRECTORY_INDEX 0xFFC00000
+#define PAGE_TABLE_INDEX 0x003FF000
+#define PAGE_OFFSET 0x00000FFF
+
+int num_page_frames = 0;
+
+#define NUM_ENTRIES 1024
+/* This is 4KByte = 4 * 1024 Byte total */
+void *PAGE_TABLE[NUM_ENTRIES];
 
 /* Page directory and page table coincidentally have
  * the same size. */
@@ -33,17 +45,37 @@
  *        the first phys frames are available. */
 static void *next_free_phys_frame;
 
+#define 0xFFFFFFFE PAGING_OFF
+#define 0x1 PAGING_ON
+void
+paging_on( void )
+{
+	uint32_t current_cr0 = get_cr0();
+	set_cr0(current_cr0 | PAGING_ON);
+}
+
+void
+paging_off( void )
+{
+	uint32_t current_cr0 = get_cr0();
+	set_cr0(current_cr0 & PAGING_OFF);
+}
+
 /** Initialize virtual memory */
 int
 vm_init( void )
 {
-
     next_free_phys_frame = USER_MEM_START;
+	num_page_frames = machine_phys_frames();
+	memset(PAGE_TABLE, 0, sizeof(char *) * NUM_ENTRIES);
+	lprintf("PAGE_TABLE address:%d", &PAGE_TABLE);
 
+	/* Need to have a page directory here */
     return 0;
 }
 
 /** Allocate new pages in a given process' virtual memory. */
+/* Currently only 1 task supported, so no need to index based on tid */
 int
 vm_new_pages ( void *ptd_start, void *base, int len )
 {
