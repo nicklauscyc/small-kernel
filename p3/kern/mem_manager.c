@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <malloc.h>
+#include <malloc.h> /* smemalign, sfree */
 #include <elf/elf_410.h>
 #include <assert.h>
 #include <page.h>   /* PAGE_SIZE */
@@ -42,7 +42,7 @@
 /* FIXME: Temporary variable for enabling allocation of physical frames.
  *        Only to be used for user memory. Starts at USER_MEM_START, where
  *        the first phys frames are available. */
-static void *next_free_phys_frame;
+static uint32_t next_free_phys_frame;
 
 
 /** Initialize virtual memory */
@@ -69,12 +69,48 @@ set_protection_bits ( void *ptd, simple_elf_t *elf )
 
 }
 
-static uint32_t
-get_pd_index ( uint32_t linear_address ) {
+static int
+get_next_free_frame( void )
+{
+    uint32_t free_frame = next_free_phys_frame;
+    next_free_phys_frame += PAGE_SIZE;
+
+    assert(next_free_phys_frame & (PAGE_SIZE - 1) == 0);
+
+    return free_frame;
 }
 
-static uint32_t
-get_pt_index ( uint32_t linear_address ) {
+/** Allocate new frame at given virtual memory address.
+ *  Allocates page tables on demand.
+ *
+ *  If memory location already had a frame, this crashes.
+ *  */
+static void
+allocate_frame( uint32_t **ptd, uint32_t pd_index, uint32_t pt_index )
+{
+    affirm(ptd);
+
+    if (!ptd[pd_index]) {
+        /* Allocate new page table */
+        ptd[pd_index] = smemalign(PAGE_SIZE, PAGE_SIZE);
+        affirm(ptd[pd_index]);
+    }
+
+    uint32_t *page_table = ptd[pd_index];
+
+    /* Ensure page entry is empty */
+    affirm(page_table[pt_index] == 0);
+
+    /* Allocate physical frame and point VM to it.
+     * This function sets none of the protection bits. */
+    uint32_t free_frame = get_next_free_frame();
+
+    // TODO: STOPPED HERE - Write to page table entry
+    //
+    // TODO: Write flags (also protection bits should be set to READ|WRITE)
+    //       Create a function to abstract flag setting (or multiple)
+
+
 }
 
 static void
@@ -87,12 +123,7 @@ allocate_region( void *ptd, void *start, uint32_t len )
 
     /* Allocate 1 frame at a time. */
     while (curr < (uint32_t)start + len) {
-        /* Decompose curr into pd offset, pt offset. */
-        // TODO: Use these to write into PD and PT
-        // Also ask for new phys frame to put there
-        PD_INDEX(curr);
-        PT_INDEX(curr);
-
+        allocate_frame((uint32_t **)ptd, PD_INDEX(curr), PT_INDEX(curr));
         curr += PAGE_SIZE;
     }
 
@@ -102,7 +133,10 @@ allocate_region( void *ptd, void *start, uint32_t len )
 }
 
 /** Allocate memory for new task at given page table directory.
- *  Assumes page table directory is empty.
+ *  Assumes page table directory is empty. Sets all memory to
+ *  read and write. To set protection bits, make a subsequent
+ *  call to set_protection bits, though you will want to copy
+ *  memory to those newly-allocated regisons first.
  *
  *  When initializing memory regions specified in elf header,
  *  zeroes out bytes after after their end but before the page
@@ -115,14 +149,11 @@ vm_new_task ( void *ptd, simple_elf_t *elf )
 {
     /* NOTE: We don't actually have to disable paging here. */
 
-    /* Allocate phys frames and assign to virtual memory */
+    // TODO: Implement
+    /* Direct map all 16MB for kernel. Reminder to not map 0th page */
 
-
-    /* Allocate rodata, text with read-only permissions */
-
-    /* Allocate code with execute permissions */
-
-    /* Allocate data with read-write permissions */
+    /* Allocate all regions with read/write perms, and any other
+     * sensible defaults */
 
     return -1;
 }
