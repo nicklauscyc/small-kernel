@@ -69,6 +69,34 @@ int getbytes( const char *filename, int offset, int size, char *buf )
 	return i;
 }
 
+int
+copy2physical( simple_elf_t *se_hdr )
+{
+	/* copy text segment into physical memory */
+	lprintf("e_entry:%p, e_txtstart:%p, e_datstart:%p, e_rodatstart:%p, "
+	        "e_bssstart:%p", se_hdr->e_entry, se_hdr->e_txtstart,
+			se_hdr->e_datstart, se_hdr->e_rodatstart, se_hdr->e_bssstart);
+
+	/* I feel like buf is physical memory. No buff is virtual memory */
+	getbytes(se_hdr->e_fname,
+	         (char *) se_hdr->e_txtoff,
+			 (unsigned int) se_hdr->e_txtlen,
+	         (char *) se_hdr->e_txtstart);
+
+	getbytes(se_hdr->e_fname,
+	         (char *) se_hdr->e_datoff,
+			 (unsigned int) se_hdr->e_datlen,
+	         (char *) se_hdr->e_datstart);
+
+	getbytes(se_hdr->e_fname,
+	         (char *) se_hdr->e_rodatoff,
+			 (unsigned int) se_hdr->e_rodatlen,
+	         (char *) se_hdr->e_rodatstart);
+
+	return 0;
+}
+
+
 /** @brief Given user program name such as './getpid', loads the program and
   *	       runs it
   */
@@ -82,8 +110,13 @@ execute_user_program( const char *fname )
 	int res = elf_load_helper(&se_hdr, fname);
 	if(res == ELF_SUCCESS) lprintf("ELF_SUCCESS");
 	if (res == ELF_NOTELF) lprintf("ELF_NOTELF");
+
+	/* we try to use the physical addresses */
+	copy2physical(&se_hdr);
 	return 0;
 }
 
+
+/* we try to use the physical addresses */
 
 /*@}*/
