@@ -27,6 +27,7 @@
 #include <console.h> /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
 #include <loader.h> /* execute_user_program() */
+#include <mem_manager.h> /* vm_init() */
 
 volatile static int __kernel_all_done = 0;
 
@@ -78,7 +79,7 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	lprintf("cr4: %p", (void *) get_cr3());
 	char * nullp = 0;
 	lprintf("garbage at address 0x0:%d", *nullp);
-    lprintf("&nullp:%d", &nullp);
+    lprintf("&nullp:%p", &nullp);
 	vm_init();
 
 

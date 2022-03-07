@@ -164,7 +164,7 @@ AUTOSTACK_OBJS = autostack.o
 #
 KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
-			  asm_interrupt_handler.o
+			  asm_interrupt_handler.o mem_manager.o
 
 
 ###########################################################################

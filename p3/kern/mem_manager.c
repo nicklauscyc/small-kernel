@@ -3,13 +3,14 @@
  *
  *
  * */
-
+#include <simics.h> /* lprintf() */
 #include <stdint.h>
 #include <stddef.h>
 #include <malloc.h>
 #include <elf/elf_410.h>
 #include <x86/cr.h> /* set_cr0() */
 #include <common_kern.h> /* machine_phys_frame() */
+#include <string.h> /* memset() */
 
 #define PAGE_ENTRY_SIZE 64
 #define PAGE_TABLE_SIZE (1024 * PAGE_ENTRY_SIZE)
@@ -45,8 +46,8 @@ void *PAGE_TABLE[NUM_ENTRIES];
  *        the first phys frames are available. */
 static void *next_free_phys_frame;
 
-#define 0xFFFFFFFE PAGING_OFF
-#define 0x1 PAGING_ON
+#define PAGING_OFF 0x7FFFFFFF
+#define PAGING_ON 0x80000000
 void
 paging_on( void )
 {
@@ -65,10 +66,10 @@ paging_off( void )
 int
 vm_init( void )
 {
-    next_free_phys_frame = USER_MEM_START;
+    next_free_phys_frame = (void *) (uint32_t) USER_MEM_START;
 	num_page_frames = machine_phys_frames();
 	memset(PAGE_TABLE, 0, sizeof(void *) * NUM_ENTRIES);
-	lprintf("PAGE_TABLE address:%d", &PAGE_TABLE);
+	lprintf("PAGE_TABLE address:%p", &PAGE_TABLE);
 
 	/* Need to have a page directory here */
     return 0;
