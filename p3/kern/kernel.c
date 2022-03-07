@@ -71,11 +71,12 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	putbytes("loader_test2\n", 13);
 	putbytes("getpid_test1\n", 13);
 
-	/* show cr3 */
-	lprintf("cr1: 0x%p", (void *) get_cr3());
-	lprintf("cr2: 0x%p", (void *) get_cr3());
-	lprintf("cr3: 0x%p", (void *) get_cr3());
-	lprintf("cr4: 0x%p", (void *) get_cr3());
+	/* On kernel_main() entry, all control registers are 0 */
+	lprintf("cr1: %p", (void *) get_cr3());
+	lprintf("cr2: %p", (void *) get_cr3());
+	lprintf("cr3: %p", (void *) get_cr3());
+	lprintf("cr4: %p", (void *) get_cr3());
+	lprintf("garbage at address 0x0:%d", *0);
 
 
     while (!__kernel_all_done) {
