@@ -78,6 +78,8 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	lprintf("cr4: %p", (void *) get_cr3());
 	char * nullp = 0;
 	lprintf("garbage at address 0x0:%d", *nullp);
+    lprintf("&nullp:%d", &nullp);
+	vm_init();
 
 
     while (!__kernel_all_done) {

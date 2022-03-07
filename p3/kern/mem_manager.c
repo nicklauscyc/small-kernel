@@ -67,7 +67,7 @@ vm_init( void )
 {
     next_free_phys_frame = USER_MEM_START;
 	num_page_frames = machine_phys_frames();
-	memset(PAGE_TABLE, 0, sizeof(char *) * NUM_ENTRIES);
+	memset(PAGE_TABLE, 0, sizeof(void *) * NUM_ENTRIES);
 	lprintf("PAGE_TABLE address:%d", &PAGE_TABLE);
 
 	/* Need to have a page directory here */

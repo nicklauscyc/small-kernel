@@ -11,5 +11,7 @@
 void paging_on( void );
 void paging_off( void );
 
+int vm_init( void );
+
 
 #endif
