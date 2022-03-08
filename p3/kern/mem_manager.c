@@ -57,25 +57,14 @@ vm_init( void )
     return 0;
 }
 
-/** Use this function to set protection bits. Should only be called
- *  after data has been "transplanted" into process memory.
- *
- *  TODO: Don't assume, check to the extent possible
- *  Assumes ptd has been initialized and allocated with same elf
- *  header as is passed in here. */
-int
-set_protection_bits ( void *ptd, simple_elf_t *elf )
-{
-
-}
-
-static int
+/* Gets new page-aligned physical frame. */
+static uint32_t
 get_next_free_frame( void )
 {
     uint32_t free_frame = next_free_phys_frame;
     next_free_phys_frame += PAGE_SIZE;
 
-    assert(next_free_phys_frame & (PAGE_SIZE - 1) == 0);
+    assert(free_frame & (PAGE_SIZE - 1) == 0);
 
     return free_frame;
 }
@@ -91,14 +80,18 @@ allocate_frame( uint32_t **ptd, uint32_t pd_index, uint32_t pt_index )
     affirm(ptd);
 
     if (!ptd[pd_index]) {
-        /* Allocate new page table */
+        /* Allocate new page table, which must be page-aligned */
         ptd[pd_index] = smemalign(PAGE_SIZE, PAGE_SIZE);
         affirm(ptd[pd_index]);
+
+        /* TODO: Set flags for pd entry */
+
     }
 
     uint32_t *page_table = ptd[pd_index];
 
-    /* Ensure page entry is empty */
+    /* FIXME: Only check present bit for PTE
+     * Ensure page entry is empty */
     affirm(page_table[pt_index] == 0);
 
     /* Allocate physical frame and point VM to it.
@@ -106,7 +99,9 @@ allocate_frame( uint32_t **ptd, uint32_t pd_index, uint32_t pt_index )
     uint32_t free_frame = get_next_free_frame();
 
     // TODO: STOPPED HERE - Write to page table entry
-    //
+
+
+
     // TODO: Write flags (also protection bits should be set to READ|WRITE)
     //       Create a function to abstract flag setting (or multiple)
 
@@ -133,14 +128,17 @@ allocate_region( void *ptd, void *start, uint32_t len )
 }
 
 /** Allocate memory for new task at given page table directory.
- *  Assumes page table directory is empty. Sets all memory to
- *  read and write. To set protection bits, make a subsequent
- *  call to set_protection bits, though you will want to copy
- *  memory to those newly-allocated regisons first.
+ *  Assumes page table directory is empty. Sets appropriate
+ *  read/write permissions. To copy memory over, set the WP flag
+ *  in the CR0 register to 0 - this will make it so that write
+ *  protection is ignored by the paging mechanism.
  *
  *  When initializing memory regions specified in elf header,
  *  zeroes out bytes after after their end but before the page
  *  boundary.
+ *
+ *  TODO: Implement ZFOD here. (Handler should probably be defined
+ *  elsewhere, though)
  *
  *  TODO: Consider checking and returning on error
  *  TODO: Create a subroutine suitable for cloning. */
@@ -150,10 +148,13 @@ vm_new_task ( void *ptd, simple_elf_t *elf )
     /* NOTE: We don't actually have to disable paging here. */
 
     // TODO: Implement
-    /* Direct map all 16MB for kernel. Reminder to not map 0th page */
+    /* Direct map all 16MB for kernel. Reminder to map 0th page as not present.
+     * Page fault handler should also be defined so we can panic on null
+     * dereference or smth.
+     * Set U/S permission bits correctly. */
 
-    /* Allocate all regions with read/write perms, and any other
-     * sensible defaults */
+    /* Allocate regions with appropriate read or read/write permissions
+     * and any other sensible defaults. */
 
     return -1;
 }
@@ -174,7 +175,7 @@ disable_paging( void )
 
 /** Allocate new pages in a given process' virtual memory. */
 int
-vm_new_pages ( void *ptd_start, void *base, int len )
+vm_new_pages ( void *ptd, void *base, int len )
 {
     return -1;
 }
