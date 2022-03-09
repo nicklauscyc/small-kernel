@@ -11,7 +11,8 @@
 #include <x86/cr.h> /* {get,set}_cr0 */
 #include <string.h> /* memset */
 
-#define PAGING_FLAG 0x80000000
+#define PAGING_FLAG (1 << 31)
+#define WRITE_PROTECT_FLAG (1 << 16)
 
 #define PAGE_DIRECTORY_INDEX 0xFFC00000
 #define PAGE_TABLE_INDEX 0x003FF000
@@ -36,6 +37,7 @@
 #define PE_USER_READABLE (PRESENT_FLAG | US_FLAG )
 #define PE_USER_WRITABLE (PE_USER_READABLE | RW_FLAG)
 
+/* Set global flag so TLB doesn't flush kernel entries */
 #define PE_KERN_READABLE (PRESENT_FLAG | GLOBAL_FLAG | RW_FLAG)
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 
@@ -191,27 +193,6 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
         curr += PAGE_SIZE;
     }
 
-    /* Zero out leftover bytes still in page.
-     * Because we haven't yet updated the page table base register,
-     * we cannot reference the virtual address. As such, we disable
-     * paging momentarily and update this page. This has to be done
-     * ATOMICALLY.*/
-
-    uint32_t end = (uint32_t)start + len;
-    uint32_t *last_pte = get_pte(ptd, end);
-
-    /* ATOMICALLY START */
-    vm_disable_paging();
-
-    uint32_t frame = *last_pte & ~(PAGE_SIZE - 1);
-    frame += len % PAGE_SIZE;
-
-    /* Finally, set remaining bytes to 0 */
-    memset((char *)frame, 0, PAGE_SIZE - (len % PAGE_SIZE));
-
-    vm_enable_paging();
-    /* ATOMICALLY END */
-
     return 0;
 }
 
@@ -221,16 +202,16 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
  *  in the CR0 register to 0 - this will make it so that write
  *  protection is ignored by the paging mechanism.
  *
- *  When initializing memory regions specified in elf header,
- *  zeroes out bytes after after their end but before the page
- *  boundary. Allocated pages are initialized to 0 as well.
+ *  Allocated pages are initialized to 0.
  *
  *  TODO: Implement ZFOD here. (Handler should probably be defined
  *  elsewhere, though)
  *  */
 int
-vm_new_task ( void *ptd, simple_elf_t *elf )
+vm_new_task ( void *ptd, simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
+    affirm(ptd);
+
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(ptd, addr);
@@ -248,26 +229,55 @@ vm_new_task ( void *ptd, simple_elf_t *elf )
     i += allocate_region(ptd, elf->e_datstart, elf->e_datlen, READ_WRITE);
     i += allocate_region(ptd, elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
     i += allocate_region(ptd, elf->e_bssstart, elf->e_bsslen, READ_WRITE);
+    i += allocate_region(ptd, stack_lo, stack_len, READ_WRITE);
 
     return i;
 }
 
-
-/* For memory copy purposes we could provide a function which sets the
- * CR0 WP flag. */
-void
+/** @brief Enables paging mechanism. */
+static void
 enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
 }
 
-
-void
+/** @brief Disables paging mechanism. */
+static void
 disable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 & (~PAGING_FLAG));
+}
+
+/** @brief Sets new page table directory and enables paging. */
+void
+vm_enable_task( void *ptd )
+{
+    uint32_t cr3 = get_cr3();
+    /* Unset top 20 bits where new page table will be stored.*/
+    cr3 &= PAGE_SIZE - 1;
+    cr3 |= ptd;
+
+    set_cr3(cr3);
+}
+
+/** @brief Enables write_protect flag in cr0, allowing
+ *  kernel to bypass VM's read-only protection. */
+void
+enable_write_protection( void )
+{
+	uint32_t current_cr0 = get_cr0();
+	set_cr0(current_cr0 | WRITE_PROTECT_FLAG);
+}
+
+/** @brief Disables write_protect flag in cr0, stopping
+ *  kernel from bypassing VM's read-only protection. */
+void
+disable_write_protection( void )
+{
+	uint32_t current_cr0 = get_cr0();
+	set_cr0(current_cr0 & (~WRITE_PROTECT_FLAG));
 }
 
 /** Allocate new pages in a given process' virtual memory. */

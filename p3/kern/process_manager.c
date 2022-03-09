@@ -6,7 +6,7 @@
 #include <elf/elf_410.h>
 #include <page.h> /* PAGE_SIZE */
 #include <string.h> /* memset */
-
+#include <simics.h> /* sim_reg_process */
 
 // TODO: Have all these be redefined in an internal .h file
 #define WORD_SIZE 4
@@ -71,18 +71,53 @@ new_task( int pid, int tid, simple_elf_t *elf )
     if (new_pcb(pid) < 0)
         return -1;
 
+    /* TODO: Deallocate pcb if this fails */
     if (new_tcb(pid, tid) < 0)
         return -1;
 
     /* Allocate VM */
-    pcb_t *pcb;
+    pcb_t pcb;
     affirm(find_pcb(pid, &pcb) == 0);
-    vm_new_task(pcb->ptd, elf);
+    vm_new_task(pcb.ptd, elf);
 
-    /* Enable paging */
-    vm_enable_paging();
+#ifndef NDEBUG
+    /* Register this process with simics for better debugging */
+    sim_reg_process(pcb.ptd, elf->e_fname);
+#endif
 
     return 0;
+}
+
+/** NOTE: Not to be used in context-switch, only when running task
+ *  for the first time
+ *
+ *  Sets task as active, aka updates the virtual memory appropriately.
+ *  However, this DOES NOT run a task or switch from kernel to user mode.
+ *  */
+int
+set_active_task( int pid )
+{
+    pcb_t pcb;
+    if (find_pcb(pid, &pcb) < 0)
+        return -1;
+
+    /* Enable VM */
+    vm_enable_task(pcb.ptd);
+
+    return 0;
+}
+
+/** NOTE: Not to be used in context-switch, only when running task
+ *  for the first time
+ *
+ *  Once loader has transplanted all program data into virtual memory
+ *  and met any other requirements (such as saving registers on stack)
+ *  this function will run the task and never return. */
+int
+run_task( int tid )
+{
+    /* TODO: This should set up registers and start running the task. */
+    /* May assume all memory has been setup properly by loader.  */
 }
 
 /** Looks for pcb with given pid.
