@@ -58,11 +58,13 @@
  *        the first phys frames are available. */
 static uint32_t next_free_phys_frame;
 
+/** Whether page is read only or also writable. */
+enum write_mode_t { READ_ONLY, READ_WRITE };
+
 /** Initialize virtual memory. */
 int
 vm_init( void )
 {
-
     next_free_phys_frame = USER_MEM_START;
 
     assert(next_free_phys_frame & (PAGE_SIZE - 1) == 0);
@@ -81,7 +83,7 @@ get_next_free_frame( uint32_t *frame )
 {
     uint32_t free_frame = next_free_phys_frame;
 
-    if (free_frame >= machine_phys_frames() * PAGE_SIZE)
+    if (num_free_frames() == 0)
         return -1;
 
     next_free_phys_frame += PAGE_SIZE;
@@ -134,7 +136,7 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
  *  If memory location already had a frame, this crashes.
  *  */
 static void
-allocate_frame( uint32_t **ptd, uint32_t virtual_address, int write_mode )
+allocate_frame( uint32_t **ptd, uint32_t virtual_address, write_mode_t write_mode )
 {
     affirm(ptd);
 
@@ -146,7 +148,16 @@ allocate_frame( uint32_t **ptd, uint32_t virtual_address, int write_mode )
 
     *pte = free_frame;
 
-    if (write_mode)
+    /* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
+     * zero-filled pages for the initially allocated regions? Seems like
+     * .bss and new_pages are the only ones required to be zeroed out by spec.*/
+    /* ATOMICALLY start */
+    vm_disable_paging();
+    memset(free_frame, 0, PAGE_SIZE);
+    vm_enable_paging();
+    /* ATOMICALLY end*/
+
+    if (write_mode == READ_WRITE)
         *pte |= PE_USER_WRITABLE;
     else
         *pte |= PE_USER_READABLE;
@@ -166,7 +177,7 @@ allocate_frame( uint32_t **ptd, uint32_t virtual_address, int write_mode )
  *  @return 0 on success, negative value on failure.
  *  */
 static int
-allocate_region( void *ptd, void *start, uint32_t len, int write_mode )
+allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
 {
     /* Ensure we have enough free frames to fulfill request */
     if (num_free_frames() < (len + PAGE_SIZE - 1) / PAGE_SIZE)
@@ -176,7 +187,7 @@ allocate_region( void *ptd, void *start, uint32_t len, int write_mode )
 
     /* Allocate 1 frame at a time. */
     while (curr < (uint32_t)start + len) {
-        allocate_frame((uint32_t **)ptd, uint32_t curr);
+        allocate_frame((uint32_t **)ptd, curr, write_mode);
         curr += PAGE_SIZE;
     }
 
@@ -200,6 +211,8 @@ allocate_region( void *ptd, void *start, uint32_t len, int write_mode )
 
     vm_enable_paging();
     /* ATOMICALLY END */
+
+    return 0;
 }
 
 /** Allocate memory for new task at given page table directory.
@@ -210,26 +223,33 @@ allocate_region( void *ptd, void *start, uint32_t len, int write_mode )
  *
  *  When initializing memory regions specified in elf header,
  *  zeroes out bytes after after their end but before the page
- *  boundary.
+ *  boundary. Allocated pages are initialized to 0 as well.
  *
  *  TODO: Implement ZFOD here. (Handler should probably be defined
  *  elsewhere, though)
- *
- *  TODO: Consider checking and returning on error
- *  TODO: Create a subroutine suitable for cloning. */
+ *  */
 int
 vm_new_task ( void *ptd, simple_elf_t *elf )
 {
-    // TODO: Implement
-    /* Direct map all 16MB for kernel. Reminder to map 0th page as not present.
-     * Page fault handler should also be defined so we can panic on null
-     * dereference or smth.
-     * Set U/S permission bits correctly. */
+    /* Direct map all 16MB for kernel, setting correct permission bits */
+    for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
+        uint32_t *pte = get_pte(ptd, addr);
+        if (addr == 0) {
+            *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
+        } else {
+            *pte = addr | PE_KERN_WRITABLE;
+        }
+    }
 
-    /* Allocate regions with appropriate read or read/write permissions
-     * and any other sensible defaults. */
+    /* Allocate regions with appropriate read/write permissions.
+     * TODO: Free allocated regions if later allocation fails. */
+    int i = 0;
+    i += allocate_region(ptd, elf->e_txtstart, elf->e_txtlen, READ_ONLY);
+    i += allocate_region(ptd, elf->e_datstart, elf->e_datlen, READ_WRITE);
+    i += allocate_region(ptd, elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
+    i += allocate_region(ptd, elf->e_bssstart, elf->e_bsslen, READ_WRITE);
 
-    return -1;
+    return i;
 }
 
 
@@ -254,19 +274,10 @@ disable_paging( void )
 int
 vm_new_pages ( void *ptd, void *base, int len )
 {
+    // TODO: Implement
+    (void)ptd;
+    (void)base;
+    (void)len;
     return -1;
 }
 
-
-// FIXME: Having this might allow for poor code organization
-/** Translate logical address into physical address.
- *
- *  Note: This can be used by loader to "transplant"
- *  data from elf binary into a new task's virtual
- *  memory. */
-void *
-translate( void *logical )
-{
-    // TODO: logical -> linear -> physical
-    return NULL;
-}
