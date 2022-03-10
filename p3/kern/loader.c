@@ -24,6 +24,7 @@
 #include <exec2obj.h>
 #include <loader.h>
 #include <elf_410.h>
+#include <limits.h> /* UINT_MAX */
 
 
 /* --- Local function prototypes --- */
@@ -31,7 +32,7 @@
 
 /** Copies data from a file into a buffer.
  *
- *  @param filename   the name of the file to copy data from
+ *  @param filename   the name of the file to copy data from (null-terminated)
  *  @param offset     the location in the file to begin copying from
  *  @param size       the number of bytes to be copied
  *  @param buf        the buffer to copy the data into
@@ -116,6 +117,37 @@ transplant_program_memory( simple_elf_t *se_hdr )
 	return i;
 }
 
+/** @brief Puts arguments on stack with format required by _main entrypoint.
+ *
+ *  This entrypoint is defined in 410user/crt0.c and is used by all user
+ *  programs.
+ *  */
+static uint32_t *
+configure_stack( int argc, char *argv[] )
+{
+
+    /* TODO: In the future, when "receiver" function is implemented, loader
+     * should also add entry point, user registers and data segment selectors
+     * on the stack. For registers, just initialize most to 0 or something. */
+
+    uint32_t *esp = (uint32_t *)UINT_MAX;
+
+    *(esp) = argc;
+    esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
+    memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
+    esp--;
+
+    *(esp--) = UINT_MAX; /* Put stack_high on stack */
+    *(esp) = UINT_MAX - PAGE_SIZE; /* Put stack_low on stack */
+
+    /* Functions expect esp to point to return address on entry.
+     * Therefore we just point it to some garbage, since _main
+     * is never supposed to return. */
+    esp--
+
+    return esp;
+}
+
 /** @brief Run a user program indicated by filename.
  *         Assumes virtual memory module has been initialized.
  *
@@ -124,20 +156,30 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname )
+execute_user_program( const char *fname, int argc, char *argv[] )
 {
 	/* Load user program information */
 	simple_elf_t se_hdr;
+    if (elf_check_header(fname) == ELF_NOTELF)
+        return -1;
+
 	if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
         return -1;
 
-    // TODO: Create task, set it active and transplant memory.
-    // Finally, call run_task, a kind of process_switch function
-    // new_task(se_hdr, 0, 0)
-    // set_active_task(0);
-    // transplant_memory;
-    // Write arguments into stack.
-    // process_set(0, stack_lo, se_hdr->entrypoint);
+    /* FIXME: Hard coded pid and tid for now */
+    if (task_new(0, 0, &se_hdr) < 0)
+        return -1;
+
+    /* Enable VM */
+    if (task_prepare(0) < 0)
+        return -1;
+
+    if (transplant_program_memory(&se_hdr) < 0)
+        return -1;
+
+    uint32_t *esp = configure_stack(argc, argv);
+
+    task_set(0, esp, se_hdr.e_entry);
 
 	return 0;
 }

@@ -50,11 +50,6 @@ static int find_pcb( int pid, pcb_t **pcb );
 
 static int new_pcb( int pid, int tid );
 
-//int
-//set_task_esp( int ss, int esp )
-//{
-//}
-
 /*  Create new process
  *
  *  @arg pid Task id for new task
@@ -64,7 +59,7 @@ static int new_pcb( int pid, int tid );
  *  @return 0 on success, negative value on failure.
  * */
 int
-new_task( int pid, int tid, simple_elf_t *elf )
+task_new( int pid, int tid, simple_elf_t *elf )
 {
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
@@ -76,10 +71,11 @@ new_task( int pid, int tid, simple_elf_t *elf )
     if (new_tcb(pid, tid) < 0)
         return -1;
 
-    /* Allocate VM */
+    /* Allocate VM. Stack currently starts at top most address
+     * and is PAGE_SIZE long. */
     pcb_t pcb;
     affirm(find_pcb(pid, &pcb) == 0);
-    vm_new_task(pcb.ptd, elf);
+    vm_task_new(pcb.ptd, elf, UINT_MAX, PAGE_SIZE);
 
 #ifndef NDEBUG
     /* Register this process with simics for better debugging */
@@ -125,13 +121,13 @@ get_user_eflags( void )
  *  if any arguments have been loaded on stack.
  *
  *  @arg tid Id of thread to run
- *  @arg stack_lo Stack pointer
+ *  @arg esp Stack pointer
  *  @arg entry_point First program instruction
  *
  *  @return Never returns.
  *  */
 void
-task_set( int tid, uint32_t stack_lo, uint32_t entry_point )
+task_set( int tid, uint32_t esp, uint32_t entry_point )
 {
     tcb_t tcb;
     affirm(find_tcb(tid, &tcb) == 0);
@@ -141,7 +137,11 @@ task_set( int tid, uint32_t stack_lo, uint32_t entry_point )
         task_prepare(pcb->pid);
     }
 
-    iret_travel(SEGSEL_USER_DS, stack_lo, get_user_eflags(),
+    /* We're currently going directly to entry point. In the future,
+     * however, we should go to some "receiver" function which appropriately
+     * sets user registers and segment selectors, and lastly RETs to
+     * the entry_point. */
+    iret_travel(SEGSEL_USER_DS, esp, get_user_eflags(),
                 SEGSEL_USER_CS, entry_point);
 
     /* NOTREACHED */

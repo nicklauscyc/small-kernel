@@ -208,7 +208,7 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
  *  elsewhere, though)
  *  */
 int
-vm_new_task ( void *ptd, simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
+vm_task_new ( void *ptd, simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
     affirm(ptd);
 
