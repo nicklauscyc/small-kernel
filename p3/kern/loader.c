@@ -136,7 +136,8 @@ execute_user_program( const char *fname )
     // new_task(se_hdr, 0, 0)
     // set_active_task(0);
     // transplant_memory;
-    // run task;
+    // Write arguments into stack.
+    // process_set(0, stack_lo, se_hdr->entrypoint);
 
 	return 0;
 }

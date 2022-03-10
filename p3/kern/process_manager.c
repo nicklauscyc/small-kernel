@@ -1,4 +1,5 @@
-/** Context switch facilities */
+/** @brief Module for management of processes.
+ *  Includes context switch facilities. */
 
 #include <stdint.h>
 #include <stddef.h>
@@ -24,6 +25,8 @@ struct pcb {
     tcb_t *first_thread; // First thread in linked list
 
     int pid;
+
+    int prepared; // Whether this task's VM has been initialized
 };
 
 /** @brief Thread control block */
@@ -36,10 +39,8 @@ struct tcb {
     int mode; // USER_MODE or KERN_MODE, for bookkeeping only
 
     /* Stack info. Needed for resuming execution.
-     * General purpose registers, program counter and
-     * data segment selectors are stored on stack pointed
-     * to by ss:esp. */
-    int ss;
+     * General purpose registers, program counter
+     * are stored on stack pointed to by esp. */
     int esp;
 };
 
@@ -49,10 +50,10 @@ static int find_pcb( int pid, pcb_t **pcb );
 
 static int new_pcb( int pid, int tid );
 
-int
-set_task_esp( int ss, int esp )
-{
-}
+//int
+//set_task_esp( int ss, int esp )
+//{
+//}
 
 /*  Create new process
  *
@@ -91,11 +92,11 @@ new_task( int pid, int tid, simple_elf_t *elf )
 /** NOTE: Not to be used in context-switch, only when running task
  *  for the first time
  *
- *  Sets task as active, aka updates the virtual memory appropriately.
- *  However, this DOES NOT run a task or switch from kernel to user mode.
+ *  Enables virtual memory of task. Use this before transplanting data
+ *  into task's memory.
  *  */
 int
-set_active_task( int pid )
+task_prepare( int pid )
 {
     pcb_t pcb;
     if (find_pcb(pid, &pcb) < 0)
@@ -107,17 +108,52 @@ set_active_task( int pid )
     return 0;
 }
 
+uint32_t
+get_user_eflags( void )
+{
+    /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
+    return get_eflags() | EFL_IOPL_RING3;
+}
+
 /** NOTE: Not to be used in context-switch, only when running task
  *  for the first time
  *
- *  Once loader has transplanted all program data into virtual memory
- *  and met any other requirements (such as saving registers on stack)
- *  this function will run the task and never return. */
-int
-run_task( int tid )
+ *  Should only ever be called once, and after task has been initialized
+ *  after a call to new_task.
+ *  The caller is supposed to install memory on the new task before
+ *  calling this function. Stack pointer should be appropriately set
+ *  if any arguments have been loaded on stack.
+ *
+ *  @arg tid Id of thread to run
+ *  @arg stack_lo Stack pointer
+ *  @arg entry_point First program instruction
+ *
+ *  @return Never returns.
+ *  */
+void
+task_set( int tid, uint32_t stack_lo, uint32_t entry_point )
 {
-    /* TODO: This should set up registers and start running the task. */
-    /* May assume all memory has been setup properly by loader.  */
+    tcb_t tcb;
+    affirm(find_tcb(tid, &tcb) == 0);
+    pcb_t *pcb = tcb->owning_task;
+
+    if (!pcb->prepared) {
+        task_prepare(pcb->pid);
+    }
+
+    iret_travel(SEGSEL_USER_DS, stack_lo, get_user_eflags(),
+                SEGSEL_USER_CS, entry_point);
+
+    /* NOTREACHED */
+    affirm(0);
+}
+
+/* Aka context_switch */
+int
+task_switch( int pid )
+{
+    /* TODO: Unimplemented */
+    return -1;
 }
 
 /** Looks for pcb with given pid.
@@ -136,9 +172,28 @@ find_pcb( int pid, pcb_t **pcb )
     return 0;
 }
 
-/* Initializes new pcb. */
+/** Looks for tcb with given tid.
+ *
+ *  @arg tid Thread id to look for
+ *  @arg tcb Memory location where to store tcb, if found.
+ *
+ *  @return 0 on success, negative value on error. */
 static int
-new_pcb( int pid, int tid )
+find_pcb( int pid, pcb_t **pcb )
+{
+    // TODO: Actually implement the search
+    if (!pcb_list_start)
+        return -1;
+    *tcb = pcb_list_start->first_thread;
+    return 0;
+}
+
+/* Initializes new pcb.
+ *
+ * TODO: Should we initialize a TCB here as well?
+ *       Does it make sense for a task with no threads to exist? */
+static int
+new_pcb( int pid )
 {
     /* Ensure alignment of page table directory */
     void *ptd = smemalign(PAGE_SIZE, PAGE_SIZE);
@@ -147,8 +202,8 @@ new_pcb( int pid, int tid )
 
     assert(ptd & (PAGE_SIZE - 1) == 0);
 
-    pcb_t *new_pcb = malloc(sizeof(pcb_t));
-    if (!new_pcb) {
+    pcb_t *pcb = malloc(sizeof(pcb_t));
+    if (!pcb) {
         sfree(ptd, PAGE_SIZE);
         return -1;
     }
@@ -156,51 +211,35 @@ new_pcb( int pid, int tid )
     /* Ensure all entries are 0 and therefore not present */
     memset(ptd, 0, PAGE_SIZE);
 
-    new_pcb->ptd = ptd;
-    new_pcb->pid = pid;
-    new_pcb->first_thread = NULL;
+    pcb->ptd = ptd;
+    pcb->pid = pid;
+    pcb->first_thread = NULL;
+    pcb->prepared = 0;
 
-    pcb_list_start = new_pcb;
+    pcb_list_start = pcb;
 }
 
-int
+/* TODO: To what extent should this function exist?
+ *       When we thread_fork, will we actually use this function? */
+static int
 new_tcb( int pid, int tid )
 {
-    tcb_t *new_tcb = malloc(sizeof(tcb_t));
-    if (!new_tcb) {
+    tcb_t *tcb = malloc(sizeof(tcb_t));
+    if (!tcb) {
         return -1;
     }
 
     /* Set tcb/pcb values  */
-    new_tcb->owning_task = new_pcb;
-    new_tcb->next_thread = NULL;
-    new_tcb->tid = tid;
-    new_tcb->mode = USER_MODE;
+    tcb->owning_task = new_pcb;
+    tcb->next_thread = NULL;
+    tcb->tid = tid;
+    tcb->mode = USER_MODE;
 
     pcb_t *owning_task;
     if (find_pcb(pid, &owning_task) < 0) {
-        free(new_tcb);
+        free(tcb);
         return -1;
     }
-    owning_task->first_thread = new_tcb;
-
-}
-
-/** Call to run task.
- *  Should only ever be called once, and after a call to new_task.
- *  The caller is supposed to install memory on the new task before
- *  calling this function. Stack pointer should be appropriately set
- *  if any arguments have been loaded on stack.
- *
- *  @arg tid Thread id of thread to run
- *  @arg ss  Stack segment selector
- *  @arg esp Stack pointer
- *  @arg eip Task entry point
- *
- *  @return Doesn't return.
- *  */
-void
-run_task( int tid, int ss, int esp, int eip )
-{
+    owning_task->first_thread = tcb;
 
 }
