@@ -34,33 +34,29 @@ volatile static int __kernel_all_done = 0;
  *
  * @return Does not return
  */
-int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
+int
+kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 {
-    // placate compiler
+    /* FIXME: What to do with mbinfo and envp? */
     (void)mbinfo;
-    (void)argc;
-    (void)argv;
     (void)envp;
 
-	clear_console();
-
-    /*
-     * When kernel_main() begins, interrupts are DISABLED.
+    /* When kernel_main() begins, interrupts are DISABLED.
      * You should delete this comment, and enable them --
      * when you are ready.
      */
 
-    lprintf( "Hello from a brand new kernel!" );
+    lprintf("Hello from a brand new kernel! Executing gettid_test... ");
+
+	clear_console();
+
+    /* TODO: Start init, idle and shell. For now
+     * hardcode execution of gettid test binary. */
+    execute_user_program("gettid_test", argc, argv);
+
 
     while (!__kernel_all_done) {
-     //	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
-     //	char s[n];
-
-	 //	/* Display prompt */
-     //	putbytes("pebbles>",8);
-     //	//int res = readline(s, n);
-	 //   //lprintf("read %d bytes: \"%s\"", res, s);
-     //	continue;
+        continue;
     }
 
     return 0;

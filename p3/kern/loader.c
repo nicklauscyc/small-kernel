@@ -123,7 +123,7 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  programs.
  *  */
 static uint32_t *
-configure_stack( int argc, char *argv[] )
+configure_stack( int argc, char **argv )
 {
 
     /* TODO: In the future, when "receiver" function is implemented, loader
@@ -156,7 +156,7 @@ configure_stack( int argc, char *argv[] )
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname, int argc, char *argv[] )
+execute_user_program( const char *fname, int argc, char **argv )
 {
 	/* Load user program information */
 	simple_elf_t se_hdr;
