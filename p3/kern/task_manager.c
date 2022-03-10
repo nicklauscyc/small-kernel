@@ -1,56 +1,27 @@
-/** @brief Module for management of processes.
+/** @brief Module for management of tasks.
  *  Includes context switch facilities. */
 
-#include <stdint.h>
-#include <stddef.h>
-#include <malloc.h>
-#include <elf/elf_410.h>
-#include <page.h> /* PAGE_SIZE */
-#include <string.h> /* memset */
-#include <simics.h> /* sim_reg_process */
+#include <stdint.h>     /* uint32_t */
+#include <stddef.h>     /* NULL */
+#include <malloc.h>     /* malloc, smemalign, free, sfree */
+#include <elf_410.h>    /* simple_elf_t */
+#include <page.h>       /* PAGE_SIZE */
+#include <string.h>     /* memset */
+#include <simics.h>     /* sim_reg_process */
+#include <memory_manager.h> /* vm_task_new, vm_enable_task */
 
-// TODO: Have all these be redefined in an internal .h file
-#define WORD_SIZE 4
-#define PAGE_TABLE_ENTRIES (PAGE_SIZE / WORD_SIZE)
-#define PAGE_DIRECTORY_ENTRIES PAGE_TABLE_ENTRIES
-#define USER_MODE 0
-#define KERN_MODE 1
-
-typedef struct pcb pcb_t;
-typedef struct tcb tcb_t;
-
-/** @brief Task control block */
-struct pcb {
-    void *ptd; // page table directory
-    tcb_t *first_thread; // First thread in linked list
-
-    int pid;
-
-    int prepared; // Whether this task's VM has been initialized
-};
-
-/** @brief Thread control block */
-// TODO: Add necessary registers + program counter
-struct tcb {
-    pcb_t *owning_task;
-    tcb_t *next_thread; // Embeded linked list of threads from same process
-
-    int tid;
-    int mode; // USER_MODE or KERN_MODE, for bookkeeping only
-
-    /* Stack info. Needed for resuming execution.
-     * General purpose registers, program counter
-     * are stored on stack pointed to by esp. */
-    int esp;
-};
-
+/** @brief Pointer to first task control block. */
 pcb_t *pcb_list_start = NULL;
 
 static int find_pcb( int pid, pcb_t **pcb );
+static int new_pcb( int pid );
 
-static int new_pcb( int pid, int tid );
+static int find_tcb( int tid, tcb_t **pcb );
+static int new_tcb( int pid, int tid );
 
-/*  Create new process
+static uint32_t get_user_eflags( void );
+
+/*  Create new task
  *
  *  @arg pid Task id for new task
  *  @arg tid Thread id for new thread
@@ -73,13 +44,13 @@ task_new( int pid, int tid, simple_elf_t *elf )
 
     /* Allocate VM. Stack currently starts at top most address
      * and is PAGE_SIZE long. */
-    pcb_t pcb;
+    pcb_t *pcb;
     affirm(find_pcb(pid, &pcb) == 0);
-    vm_task_new(pcb.ptd, elf, UINT_MAX, PAGE_SIZE);
+    vm_task_new(pcb->ptd, elf, UINT_MAX, PAGE_SIZE);
 
 #ifndef NDEBUG
-    /* Register this process with simics for better debugging */
-    sim_reg_process(pcb.ptd, elf->e_fname);
+    /* Register this task with simics for better debugging */
+    sim_reg_process(pcb->ptd, elf->e_fname);
 #endif
 
     return 0;
@@ -94,21 +65,14 @@ task_new( int pid, int tid, simple_elf_t *elf )
 int
 task_prepare( int pid )
 {
-    pcb_t pcb;
+    pcb_t *pcb;
     if (find_pcb(pid, &pcb) < 0)
         return -1;
 
     /* Enable VM */
-    vm_enable_task(pcb.ptd);
+    vm_enable_task(pcb->ptd);
 
     return 0;
-}
-
-uint32_t
-get_user_eflags( void )
-{
-    /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
-    return get_eflags() | EFL_IOPL_RING3;
 }
 
 /** NOTE: Not to be used in context-switch, only when running task
@@ -129,7 +93,7 @@ get_user_eflags( void )
 void
 task_set( int tid, uint32_t esp, uint32_t entry_point )
 {
-    tcb_t tcb;
+    tcb_t *tcb;
     affirm(find_tcb(tid, &tcb) == 0);
     pcb_t *pcb = tcb->owning_task;
 
@@ -149,12 +113,24 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
 }
 
 /* Aka context_switch */
-int
+void
 task_switch( int pid )
 {
+    (void)pid;
     /* TODO: Unimplemented */
-    return -1;
 }
+
+
+/* ------ HELPER FUNCTIONS ------ */
+
+/** @brief Returns eflags with PL altered to 3 */
+static uint32_t
+get_user_eflags( void )
+{
+    /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
+    return get_eflags() | EFL_IOPL_RING3;
+}
+
 
 /** Looks for pcb with given pid.
  *
@@ -179,7 +155,7 @@ find_pcb( int pid, pcb_t **pcb )
  *
  *  @return 0 on success, negative value on error. */
 static int
-find_pcb( int pid, pcb_t **pcb )
+find_tcb( int tid, tcb_t **pcb )
 {
     // TODO: Actually implement the search
     if (!pcb_list_start)
@@ -217,6 +193,8 @@ new_pcb( int pid )
     pcb->prepared = 0;
 
     pcb_list_start = pcb;
+
+    return 0;
 }
 
 /* TODO: To what extent should this function exist?
@@ -224,22 +202,22 @@ new_pcb( int pid )
 static int
 new_tcb( int pid, int tid )
 {
+    pcb_t *owning_task;
+    if (find_pcb(pid, &owning_task) < 0) {
+        return -1;
+    }
+
     tcb_t *tcb = malloc(sizeof(tcb_t));
     if (!tcb) {
         return -1;
     }
 
+    owning_task->first_thread = tcb;
+
     /* Set tcb/pcb values  */
     tcb->owning_task = new_pcb;
     tcb->next_thread = NULL;
     tcb->tid = tid;
-    tcb->mode = USER_MODE;
 
-    pcb_t *owning_task;
-    if (find_pcb(pid, &owning_task) < 0) {
-        free(tcb);
-        return -1;
-    }
-    owning_task->first_thread = tcb;
-
+    return 0;
 }
