@@ -30,7 +30,6 @@
 
 /* --- Local function prototypes --- */
 
-
 /** Copies data from a file into a buffer.
  *
  *  @param filename   the name of the file to copy data from (null-terminated)
@@ -182,5 +181,8 @@ execute_user_program( const char *fname, int argc, char **argv )
 
 	return 0;
 }
+
+
+/* we try to use the physical addresses */
 
 /*@}*/
