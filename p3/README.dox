@@ -5,11 +5,30 @@
 @author Name1 (id1)
 @author Name2 (id2)
 
-Same drill as last time.
+Currently using README.dox as a bug tracker and TODO list.
 
-Ideally, this is not a place to say which functions appear
-in which files, or to narrate what code does step by step.
-Please use most of the README to document design decisions
-that you made.
+BUGS:
+    - Currently accessing invalid memory with eip. This happens during call
+      to smemalign (it seems). Eip is set to a value just above USER_MEM_START,
+      and at that time no user memory has been allocated. This probably means some interrupt
+      is triggering a handler which is supposed to be located at that eip.
+
+      Very puzzling. Maybe something to do with the console/keyboard interrupts????
+CK1:
+    - Write gettid handler              [essential]
+    - Store tid at top of kernel stack  [nice to have]
+    - Pass gettid_test1
+    - Cleanup unecessary files and organize into folders [nice to have]
+
+CK2:
+    - Synchronization design
+    - Context switch
+    - Proper physical memory management
+    - Trace facility                    [nice to have]
+    - Fork or exec?
+
+
 
 */
+
+

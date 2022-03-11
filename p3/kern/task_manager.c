@@ -41,19 +41,27 @@ task_new( int pid, int tid, simple_elf_t *elf )
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
 
+    lprintf("creating pcb");
+
     if (new_pcb(pid) < 0)
         return -1;
+
+    lprintf("creating tcb");
 
     /* TODO: Deallocate pcb if this fails */
     if (new_tcb(pid, tid) < 0)
         return -1;
 
+
     /* Allocate VM. Stack currently starts at top most address
      * and is PAGE_SIZE long. */
     pcb_t *pcb;
+    lprintf("finding pcb ");
     affirm(find_pcb(pid, &pcb) == 0);
+    lprintf("creating vm task_new ");
     vm_task_new(pcb->ptd, elf, UINT_MAX, PAGE_SIZE);
 
+    lprintf("registering process w/ simics");
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
     sim_reg_process(pcb->ptd, elf->e_fname);
@@ -71,12 +79,16 @@ task_new( int pid, int tid, simple_elf_t *elf )
 int
 task_prepare( int pid )
 {
+    /* Likely messing up direct mapping of kernel memory, and
+     * some instruction after task_prepare is being seen as invalid?*/
     pcb_t *pcb;
     if (find_pcb(pid, &pcb) < 0)
         return -1;
 
+    lprintf("before enabling vm");
     /* Enable VM */
     vm_enable_task(pcb->ptd);
+    lprintf("after enabling vm");
 
     return 0;
 }
@@ -106,6 +118,8 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
     if (!pcb->prepared) {
         task_prepare(pcb->pid);
     }
+
+    lprintf("before iret travel");
 
     /* We're currently going directly to entry point. In the future,
      * however, we should go to some "receiver" function which appropriately
@@ -177,19 +191,24 @@ find_tcb( int tid, tcb_t **tcb )
 static int
 new_pcb( int pid )
 {
+    lprintf("smemalign");
     /* Ensure alignment of page table directory */
     void *ptd = smemalign(PAGE_SIZE, PAGE_SIZE);
+    lprintf("after smemalign");
     if (!ptd)
         return -1;
 
+    lprintf("assert");
     assert(((uint32_t)ptd & (PAGE_SIZE - 1)) == 0);
 
+    lprintf("malloc");
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
         sfree(ptd, PAGE_SIZE);
         return -1;
     }
 
+    lprintf("memset");
     /* Ensure all entries are 0 and therefore not present */
     memset(ptd, 0, PAGE_SIZE);
 

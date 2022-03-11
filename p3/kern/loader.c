@@ -142,6 +142,12 @@ configure_stack( int argc, char **argv )
     uint32_t *esp = (uint32_t *)UINT_MAX;
 
     *(esp) = argc;
+
+    if (argc == 0) {
+        *(--esp) = 0;
+        return esp;
+    }
+
     esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
     memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
     esp--;
@@ -175,18 +181,28 @@ execute_user_program( const char *fname, int argc, char **argv )
     if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
         return -1;
 
+    lprintf("creating task");
+
     /* FIXME: Hard coded pid and tid for now */
     if (task_new(0, 0, &se_hdr) < 0)
         return -1;
+
+    lprintf("preparing task");
 
     /* Enable VM */
     if (task_prepare(0) < 0)
         return -1;
 
+    lprintf("transplanting memory task");
+
     if (transplant_program_memory(&se_hdr) < 0)
         return -1;
 
+    lprintf("configuring stack");
+
     uint32_t *esp = configure_stack(argc, argv);
+
+    lprintf("setting task");
 
     task_set(0, (uint32_t)esp, se_hdr.e_entry);
 

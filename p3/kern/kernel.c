@@ -53,12 +53,11 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
     (void)envp;
 
 	/* initialize device-driver library */
-	int res = handler_install(tick);
-	lprintf("res of handler_install: %d", res);
+	handler_install(tick);
 
 	clear_console();
 
-    /*
+    /* TODO
      * When kernel_main() begins, interrupts are DISABLED.
      * You should delete this comment, and enable them --
      * when you are ready.
@@ -86,7 +85,6 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	 	/* Display prompt */
      	putbytes("pebbles>",8);
      	int res = readline(s, n);
-	    lprintf("read %d bytes: \"%s\"", res, s);
 
         if (res == n)
             continue; /* Executable name too large */
@@ -94,7 +92,10 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         /* Swap \n returned by readline for null-terminator */
         s[res - 1] = '\0';
 
-		res = execute_user_program(s, 0, NULL);
+	    lprintf("Executing: %s", s);
+
+        char *user_argv = (char *)s;
+		execute_user_program(s, 1, &user_argv);
     }
 
     return 0;

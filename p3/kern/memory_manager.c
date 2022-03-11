@@ -13,6 +13,8 @@
 #include <string.h>     /* memset, memcpy */
 #include <common_kern.h>/* USER_MEM_START */
 
+#include <simics.h>     /* lprintf */
+
 #define PAGING_FLAG (1 << 31)
 #define WRITE_PROTECT_FLAG (1 << 16)
 
@@ -90,6 +92,8 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
 {
     affirm(ptd);
 
+    lprintf("Direct mapping kernel");
+
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(ptd, addr);
@@ -100,14 +104,23 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
         }
     }
 
+    lprintf("Direct mapping kernel");
+
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
+
+    lprintf("Allocating regions");
     i += allocate_region(ptd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
+    lprintf("Allocating regions");
     i += allocate_region(ptd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
+    lprintf("Allocating regions");
     i += allocate_region(ptd, (void *)elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
+    lprintf("Allocating regions");
     i += allocate_region(ptd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
+    lprintf("Allocating regions");
     i += allocate_region(ptd, (void *)stack_lo, stack_len, READ_WRITE);
+    lprintf("Allocated all regions");
 
     return i;
 }
