@@ -22,17 +22,13 @@
 /* x86 specific includes */
 #include <x86/asm.h>                /* enable_interrupts() */
 
-<<<<<<< HEAD
-#include <loader.h>  /* execute_user_program() */
-#include <console.h> /* clear_console() */
-=======
 #include <x86/cr.h> /* get_cr3() */
 
-#include <console.h> /* clear_console(), putbytes() */
+#include <exec2obj.h> /* MAX_EXECNAME_LEN */
+
+#include <loader.h>     /* execute_user_program() */
+#include <console.h>    /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
-#include <loader.h> /* execute_user_program() */
-#include <mem_manager.h> /* vm_init() */
->>>>>>> p3-loader-merge
 
 volatile static int __kernel_all_done = 0;
 
@@ -60,8 +56,6 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	int res = handler_install(tick);
 	lprintf("res of handler_install: %d", res);
 
-
-
 	clear_console();
 
     /*
@@ -86,13 +80,19 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
     //lprintf("&nullp:%p", &nullp);
 
     while (!__kernel_all_done) {
-     	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
+     	int n = MAX_EXECNAME_LEN;
      	char s[n];
 
 	 	/* Display prompt */
      	putbytes("pebbles>",8);
      	int res = readline(s, n);
 	    lprintf("read %d bytes: \"%s\"", res, s);
+
+        if (res == n)
+            continue; /* Executable name too large */
+
+        /* Swap \n returned by readline for null-terminator */
+        s[res - 1] = '\0';
 
 		res = execute_user_program(s, 0, NULL);
     }

@@ -27,50 +27,58 @@
 #include <task_manager.h>   /* task_new, task_prepare, task_set */
 #include <memory_manager.h> /* {disable,enable}_write_protection */
 
+#include <simics.h> /* lprintf */
+
 
 /* --- Local function prototypes --- */
 
+/* TODO: Move this to a helper file.
+ *
+ * Having a helper means we evaluate the arguments before expanding _MIN
+ *  and therefore avoid evaluating A and B multiple times. */
+#define _MIN(A, B) ((A) < (B) ? (A) : (B))
+#define MIN(A,B) _MIN(A,B)
+
 /** Copies data from a file into a buffer.
  *
- *  @param filename   the name of the file to copy data from (null-terminated)
+ *  @param filename   the name of the file to copy data from
  *  @param offset     the location in the file to begin copying from
  *  @param size       the number of bytes to be copied
  *  @param buf        the buffer to copy the data into
- *
- *  Buf must be page aligned and have size multiple of PAGE_SIZE.
- *  Getbytes zeroes out unused bytes in a given page.
  *
  * @return number of bytes copied on success. Negative value on failure.
  */
 int
 getbytes( const char *filename, int offset, int size, char *buf )
 {
-    if (!filename || !buf || offset < 0 || size < 0)
+    if (!filename || !buf || offset < 0 || size < 0) {
+        lprintf("Loader [getbytes]: Invalid arguments");
         return -1;
+    }
 
     /* Find file in TOC */
     int i;
-    for (i=0; i < MAX_NUM_APP_ENTRIES; ++i) {
+    for (i=0; i < exec2obj_userapp_count; ++i) {
         if (strncmp(filename, exec2obj_userapp_TOC[i].execname, MAX_EXECNAME_LEN) == 0) {
             break;
         }
     }
 
-    if (i == MAX_NUM_APP_ENTRIES)
-        return -1; /* Executable not found */
+    if (i == exec2obj_userapp_count) {
+        lprintf("Loader [getbytes]: Executable not found");
+        return -1;
+    }
 
-    if (offset + size >= exec2obj_userapp_TOC[i].execlen)
-        return -1; /* Asking for more bytes than are available */
+    ///* FIXME: Spec is unclear. Should we copy as much as we can, or should
+    // * only copy if there are enough bytes in the executable? */
+    //if (offset + size >= exec2obj_userapp_TOC[i].execlen)
+    //    return -1; /* Asking for more bytes than are available */
 
-    memcpy(buf, exec2obj_userapp_TOC[i].execbytes + offset, size);
+    int bytes_to_copy = MIN(size, exec2obj_userapp_TOC[i].execlen - offset);
 
-    /* Since we require that memory regions be page aligned,
-     * we know buf % PAGE_SIZE == 0. We can use this to zero
-     * out leftover bytes at region boundaries. */
-    int leftover_bytes = PAGE_SIZE - (size % PAGE_SIZE);
-    memset(buf + size, 0, leftover_bytes);
+    memcpy(buf, exec2obj_userapp_TOC[i].execbytes + offset, bytes_to_copy);
 
-    return 0;
+    return bytes_to_copy;
 }
 
 /** @brief Transplants program data into virtual memory.
@@ -90,6 +98,9 @@ transplant_program_memory( simple_elf_t *se_hdr )
 
     // FIXME: This error checking is kinda hacky
     int i = 0;
+
+    /* TODO: Zero out bytes between memory regions */
+
     /* We rely on the fact that virtual-memory is
      * enabled to "transplant" program data. Notice
      * that this is only possible because program data is
