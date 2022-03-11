@@ -18,13 +18,14 @@
 /*@{*/
 
 /* --- Includes --- */
-#include <string.h>
-#include <stdio.h>
-#include <malloc.h>
-#include <exec2obj.h>
 #include <loader.h>
-#include <elf_410.h>
-#include <limits.h> /* UINT_MAX */
+#include <page.h>       /* PAGE_SIZE */
+#include <string.h>     /* strncmp, memcpy */
+#include <exec2obj.h>   /* exec2obj_TOC */
+#include <elf_410.h>    /* simple_elf_t, elf_load_helper */
+#include <limits.h>     /* UINT_MAX */
+#include <task_manager.h>   /* task_new, task_prepare, task_set */
+#include <memory_manager.h> /* {disable,enable}_write_protection */
 
 
 /* --- Local function prototypes --- */
@@ -42,7 +43,7 @@
  *
  * @return number of bytes copied on success. Negative value on failure.
  */
-static int
+int
 getbytes( const char *filename, int offset, int size, char *buf )
 {
     if (!filename || !buf || offset < 0 || size < 0)
@@ -50,10 +51,8 @@ getbytes( const char *filename, int offset, int size, char *buf )
 
     /* Find file in TOC */
     int i;
-    exec2obj_userapp_TOC_entry entry;
     for (i=0; i < MAX_NUM_APP_ENTRIES; ++i) {
-        entry = exect2obj_userapp_TOC[i];
-        if (strncmp(filename, entry.execname, MAX_EXECNAME_LEN) == 0) {
+        if (strncmp(filename, exec2obj_userapp_TOC[i].execname, MAX_EXECNAME_LEN) == 0) {
             break;
         }
     }
@@ -61,10 +60,10 @@ getbytes( const char *filename, int offset, int size, char *buf )
     if (i == MAX_NUM_APP_ENTRIES)
         return -1; /* Executable not found */
 
-    if (offset + size >= entry.execlen)
+    if (offset + size >= exec2obj_userapp_TOC[i].execlen)
         return -1; /* Asking for more bytes than are available */
 
-    memcpy(buf, entry.execbytes + offset, size);
+    memcpy(buf, exec2obj_userapp_TOC[i].execbytes + offset, size);
 
     /* Since we require that memory regions be page aligned,
      * we know buf % PAGE_SIZE == 0. We can use this to zero
@@ -143,7 +142,7 @@ configure_stack( int argc, char **argv )
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main
      * is never supposed to return. */
-    esp--
+    esp--;
 
     return esp;
 }
@@ -163,7 +162,7 @@ execute_user_program( const char *fname, int argc, char **argv )
     if (elf_check_header(fname) == ELF_NOTELF)
         return -1;
 
-	if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
+    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
         return -1;
 
     /* FIXME: Hard coded pid and tid for now */
@@ -179,7 +178,7 @@ execute_user_program( const char *fname, int argc, char **argv )
 
     uint32_t *esp = configure_stack(argc, argv);
 
-    task_set(0, esp, se_hdr.e_entry);
+    task_set(0, (uint32_t)esp, se_hdr.e_entry);
 
 	return 0;
 }

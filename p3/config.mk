@@ -163,6 +163,7 @@ AUTOSTACK_OBJS = autostack.o
 # Kernel object files you provide in from kern/
 #
 KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
+			  memory_manager.o task_manager.o iret_travel.o
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your

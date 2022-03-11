@@ -4,9 +4,13 @@
 #ifndef _TASK_MANAGER_H
 #define _TASK_MANAGER_H
 
+#include <stdint.h> /* uint32_t */
+#include <elf_410.h> /* simple_elf_t */
+
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
+/* TODO: Do we even want PCB and TCB to be available to others? */
 /** @brief Task control block */
 struct pcb {
     void *ptd; // page table directory

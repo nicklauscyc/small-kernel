@@ -1,13 +1,19 @@
 /** @brief Module for management of tasks.
  *  Includes context switch facilities. */
 
+#include <task_manager.h>
+#include <limits.h>     /* UINT_MAX */
+#include <eflags.h>     /* get_eflags*/
+#include <seg.h>        /* SEGSEL_... */
 #include <stdint.h>     /* uint32_t */
 #include <stddef.h>     /* NULL */
 #include <malloc.h>     /* malloc, smemalign, free, sfree */
 #include <elf_410.h>    /* simple_elf_t */
 #include <page.h>       /* PAGE_SIZE */
 #include <string.h>     /* memset */
+#include <assert.h>     /* affirm, assert */
 #include <simics.h>     /* sim_reg_process */
+#include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* vm_task_new, vm_enable_task */
 
 /** @brief Pointer to first task control block. */
@@ -155,7 +161,7 @@ find_pcb( int pid, pcb_t **pcb )
  *
  *  @return 0 on success, negative value on error. */
 static int
-find_tcb( int tid, tcb_t **pcb )
+find_tcb( int tid, tcb_t **tcb )
 {
     // TODO: Actually implement the search
     if (!pcb_list_start)
@@ -176,7 +182,7 @@ new_pcb( int pid )
     if (!ptd)
         return -1;
 
-    assert(ptd & (PAGE_SIZE - 1) == 0);
+    assert(((uint32_t)ptd & (PAGE_SIZE - 1)) == 0);
 
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
@@ -215,7 +221,7 @@ new_tcb( int pid, int tid )
     owning_task->first_thread = tcb;
 
     /* Set tcb/pcb values  */
-    tcb->owning_task = new_pcb;
+    tcb->owning_task = owning_task;
     tcb->next_thread = NULL;
     tcb->tid = tid;
 

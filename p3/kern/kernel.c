@@ -21,7 +21,7 @@
 /* x86 specific includes */
 #include <x86/asm.h>                /* enable_interrupts() */
 
-
+#include <loader.h>  /* execute_user_program() */
 #include <console.h> /* clear_console() */
 
 volatile static int __kernel_all_done = 0;
