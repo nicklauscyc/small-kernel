@@ -13,9 +13,7 @@
 /* --- Prototypes --- */
 
 int getbytes( const char *filename, int offset, int size, char *buf );
-int execute_user_program( const char *fname );
-/*
- * Declare your loader prototypes here.
- */
+
+int execute_user_program( const char *fname, int argc, char **argv );
 
 #endif /* _LOADER_H */
