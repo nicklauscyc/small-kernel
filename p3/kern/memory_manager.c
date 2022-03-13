@@ -220,7 +220,7 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
 			affirm(ptp == 0);
 			return ptp;
 		}
-		assert(ptp & 0x111 == 0);
+		assert(((uint32_t)ptp & 0x111) == 0);
         ptd[pd_index] = ptp;
 
         /* Initialize all page table entries as non-present */
