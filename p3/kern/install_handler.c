@@ -19,31 +19,7 @@
 #include <keybd_driver.h> /* init_keybd() */
 #include <install_handler.h>
 
-/* Number of bits in a byte */
-#define BYTE_LEN 8
-
-/* Number of bytes that a trap gate occupies */
-#define BYTES_PER_GATE 8
-
-/* Mask for function handler address for upper bits */
-#define OFFSET_UPPER_MASK   0xFFFF0000
-
-/* Mask for function handler address for lower bits */
-#define OFFSET_LOWER_MASK   0x0000FFFF
-
-/* Trap gate flag masks */
-#define PRESENT             0x00008000
-#define DPL_0               0x00000000
-#define D16                 0x00000700
-#define D32                 0x00000F00
-#define RESERVED_UPPER_MASK 0x0000000F
-
-/* Hander installation error codes */
-#define E_NO_INSTALL_KEYBOARD_HANDLER -2
-#define E_NO_INSTALL_TIMER_HANDLER -3
-
-/* Type of assembly wrapper for C interrupt handler functions */
-typedef void asm_wrapper_t(void);
+#include <install_thread_management_handlers.h> /* install_gettid_handler() */
 
 /*********************************************************************/
 /*                                                                   */
@@ -51,8 +27,7 @@ typedef void asm_wrapper_t(void);
 /*                                                                   */
 /*********************************************************************/
 
-/** @brief Installs an interrupt handler at idt_entry for timer and keyboard
- *         interrupt handlers.
+/** @brief Installs an interrupt handler at idt_entry for gettid()
  *
  *  If a tickback function pointer is provided, init_timer() will be called.
  *  Else it is assumed that init_keybd() should be called instead, since there
@@ -68,16 +43,11 @@ typedef void asm_wrapper_t(void);
  *  @param tickback Application provided callback function for timer interrupts.
  *  @return 0 on success, -1 on error.
  */
-int handler_install_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper,
-                           void (*tickback)(unsigned int)) {
-
-  if (asm_wrapper == NULL) return -1;
-
-  /* Only when installing the timer handler do we have a non-NULL tickback */
-  if (tickback != NULL) {
-    init_timer(tickback);
-  } else {
-    init_keybd();
+int
+install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper)
+{
+  if (!asm_wrapper) {
+	  return -1;
   }
   /* Get address of trap gate for timer */
   void *idt_base_addr = idt_base();
@@ -114,41 +84,61 @@ int handler_install_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper,
   return 0;
 }
 
+/** @brief Install timer interrupt handler
+ */
+int
+install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
+                      void (*tickback)(unsigned int))
+{
+	if (!asm_wrapper) {
+		return -1;
+	}
+    init_timer(tickback);
+	return install_handler_in_idt(idt_entry, asm_wrapper);
+}
+
+/** @brief Install keyboard interrupt handler
+ */
+int
+install_keyboard_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
+{
+	if (!asm_wrapper) {
+		return -1;
+	}
+    init_keybd();
+	return install_handler_in_idt(idt_entry, asm_wrapper);
+}
+
 /*********************************************************************/
 /*                                                                   */
 /* Interface for device-driver initialization and timer callback     */
 /*                                                                   */
 /*********************************************************************/
 
-/** @brief The driver-library initialization function
+/** @brief Installs all interrupt handlers by calling the correct function
  *
- *   Installs the timer and keyboard interrupt handler.
- *   NOTE: handler_install should ONLY install and activate the
- *   handlers; any application-specific initialization should
- *   take place elsewhere.
- *   --
  *   After installing both the timer and keyboard handler successfully,
  *   interrupts are enabled.
- *   --
+ *
+ *   Requires that interrupts are disabled.
+ *
  *   @param tickback Pointer to clock-tick callback function
  *   @return A negative error code on error, or 0 on success
  **/
-int handler_install(void (*tickback)(unsigned int)) {
-
-  /* While interrupt handlers are not set up, disable interrupts */
-  disable_interrupts();
-
-  /* Initialize and install timer handler */
-  int res = handler_install_in_idt(TIMER_IDT_ENTRY, call_timer_int_handler,
-                                   tickback);
-  if (res < 0) return E_NO_INSTALL_TIMER_HANDLER;
-
-  /* Initialize and install keyboard handler */
-  res = handler_install_in_idt(KEY_IDT_ENTRY, call_keybd_int_handler, NULL);
-  if (res < 0) return E_NO_INSTALL_KEYBOARD_HANDLER;
-
-  /* Interrupt handlers successfully installed, enable interrupts */
-  enable_interrupts();
-  return 0;
+int
+handler_install(void (*tick)(unsigned int))
+{
+	/* Initialize and install timer handler */
+	if (install_timer_handler(TIMER_IDT_ENTRY, call_timer_int_handler,
+	                          tick) < 0) {
+		return -1;
+	}
+	/* Initialize and install keyboard handler */
+	if (install_keyboard_handler(KEY_IDT_ENTRY, call_keybd_int_handler) < 0) {
+		return -1;
+	}
+	/* Interrupt handlers successfully installed, enable interrupts */
+	enable_interrupts();
+	return 0;
 }
 

@@ -9,9 +9,6 @@
 #ifndef _P1_ASM_INTERRUPT_HANDLER_H_
 #define _P1_ASM_INTERRUPT_HANDLER_H_
 
-#include "./timer_driver.h"
-#include "./keybd_driver.h"
-
 /** @brief Saves all register values, calls timer_int_handler(), restores
  *         all register values and returns to normal execution.
  *
