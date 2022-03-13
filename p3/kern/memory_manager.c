@@ -300,7 +300,7 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
 
     /* Allocate 1 frame at a time. */
     while (curr < (uint32_t)start + len) {
-        lprintf("Allocating frame at %lu", curr);
+        lprintf("Allocating frame at %p", (void *)curr);
         allocate_frame((uint32_t **)ptd, curr, write_mode);
         curr += PAGE_SIZE;
     }
