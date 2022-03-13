@@ -56,10 +56,10 @@ enum write_mode { READ_ONLY, READ_WRITE };
 
 static int get_next_free_frame( uint32_t *frame );
 static uint32_t num_free_frames( void );
-static uint32_t *get_pte( uint32_t **ptd, uint32_t virtual_address );
-static void allocate_frame( uint32_t **ptd,
+static uint32_t *get_pte( uint32_t **pd, uint32_t virtual_address );
+static void allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
-static int allocate_region( void *ptd, void *start,
+static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
 static void disable_paging( void );
@@ -87,18 +87,17 @@ vm_init( void )
  *  elsewhere, though)
  *  */
 int
-vm_task_new ( void *ptd, simple_elf_t *elf,
+vm_task_new ( void *pd, simple_elf_t *elf,
         uint32_t stack_lo, uint32_t stack_len )
 {
-    affirm(ptd);
+    affirm(pd);
 
     lprintf("Direct mapping kernel");
 
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
-        uint32_t *pte = get_pte(ptd, addr);
+        uint32_t *pte = get_pte(pd, addr);
 		if (!pte) return -1;
-		lprintf("pte:%p", pte);
 	        if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
@@ -111,15 +110,15 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
     int i = 0;
 
     lprintf("Allocating regions txt");
-    i += allocate_region(ptd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
+    i += allocate_region(pd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
     lprintf("Allocating regions data");
-    i += allocate_region(ptd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
+    i += allocate_region(pd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
     lprintf("Allocating regions rodata");
-    i += allocate_region(ptd, (void *)elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
+    i += allocate_region(pd, (void *)elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
     lprintf("Allocating regions bss");
-    i += allocate_region(ptd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
+    i += allocate_region(pd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
     lprintf("Allocating regions stack??");
-    i += allocate_region(ptd, (void *)stack_lo, stack_len, READ_WRITE);
+    i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
     lprintf("Allocated all regions");
 
     return i;
@@ -127,7 +126,7 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
 
 /** @brief Sets new page table directory and enables paging. */
 void
-vm_enable_task( void *ptd )
+vm_enable_task( void *pd )
 {
     disable_paging(); /* FIXME: Remove, annoying compiler*/
     enable_paging();
@@ -135,7 +134,7 @@ vm_enable_task( void *ptd )
     uint32_t cr3 = get_cr3();
     /* Unset top 20 bits where new page table will be stored.*/
     cr3 &= PAGE_SIZE - 1;
-    cr3 |= (uint32_t)ptd;
+    cr3 |= (uint32_t)pd;
 
     set_cr3(cr3);
 }
@@ -160,10 +159,10 @@ disable_write_protection( void )
 
 /** Allocate new pages in a given process' virtual memory. */
 int
-vm_new_pages ( void *ptd, void *base, int len )
+vm_new_pages ( void *pd, void *base, int len )
 {
     // TODO: Implement
-    (void)ptd;
+    (void)pd;
     (void)base;
     (void)len;
     return -1;
@@ -205,15 +204,15 @@ num_free_frames( void )
 /** Gets pointer to page table entry in a given page directory.
  *  Allocates page table if necessary. */
 static uint32_t *
-get_pte( uint32_t **ptd, uint32_t virtual_address )
+get_pte( uint32_t **pd, uint32_t virtual_address )
 {
-    affirm(ptd);
+    affirm(pd);
     uint32_t pd_index = PD_INDEX(virtual_address);
     uint32_t pt_index = PT_INDEX(virtual_address);
 
-	uint32_t *ptp = ptd[pd_index];
+	uint32_t *ptp = pd[pd_index];
 
-    if (!((uint32_t)ptd[pd_index] & PRESENT_FLAG)) {
+    if (!((uint32_t)pd[pd_index] & PRESENT_FLAG)) {
         /* Allocate new page table, which must be page-aligned */
 		ptp	= smemalign(PAGE_SIZE, PAGE_SIZE);
 		if (!ptp) {
@@ -221,14 +220,14 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
 			return ptp;
 		}
 		assert(((uint32_t)ptp & 0x111) == 0);
-        ptd[pd_index] = ptp;
+        pd[pd_index] = ptp;
 
         /* Initialize all page table entries as non-present */
-        memset(ptd[pd_index], 0, PAGE_SIZE);
+        memset(pd[pd_index], 0, PAGE_SIZE);
 
         /* Set all page directory entries as writable, determine
          * whether truly writable in page table entry. */
-        ptd[pd_index] = (uint32_t *)((uint32_t)ptd[pd_index] | PE_USER_WRITABLE);
+        pd[pd_index] = (uint32_t *)((uint32_t)pd[pd_index] | PE_USER_WRITABLE);
     }
 
     /* Clear out bottom 12 bits */
@@ -246,11 +245,11 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
  *  If memory location already had a frame, this crashes.
  *  */
 static void
-allocate_frame( uint32_t **ptd, uint32_t virtual_address, write_mode_t write_mode )
+allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode )
 {
-    affirm(ptd);
+    affirm(pd);
 
-    uint32_t *pte = get_pte(ptd, virtual_address);
+    uint32_t *pte = get_pte(pd, virtual_address);
     affirm(((uint32_t)(*pte) & PRESENT_FLAG) == 0); /* Ensure unnalocated */
 
     uint32_t free_frame;
@@ -280,7 +279,7 @@ allocate_frame( uint32_t **ptd, uint32_t virtual_address, write_mode_t write_mod
  *  request, region is not allocated and function returns a negative
  *  value.
  *
- *  @arg ptd    Pointer to page directory
+ *  @arg pd    Pointer to page directory
  *  @arg start  Virtual memory addess for start of region to be allocated
  *  @arg len    Length of region to be allocated
  *  @arg write_mode 0 if read-only region, non-zero value if writable
@@ -288,7 +287,7 @@ allocate_frame( uint32_t **ptd, uint32_t virtual_address, write_mode_t write_mod
  *  @return 0 on success, negative value on failure.
  *  */
 static int
-allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
+allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
 {
     /* Ensure we have enough free frames to fulfill request */
     if (num_free_frames() < (len + PAGE_SIZE - 1) / PAGE_SIZE)
@@ -301,7 +300,7 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
     /* Allocate 1 frame at a time. */
     while (curr < (uint32_t)start + len) {
         lprintf("Allocating frame at %lu", curr);
-        allocate_frame((uint32_t **)ptd, curr, write_mode);
+        allocate_frame((uint32_t **)pd, curr, write_mode);
         curr += PAGE_SIZE;
     }
 
