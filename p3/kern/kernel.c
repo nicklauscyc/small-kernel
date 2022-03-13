@@ -53,8 +53,11 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
     (void)mbinfo;
     (void)envp;
 
-	/* initialize device-driver library */
-	handler_install(tick);
+	/* initialize handlers and enable interrupts */
+	if (handler_install(tick) < 0) {
+		panic("cannot install handlers");
+	}
+	enable_interrupts();
 
 	clear_console();
 

@@ -23,7 +23,7 @@
 #include <string.h>     /* strncmp, memcpy */
 #include <exec2obj.h>   /* exec2obj_TOC */
 #include <elf_410.h>    /* simple_elf_t, elf_load_helper */
-#include <limits.h>     /* UINT_MAX */
+#include <stdint.h>     /* UINT32_MAX */
 #include <task_manager.h>   /* task_new, task_prepare, task_set */
 #include <memory_manager.h> /* {disable,enable}_write_protection */
 
@@ -139,7 +139,7 @@ configure_stack( int argc, char **argv )
      * should also add entry point, user registers and data segment selectors
      * on the stack. For registers, just initialize most to 0 or something. */
 
-    uint32_t *esp = (uint32_t *)UINT_MAX;
+    uint32_t *esp = (uint32_t *)UINT32_MAX;
 
     *(esp) = argc;
 
@@ -149,11 +149,12 @@ configure_stack( int argc, char **argv )
     }
 
     esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
+	// TODO what if argv has a string
     memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
     esp--;
 
-    *(esp--) = UINT_MAX; /* Put stack_high on stack */
-    *(esp) = UINT_MAX - PAGE_SIZE; /* Put stack_low on stack */
+    *(esp--) = UINT32_MAX; /* Put stack_high on stack */
+    *(esp) = UINT32_MAX - PAGE_SIZE; /* Put stack_low on stack */
 
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main

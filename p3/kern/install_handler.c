@@ -20,6 +20,9 @@
 #include <install_handler.h>
 
 #include <install_thread_management_handlers.h> /* install_gettid_handler() */
+#include <asm_thread_management_handlers.h> /* call_gettid() */
+
+#include <syscall_int.h> /* GETTID_INT */
 
 /*********************************************************************/
 /*                                                                   */
@@ -137,8 +140,10 @@ handler_install(void (*tick)(unsigned int))
 	if (install_keyboard_handler(KEY_IDT_ENTRY, call_keybd_int_handler) < 0) {
 		return -1;
 	}
-	/* Interrupt handlers successfully installed, enable interrupts */
-	enable_interrupts();
+	/* Initialize and install gettid() */
+	if (install_keyboard_handler(GETTID_INT, call_gettid) < 0) {
+		return -1;
+	}
 	return 0;
 }
 
