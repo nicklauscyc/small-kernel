@@ -306,8 +306,10 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
 static int
 allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
 {
+    uint32_t pages_to_alloc = (len + PAGE_SIZE - 1) / PAGE_SIZE;
+
     /* Ensure we have enough free frames to fulfill request */
-    if (num_free_frames() < (len + PAGE_SIZE - 1) / PAGE_SIZE)
+    if (num_free_frames() < pages_to_alloc)
         return -1;
 
     /* FIXME: Do we have any guarantee memory regions are page aligned?
@@ -316,15 +318,14 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
      *        could require distinct permissions. THis might not be the case
      *        for data and bss, though, as both are read-write sections. */
 
-    uint32_t curr = (uint32_t)start;
-
     lprintf("Allocating region at %p, len %lu", (void *)start, len);
 
+
+    uint32_t u_start = (uint32_t)start;
     /* Allocate 1 frame at a time. */
-    while (curr < (uint32_t)start + len) {
-        lprintf("Allocating frame at %lu", curr);
-        allocate_frame((uint32_t **)pd, curr, write_mode);
-        curr += PAGE_SIZE;
+    for (int i = 0; i < pages_to_alloc; ++i) {
+        lprintf("Allocating frame at %p", (void *)(u_start + PAGE_SIZE * i));
+        allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i, write_mode);
     }
 
     return 0;
