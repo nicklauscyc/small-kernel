@@ -134,12 +134,15 @@ transplant_program_memory( simple_elf_t *se_hdr )
 static uint32_t *
 configure_stack( int argc, char **argv )
 {
+    /* TODO: Consider writing this with asm, as it might be simpler. */
 
     /* TODO: In the future, when "receiver" function is implemented, loader
      * should also add entry point, user registers and data segment selectors
      * on the stack. For registers, just initialize most to 0 or something. */
 
-    uint32_t *esp = (uint32_t *)UINT32_MAX;
+    /* As a pointer to uint32_t, it must point to the lowest address of
+     * the value. */
+    uint32_t *esp = (uint32_t *)UINT32_MAX - (sizeof(uint32_t) - 1);
 
     lprintf("configure_stack: storing argc");
     *esp = argc;

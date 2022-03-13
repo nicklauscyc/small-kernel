@@ -62,7 +62,7 @@ static void allocate_frame( uint32_t **pd,
 static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
-static void disable_paging( void );
+//static void disable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 
 /** Initialize virtual memory. */
@@ -125,6 +125,15 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
     lprintf("Allocated all regions");
 
+    /* DEBUG */
+    uint32_t *pte = get_pte(pd, elf->e_txtstart);
+    lprintf("pte at txt_start 0x%lx", *pte);
+
+    pte = get_pte(pd, 0xfffff000);
+    lprintf("pte at stack_start 0x%lx", *pte);
+    pte = get_pte(pd, 0xffffffff);
+    lprintf("pte at stack_end 0x%lx", *pte);
+
     return i;
 }
 
@@ -142,8 +151,8 @@ vm_enable_task( void *pd )
     set_cr3(cr3);
     lprintf("done");
 
-    lprintf("disable_paging");
-    disable_paging(); /* FIXME: Remove, annoying compiler*/
+    //lprintf("disable_paging");
+    //disable_paging(); /* FIXME: Remove, annoying compiler*/
     lprintf("enable_paging");
     enable_paging();
 }
@@ -198,6 +207,7 @@ get_next_free_frame( uint32_t *frame )
     assert((free_frame & (PAGE_SIZE - 1)) == 0);
 
     *frame = free_frame;
+
     return 0;
 }
 
@@ -272,6 +282,7 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
     uint32_t free_frame;
     affirm(get_next_free_frame(&free_frame) == 0);
 
+    lprintf("Allocated physical frame at %p", (void *) free_frame);
     *pte = free_frame;
 
     /* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
@@ -352,9 +363,9 @@ enable_paging( void )
 }
 
 /** @brief Disables paging mechanism. */
-static void
-disable_paging( void )
-{
-	uint32_t current_cr0 = get_cr0();
-	set_cr0(current_cr0 & (~PAGING_FLAG));
-}
+//static void
+//disable_paging( void )
+//{
+//	uint32_t current_cr0 = get_cr0();
+//	set_cr0(current_cr0 & (~PAGING_FLAG));
+//}

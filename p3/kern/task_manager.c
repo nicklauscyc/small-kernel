@@ -40,6 +40,9 @@ task_new( int pid, int tid, simple_elf_t *elf )
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
 
+    // TODO: Check if VM already initialized. Only initialize if it hasn't
+    vm_init();
+
     lprintf("creating pcb");
 
     if (new_pcb(pid) < 0)
@@ -55,12 +58,11 @@ task_new( int pid, int tid, simple_elf_t *elf )
     /* Allocate VM. Stack currently starts at top most address
      * and is PAGE_SIZE long. */
     pcb_t *pcb;
-    lprintf("finding pcb ");
     affirm(find_pcb(pid, &pcb) == 0);
-    lprintf("creating vm task_new ");
+
     /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
     vm_task_new(pcb->ptd, elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
-    lprintf("registering process w/ simics");
+
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
     sim_reg_process(pcb->ptd, elf->e_fname);
@@ -84,11 +86,10 @@ task_prepare( int pid )
     if (find_pcb(pid, &pcb) < 0)
         return -1;
 
-    lprintf("before enabling vm");
     /* Enable VM */
     vm_enable_task(pcb->ptd);
-    lprintf("after enabling vm");
 
+    pcb->prepared = 1;
     return 0;
 }
 
