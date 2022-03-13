@@ -129,6 +129,7 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
 void
 vm_enable_task( void *ptd )
 {
+    disable_paging(); /* FIXME: Remove, annoying compiler*/
     enable_paging();
 
     uint32_t cr3 = get_cr3();
@@ -230,11 +231,13 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
         ptd[pd_index] = (uint32_t *)((uint32_t)ptd[pd_index] | PE_USER_WRITABLE);
     }
 
+    /* Clear out bottom 12 bits */
+    ptp = (uint32_t *)((uint32_t)ptp & ~(PAGE_SIZE - 1));
+
 	/* the entry address is different since we don't use the bits in the
 	 * page table entry address
 	 */
-    uint32_t *page_table = ptp;
-	return page_table + pt_index;
+	return ptp + pt_index;
 }
 
 /** Allocate new frame at given virtual memory address.
@@ -257,11 +260,12 @@ allocate_frame( uint32_t **ptd, uint32_t virtual_address, write_mode_t write_mod
 
     /* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
      * zero-filled pages for the initially allocated regions? Seems like
-     * .bss and new_pages are the only ones required to be zeroed out by spec.*/
+     * .bss and new_pages are the only ones required to be zeroed out by spec.
+     * Should we even be calling enable paging here??? */
     /* ATOMICALLY start */
-    disable_paging();
-    memset((void *)free_frame, 0, PAGE_SIZE);
-    enable_paging();
+    //disable_paging();
+    //memset((void *)free_frame, 0, PAGE_SIZE);
+    //enable_paging();
     /* ATOMICALLY end*/
 
     if (write_mode == READ_WRITE)
@@ -296,6 +300,7 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
 
     /* Allocate 1 frame at a time. */
     while (curr < (uint32_t)start + len) {
+        lprintf("Allocating frame at %lu", curr);
         allocate_frame((uint32_t **)ptd, curr, write_mode);
         curr += PAGE_SIZE;
     }
