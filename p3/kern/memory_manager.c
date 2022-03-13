@@ -105,8 +105,6 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
         }
     }
 
-    lprintf("Direct mapping kernel complete");
-
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
@@ -130,6 +128,8 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
 void
 vm_enable_task( void *ptd )
 {
+    enable_paging();
+
     uint32_t cr3 = get_cr3();
     /* Unset top 20 bits where new page table will be stored.*/
     cr3 &= PAGE_SIZE - 1;
@@ -242,12 +242,11 @@ allocate_frame( uint32_t **ptd, uint32_t virtual_address, write_mode_t write_mod
 {
     affirm(ptd);
 
+    uint32_t *pte = get_pte(ptd, virtual_address);
+    affirm(((uint32_t)(*pte) & PRESENT_FLAG) == 0); /* Ensure unnalocated */
+
     uint32_t free_frame;
     affirm(get_next_free_frame(&free_frame) == 0);
-
-    uint32_t *pte = get_pte(ptd, virtual_address);
-    uint32_t pt_index = PT_INDEX(virtual_address);
-    affirm(((uint32_t)ptd[pt_index] & PRESENT_FLAG) == 0); /* Ensure unnalocated */
 
     *pte = free_frame;
 
@@ -285,6 +284,8 @@ allocate_region( void *ptd, void *start, uint32_t len, write_mode_t write_mode )
     /* Ensure we have enough free frames to fulfill request */
     if (num_free_frames() < (len + PAGE_SIZE - 1) / PAGE_SIZE)
         return -1;
+
+    /* FIXME: Do we have any guarantee memory regions are page aligned? */
 
     uint32_t curr = (uint32_t)start;
 
