@@ -36,12 +36,12 @@ void *smalloc(size_t size)
 
 void *smemalign(size_t alignment, size_t size)
 {
-  return smemalign(alignment, size);
+  return _smemalign(alignment, size);
 }
 
 void sfree(void *buf, size_t size)
 {
-	sfree(buf, size);
+	_sfree(buf, size);
 }
 
 
