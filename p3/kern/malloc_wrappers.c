@@ -1,11 +1,14 @@
 #include <stddef.h>
 #include <malloc.h>
 #include <malloc_internal.h> /* _malloc family of functions */
+#include <simics.h> /* lprintf() */
 
 /* safe versions of malloc functions */
 void *malloc(size_t size)
 {
-  return _malloc(size);
+	void *p = _malloc(size);
+	lprintf("_malloc() returned pointer with value:%p", p);
+  return p;
 }
 
 void *memalign(size_t alignment, size_t size)

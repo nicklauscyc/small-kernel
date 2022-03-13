@@ -29,6 +29,7 @@
 #include <loader.h>     /* execute_user_program() */
 #include <console.h>    /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
+#include <malloc.h> /*malloc() */
 
 volatile static int __kernel_all_done = 0;
 
@@ -77,6 +78,8 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	//char * nullp = 0;
 	//lprintf("garbage at address 0x0:%d", *nullp);
     //lprintf("&nullp:%p", &nullp);
+	void *p = malloc(8);
+	(void) p;
 
     while (!__kernel_all_done) {
      	int n = MAX_EXECNAME_LEN;

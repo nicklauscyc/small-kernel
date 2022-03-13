@@ -97,10 +97,11 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(ptd, addr);
+		if (!pte) return -1;
+		lprintf("pte:%p", pte);
 	        if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
-			continue;
             *pte = addr | PE_KERN_WRITABLE;
         }
     }
@@ -214,8 +215,12 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
     if (!((uint32_t)ptd[pd_index] & PRESENT_FLAG)) {
         /* Allocate new page table, which must be page-aligned */
 		ptp	= smemalign(PAGE_SIZE, PAGE_SIZE);
+		if (!ptp) {
+			affirm(ptp == 0);
+			return ptp;
+		}
+		assert(ptp & 0x111 == 0);
         ptd[pd_index] = ptp;
-        affirm(ptd[pd_index]);
 
         /* Initialize all page table entries as non-present */
         memset(ptd[pd_index], 0, PAGE_SIZE);
