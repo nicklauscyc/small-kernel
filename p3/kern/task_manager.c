@@ -43,12 +43,8 @@ task_new( int pid, int tid, simple_elf_t *elf )
     // TODO: Check if VM already initialized. Only initialize if it hasn't
     vm_init();
 
-    lprintf("creating pcb");
-
     if (new_pcb(pid) < 0)
         return -1;
-
-    lprintf("creating tcb");
 
     /* TODO: Deallocate pcb if this fails */
     if (new_tcb(pid, tid) < 0)
@@ -125,8 +121,8 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
      * however, we should go to some "receiver" function which appropriately
      * sets user registers and segment selectors, and lastly RETs to
      * the entry_point. */
-    iret_travel(SEGSEL_USER_DS, esp, get_user_eflags(),
-                SEGSEL_USER_CS, entry_point);
+    iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
+                esp, SEGSEL_USER_DS);
 
     /* NOTREACHED */
     panic("iret_travel should not return");
@@ -147,8 +143,15 @@ task_switch( int pid )
 static uint32_t
 get_user_eflags( void )
 {
+    uint32_t eflags = get_eflags();
+
     /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
-    return get_eflags() | EFL_IOPL_RING3;
+    eflags |= EFL_IOPL_RING3; /* Set privilege level to user */
+    eflags |= EFL_RESV1; /* Maitain reserved as 1 */
+    eflags &= ~(EFL_AC); /* Disable alignment-checking */
+    eflags |= EFL_IF; /* TODO:(should we???) Enable hardware interrupts */
+
+    return eflags;
 }
 
 
@@ -191,24 +194,19 @@ find_tcb( int tid, tcb_t **tcb )
 static int
 new_pcb( int pid )
 {
-    lprintf("smemalign");
     /* Ensure alignment of page table directory */
     void *ptd = smemalign(PAGE_SIZE, PAGE_SIZE);
-    lprintf("after smemalign");
     if (!ptd)
         return -1;
 
-    lprintf("assert");
     assert(((uint32_t)ptd & (PAGE_SIZE - 1)) == 0);
 
-    lprintf("malloc");
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
         sfree(ptd, PAGE_SIZE);
         return -1;
     }
 
-    lprintf("memset");
     /* Ensure all entries are 0 and therefore not present */
     memset(ptd, 0, PAGE_SIZE);
 

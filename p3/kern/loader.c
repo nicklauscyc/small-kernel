@@ -144,22 +144,18 @@ configure_stack( int argc, char **argv )
      * the value. */
     uint32_t *esp = (uint32_t *)UINT32_MAX - (sizeof(uint32_t) - 1);
 
-    lprintf("configure_stack: storing argc");
     *esp = argc;
 
-    lprintf("configure_stack: storing argv=NULL");
     if (argc == 0) {
         *(--esp) = 0;
         return esp;
     }
 
-    lprintf("configure_stack: memcpying argv");
     esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
 	// TODO what if argv has a string
     memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
     esp--;
 
-    lprintf("configure_stack: put stack_high and stack low on stack");
     *(esp--) = UINT32_MAX; /* Put stack_high on stack */
     *(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
 
@@ -189,35 +185,22 @@ execute_user_program( const char *fname, int argc, char **argv )
     if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
         return -1;
 
-    lprintf("creating task");
-
     /* FIXME: Hard coded pid and tid for now */
     if (task_new(0, 0, &se_hdr) < 0)
         return -1;
-
-    lprintf("preparing task");
 
     /* Enable VM */
     if (task_prepare(0) < 0)
         return -1;
 
-    lprintf("transplanting memory task");
-
     if (transplant_program_memory(&se_hdr) < 0)
         return -1;
 
-    lprintf("configuring stack");
-
     uint32_t *esp = configure_stack(argc, argv);
-
-    lprintf("setting task");
 
     task_set(0, (uint32_t)esp, se_hdr.e_entry);
 
 	return 0;
 }
-
-
-/* we try to use the physical addresses */
 
 /*@}*/
