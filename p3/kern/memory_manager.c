@@ -97,8 +97,7 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(ptd, addr);
-		//lprintf("pte:%p", pte);
-        if (addr == 0) {
+	        if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
 			continue;
@@ -106,22 +105,21 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
         }
     }
 
-	MAGIC_BREAK;
-    lprintf("Direct mapping kernel");
+    lprintf("Direct mapping kernel complete");
 
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
 
-    lprintf("Allocating regions");
+    lprintf("Allocating regions txt");
     i += allocate_region(ptd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
-    lprintf("Allocating regions");
+    lprintf("Allocating regions data");
     i += allocate_region(ptd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
-    lprintf("Allocating regions");
+    lprintf("Allocating regions rodata");
     i += allocate_region(ptd, (void *)elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
-    lprintf("Allocating regions");
+    lprintf("Allocating regions bss");
     i += allocate_region(ptd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
-    lprintf("Allocating regions");
+    lprintf("Allocating regions stack??");
     i += allocate_region(ptd, (void *)stack_lo, stack_len, READ_WRITE);
     lprintf("Allocated all regions");
 
@@ -211,9 +209,12 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
     uint32_t pd_index = PD_INDEX(virtual_address);
     uint32_t pt_index = PT_INDEX(virtual_address);
 
+	uint32_t *ptp = ptd[pd_index];
+
     if (!((uint32_t)ptd[pd_index] & PRESENT_FLAG)) {
         /* Allocate new page table, which must be page-aligned */
-        ptd[pd_index] = smemalign(PAGE_SIZE, PAGE_SIZE);
+		ptp	= smemalign(PAGE_SIZE, PAGE_SIZE);
+        ptd[pd_index] = ptp;
         affirm(ptd[pd_index]);
 
         /* Initialize all page table entries as non-present */
@@ -224,9 +225,11 @@ get_pte( uint32_t **ptd, uint32_t virtual_address )
         ptd[pd_index] = (uint32_t *)((uint32_t)ptd[pd_index] | PE_USER_WRITABLE);
     }
 
-    uint32_t *page_table = ptd[pd_index];
-
-    return page_table + pt_index;
+	/* the entry address is different since we don't use the bits in the
+	 * page table entry address
+	 */
+    uint32_t *page_table = ptp;
+	return page_table + pt_index;
 }
 
 /** Allocate new frame at given virtual memory address.
