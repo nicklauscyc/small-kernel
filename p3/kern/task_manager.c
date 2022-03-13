@@ -2,10 +2,9 @@
  *  Includes context switch facilities. */
 
 #include <task_manager.h>
-#include <limits.h>     /* UINT_MAX */
 #include <eflags.h>     /* get_eflags*/
 #include <seg.h>        /* SEGSEL_... */
-#include <stdint.h>     /* uint32_t */
+#include <stdint.h>     /* uint32_t, UINT32_MAX */
 #include <stddef.h>     /* NULL */
 #include <malloc.h>     /* malloc, smemalign, free, sfree */
 #include <elf_410.h>    /* simple_elf_t */
@@ -59,8 +58,8 @@ task_new( int pid, int tid, simple_elf_t *elf )
     lprintf("finding pcb ");
     affirm(find_pcb(pid, &pcb) == 0);
     lprintf("creating vm task_new ");
-    vm_task_new(pcb->ptd, elf, UINT_MAX, PAGE_SIZE);
-
+    /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
+    vm_task_new(pcb->ptd, elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
     lprintf("registering process w/ simics");
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
@@ -129,7 +128,7 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
                 SEGSEL_USER_CS, entry_point);
 
     /* NOTREACHED */
-    affirm(0);
+    panic("iret_travel should not return");
 }
 
 /* Aka context_switch */

@@ -63,6 +63,7 @@ static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
 static void disable_paging( void );
+static int valid_memory_regions( simple_elf_t *elf );
 
 /** Initialize virtual memory. */
 int
@@ -98,7 +99,7 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(pd, addr);
 		if (!pte) return -1;
-	        if (addr == 0) {
+	    if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
             *pte = addr | PE_KERN_WRITABLE;
@@ -108,6 +109,9 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
+
+    if (!valid_memory_regions(elf))
+        return -1;
 
     lprintf("Allocating regions txt");
     i += allocate_region(pd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
@@ -128,15 +132,20 @@ vm_task_new ( void *pd, simple_elf_t *elf,
 void
 vm_enable_task( void *pd )
 {
-    disable_paging(); /* FIXME: Remove, annoying compiler*/
-    enable_paging();
-
+    lprintf("get_cr3");
     uint32_t cr3 = get_cr3();
     /* Unset top 20 bits where new page table will be stored.*/
     cr3 &= PAGE_SIZE - 1;
     cr3 |= (uint32_t)pd;
 
+    lprintf("set_cr3");
     set_cr3(cr3);
+    lprintf("done");
+
+    lprintf("disable_paging");
+    disable_paging(); /* FIXME: Remove, annoying compiler*/
+    lprintf("enable_paging");
+    enable_paging();
 }
 
 /** @brief Enables write_protect flag in cr0, allowing
@@ -216,10 +225,9 @@ get_pte( uint32_t **pd, uint32_t virtual_address )
         /* Allocate new page table, which must be page-aligned */
 		ptp	= smemalign(PAGE_SIZE, PAGE_SIZE);
 		if (!ptp) {
-			affirm(ptp == 0);
 			return ptp;
 		}
-		assert(((uint32_t)ptp & 0x111) == 0);
+		assert(((uint32_t)ptp & 0xfff) == 0);
         pd[pd_index] = ptp;
 
         /* Initialize all page table entries as non-present */
@@ -242,7 +250,8 @@ get_pte( uint32_t **pd, uint32_t virtual_address )
 /** Allocate new frame at given virtual memory address.
  *  Allocates page tables on demand.
  *
- *  If memory location already had a frame, this crashes.
+ *  If memory location already had a frame, checks whether it's allocated with
+ *  the same flags as this function would set.
  *  */
 static void
 allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode )
@@ -250,8 +259,16 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
     affirm(pd);
 
     uint32_t *pte = get_pte(pd, virtual_address);
-    affirm(((uint32_t)(*pte) & PRESENT_FLAG) == 0); /* Ensure unnalocated */
 
+    if ((*pte & PRESENT_FLAG) != 0) { /* if allocated */
+        /* Ensure it's allocated with same flags. */
+        if (write_mode == READ_WRITE)
+            affirm((*pte & (PAGE_SIZE - 1)) == PE_USER_WRITABLE);
+        else
+            affirm((*pte & (PAGE_SIZE - 1)) == PE_USER_READABLE);
+
+        return;
+    }
     uint32_t free_frame;
     affirm(get_next_free_frame(&free_frame) == 0);
 
@@ -293,9 +310,15 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
     if (num_free_frames() < (len + PAGE_SIZE - 1) / PAGE_SIZE)
         return -1;
 
-    /* FIXME: Do we have any guarantee memory regions are page aligned? */
+    /* FIXME: Do we have any guarantee memory regions are page aligned?
+     *        They should be, to some extent. At the very least, 2 memory
+     *        regions should not be intersect with the same page, as they
+     *        could require distinct permissions. THis might not be the case
+     *        for data and bss, though, as both are read-write sections. */
 
     uint32_t curr = (uint32_t)start;
+
+    lprintf("Allocating region at %p, len %lu", (void *)start, len);
 
     /* Allocate 1 frame at a time. */
     while (curr < (uint32_t)start + len) {
@@ -305,6 +328,18 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
     }
 
     return 0;
+}
+
+static int
+valid_memory_regions( simple_elf_t *elf )
+{
+    /* TODO:
+     * - Check if memory regions intersect each other. If so, false.
+     * - Check if memory regions intersect same page. If so and they
+     *   have different read/write permissions, false.
+     * - Othws, true
+     *  */
+    return 1;
 }
 
 /** @brief Enables paging mechanism. */

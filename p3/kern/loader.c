@@ -141,20 +141,24 @@ configure_stack( int argc, char **argv )
 
     uint32_t *esp = (uint32_t *)UINT32_MAX;
 
-    *(esp) = argc;
+    lprintf("configure_stack: storing argc");
+    *esp = argc;
 
+    lprintf("configure_stack: storing argv=NULL");
     if (argc == 0) {
         *(--esp) = 0;
         return esp;
     }
 
+    lprintf("configure_stack: memcpying argv");
     esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
 	// TODO what if argv has a string
     memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
     esp--;
 
+    lprintf("configure_stack: put stack_high and stack low on stack");
     *(esp--) = UINT32_MAX; /* Put stack_high on stack */
-    *(esp) = UINT32_MAX - PAGE_SIZE; /* Put stack_low on stack */
+    *(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
 
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main
