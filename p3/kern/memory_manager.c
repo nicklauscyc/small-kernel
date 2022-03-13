@@ -97,7 +97,7 @@ vm_task_new ( void *ptd, simple_elf_t *elf,
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(ptd, addr);
-		lprintf("pte:%p", pte);
+		//lprintf("pte:%p", pte);
         if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
