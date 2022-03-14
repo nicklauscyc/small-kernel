@@ -104,7 +104,7 @@ vm_task_new ( void *pd, simple_elf_t *elf,
 	    if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
-            *pte = addr | PE_KERN_WRITABLE;
+            *pte = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME FIXME FIXME FIXME FIXME FIXME FIXME */
         }
     }
 
