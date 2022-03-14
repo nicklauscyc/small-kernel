@@ -147,8 +147,6 @@ configure_stack( int argc, char **argv )
 
     *esp = argc;
 
-    lprintf("esp %p", esp);
-
     if (argc == 0) {
         *(--esp) = 0;
 		assert((uint32_t) esp % 4 == 0);
@@ -162,14 +160,10 @@ configure_stack( int argc, char **argv )
     esp--;
 	assert((uint32_t) esp % 4 == 0);
 
-    lprintf("esp %p", esp);
-
     *(esp--) = UINT32_MAX; /* Put stack_high on stack */
 	assert((uint32_t) esp % 4 == 0);
 
     *(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
-
-    lprintf("esp %p", esp);
 
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main
@@ -209,10 +203,6 @@ execute_user_program( const char *fname, int argc, char **argv )
         return -1;
 
     uint32_t *esp = configure_stack(argc, argv);
-	lprintf("esp:%p", esp);
-
-
-    lprintf("esp at %p", esp);
 
     task_set(0, (uint32_t)esp, se_hdr.e_entry);
 

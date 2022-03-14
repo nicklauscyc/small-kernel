@@ -12,7 +12,6 @@
 #include <x86/seg.h> /* SEGSEL_KERNEL_CS */
 #include <x86/keyhelp.h>
 #include <stddef.h> /* NULL */
-#include <simics.h> /* lprintf */
 #include "./asm_interrupt_handler.h" /* call_timer_int_handler(),
                                         call_keybd_int_handler() */
 #include <timer_driver.h> /* init_timer() */

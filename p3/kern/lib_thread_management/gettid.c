@@ -6,7 +6,6 @@
  */
 
 #include <assert.h>
-#include <simics.h> /* lprintf() */
 #include <x86/asm.h> /* idt_base() */
 #include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
@@ -20,12 +19,12 @@ init_gettid( void )
 int
 gettid( void )
 {
-	lprintf("gettid called");
-  /* Acknowledge interrupt and return */
-	  outb(INT_CTL_PORT, INT_ACK_CURRENT);
-	lprintf("gettid ack ");
+    /* Acknowledge interrupt and return */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-  return 0;
+    /* TODO: Just return 0 for now. Later, get
+     * current thread from scheduler. */
+    return 0;
 }
 
 /** @brief Installs the gettid() interrupt handler

@@ -119,16 +119,12 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
 
 
     /* Before going to user mode, update esp0, so we know where to go back to */
-    lprintf("tcb->kernel_esp %p", tcb->kernel_esp);
     set_esp0((uint32_t)tcb->kernel_esp);
 
     /* We're currently going directly to entry point. In the future,
      * however, we should go to some "receiver" function which appropriately
      * sets user registers and segment selectors, and lastly RETs to
      * the entry_point. */
-    lprintf("before iret travel");
-	MAGIC_BREAK;
-
     iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
                 esp, SEGSEL_USER_DS);
 
@@ -152,14 +148,12 @@ static uint32_t
 get_user_eflags( void )
 {
     uint32_t eflags = get_eflags();
-	lprintf("eflags kernel:%lx", get_eflags());
 
     /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
     eflags |= EFL_IOPL_RING3; /* Set privilege level to user */
     eflags |= EFL_RESV1; /* Maitain reserved as 1 */
     eflags &= ~(EFL_AC); /* Disable alignment-checking */
     eflags |= EFL_IF; /* TODO:(should we???) Enable hardware interrupts */
-	lprintf("eflags:%lx", eflags);
 
     return eflags;
 }

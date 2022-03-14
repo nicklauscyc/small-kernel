@@ -92,10 +92,6 @@ vm_task_new ( void *pd, simple_elf_t *elf,
         uint32_t stack_lo, uint32_t stack_len )
 {
     affirm(pd);
-	lprintf("elf->e_entry:%lx", elf->e_entry);
-
-
-    //lprintf("Direct mapping kernel");
 
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
@@ -115,17 +111,11 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     if (!valid_memory_regions(elf))
         return -1;
 
-    //lprintf("Allocating regions txt");
     i += allocate_region(pd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
-    //lprintf("Allocating regions data");
     i += allocate_region(pd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
-    //lprintf("Allocating regions rodata");
     i += allocate_region(pd, (void *)elf->e_rodatstart, elf->e_rodatlen, READ_ONLY);
-    //lprintf("Allocating regions bss");
     i += allocate_region(pd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
-    //lprintf("Allocating regions stack??");
     i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
-    //lprintf("Allocated all regions");
 
     return i;
 }
@@ -134,19 +124,14 @@ vm_task_new ( void *pd, simple_elf_t *elf,
 void
 vm_enable_task( void *pd )
 {
-    lprintf("get_cr3");
     uint32_t cr3 = get_cr3();
     /* Unset top 20 bits where new page table will be stored.*/
     cr3 &= PAGE_SIZE - 1;
     cr3 |= (uint32_t)pd;
 
-    //lprintf("set_cr3");
     set_cr3(cr3);
-    //lprintf("done");
 
-    //lprintf("disable_paging");
     //disable_paging(); /* FIXME: Remove, annoying compiler*/
-    //lprintf("enable_paging");
     enable_paging();
 }
 
@@ -275,7 +260,6 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
     uint32_t free_frame;
     affirm(get_next_free_frame(&free_frame) == 0);
 
-    //lprintf("Allocated physical frame at %p", (void *) free_frame);
     *pte = free_frame;
 
     /* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
@@ -322,13 +306,9 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
      *        could require distinct permissions. THis might not be the case
      *        for data and bss, though, as both are read-write sections. */
 
-    //lprintf("Allocating region at %p, len %lu", (void *)start, len);
-
-
     uint32_t u_start = (uint32_t)start;
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
-        //lprintf("Allocating frame at %p", (void *)(u_start + PAGE_SIZE * i));
         allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i, write_mode);
     }
 
@@ -353,7 +333,6 @@ enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
-	lprintf("enabled paging");
 }
 
 /** @brief Disables paging mechanism. */
