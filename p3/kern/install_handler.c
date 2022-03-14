@@ -141,7 +141,7 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 	/* Initialize and install gettid() */
-	if (install_keyboard_handler(GETTID_INT, call_gettid) < 0) {
+	if (install_gettid_handler(GETTID_INT, call_gettid) < 0) {
 		return -1;
 	}
 	return 0;

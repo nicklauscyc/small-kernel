@@ -23,4 +23,19 @@ call_ ## HANDLER_NAME ## :;\
 //	mov $SEGSEL_KERNEL_DS, %ax;\
 //	mov %ax, %ss;\
 //	*/
+#define CALL_W_RETVAL_HANDLER(HANDLER_NAME)\
+\
+.globl call_##HANDLER_NAME; /* create the asm function call_HANDLER_NAME */\
+\
+call_ ## HANDLER_NAME ## :;\
+	push %esi; /* Pushes all registers onto the stack */\
+	push %edi;\
+	push %ebx;\
+	push %ebp;\
+	call HANDLER_NAME; /* calls timer interrupt handler */\
+	pop %ebp;\
+	pop %ebx;\
+	pop %edi;\
+	pop %esi;\
+	iret; /* Return to procedure before interrupt */
 
