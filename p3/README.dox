@@ -27,6 +27,53 @@ CK2:
     - Trace facility                    [nice to have]
     - Fork or exec?
 
+TODO:
+    0. Figure out synchronization mechanism
+
+    1. Fix gettid handler not executing
+        + in stack manager, create int next_tid, and use atomic_add (from p2 mutex implementation) to get next tid. Encapsulate in function.
+        + store tid at highest address of kernel stack
+        + create PR for merge into main (and have other person check)
+
+    2. Physical page allocator component
+        -> free list
+        -> per task allocated-list
+        -> manipulation functions (some interface)
+
+    3. Context switcher:
+        -> receiver (register restoring) function
+        -> register saving function
+
+    4. Scheduler:
+        -> Figure out necessary synchronization primitives
+        -> Create scheduler component (aka, new file)
+        -> Responds to timer interrupts by triggering context switch every 2ms (currently do it for keyboard interrupts (maybe a specific character))
+        -> Keep list of active, runnable and descheduled threads
+
+    5. Implement fork call:
+        -> Figure out VM copying mechanism (working with 2 page directories at once, one for each task).
+
+        Implementation suggestion:
+        On fork, do not reallocate memory for all kernel memory. -> Just share page tables below user mem_start
+        memcpy(A, B);
+        pd_update(); // (point A to newly allocated physical frames);
+        memcpy(B, A);
+        unallocate(B);
+
+    6. Create tracing facility:
+        -> 3 priorities, just call printf
+
+TODO Andre:
+    - 0
+    - 3
+    - 4
+    - 6
+
+TODO Nick:
+    - 0
+    - 1
+    - 2
+    - 5
 
 
 */
