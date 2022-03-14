@@ -32,7 +32,7 @@ install_gettid_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 		return -1;
 	}
 	init_gettid();
-	return install_handler_in_idt(idt_entry, asm_wrapper);
+	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
 }
 
 

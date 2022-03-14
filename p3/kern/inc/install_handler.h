@@ -17,6 +17,8 @@
 /* Trap gate flag masks */
 #define PRESENT             0x00008000
 #define DPL_0               0x00000000
+#define DPL_3               0x00000003
+
 #define D16                 0x00000700
 #define D32                 0x00000F00
 #define RESERVED_UPPER_MASK 0x0000000F
@@ -30,7 +32,7 @@ typedef void asm_wrapper_t(void);
 
 int handler_install(void (*tick)(unsigned int));
 
-int install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper);
+int install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl);
 
 
 #endif

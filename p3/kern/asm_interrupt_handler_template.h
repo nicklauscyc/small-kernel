@@ -4,6 +4,9 @@
  *
  *	Macro assembly instructions require a ; after each line
  */
+
+#include <x86/seg.h> /* SEGSEL_KERNEL_{CS, DS} */
+
 #define CALL_HANDLER(HANDLER_NAME)\
 \
 .globl call_##HANDLER_NAME; /* create the asm function call_HANDLER_NAME */\
@@ -13,4 +16,11 @@ call_ ## HANDLER_NAME ## :;\
 	call HANDLER_NAME; /* calls timer interrupt handler */\
 	popa; /* Restores all registers onto the stack */\
 	iret; /* Return to procedure before interrupt */
+
+/*
+//	mov $SEGSEL_KERNEL_CS, %ax;\
+//	mov %ax, %cs;\
+//	mov $SEGSEL_KERNEL_DS, %ax;\
+//	mov %ax, %ss;\
+//	*/
 

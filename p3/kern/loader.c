@@ -147,6 +147,8 @@ configure_stack( int argc, char **argv )
 
     *esp = argc;
 
+    lprintf("esp %p", esp);
+
     if (argc == 0) {
         *(--esp) = 0;
 		assert((uint32_t) esp % 4 == 0);
@@ -155,24 +157,26 @@ configure_stack( int argc, char **argv )
 
     esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
 	assert((uint32_t) esp % 4 == 0);
-
 	// TODO what if argv has a string
     memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
     esp--;
 	assert((uint32_t) esp % 4 == 0);
 
+    lprintf("esp %p", esp);
+
     *(esp--) = UINT32_MAX; /* Put stack_high on stack */
 	assert((uint32_t) esp % 4 == 0);
 
-
     *(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
+
+    lprintf("esp %p", esp);
 
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main
      * is never supposed to return. */
     esp--;
 	assert((uint32_t) esp % 4 == 0);
-    return esp;
+	return esp;
 }
 
 /** @brief Run a user program indicated by filename.
@@ -207,6 +211,8 @@ execute_user_program( const char *fname, int argc, char **argv )
     uint32_t *esp = configure_stack(argc, argv);
 	lprintf("esp:%p", esp);
 
+
+    lprintf("esp at %p", esp);
 
     task_set(0, (uint32_t)esp, se_hdr.e_entry);
 

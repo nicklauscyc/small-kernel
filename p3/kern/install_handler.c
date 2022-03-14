@@ -47,7 +47,7 @@
  *  @return 0 on success, -1 on error.
  */
 int
-install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper)
+install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl)
 {
   if (!asm_wrapper) {
 	  return -1;
@@ -65,7 +65,7 @@ install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper)
   unsigned int data_upper = 0;
   unsigned int offset_upper =
     ((unsigned int) (unsigned long) asm_wrapper) & OFFSET_UPPER_MASK;
-  data_upper = offset_upper | PRESENT | DPL_0 | D32;
+  data_upper = offset_upper | PRESENT | dpl | D32;
 
   /* Zero all bits that are not reserved, pack data into upper 32-bit word */
   *idt_entry_addr_upper = *idt_entry_addr_upper & RESERVED_UPPER_MASK;
@@ -97,7 +97,7 @@ install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
 		return -1;
 	}
     init_timer(tickback);
-	return install_handler_in_idt(idt_entry, asm_wrapper);
+	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0);
 }
 
 /** @brief Install keyboard interrupt handler
@@ -109,7 +109,7 @@ install_keyboard_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 		return -1;
 	}
     init_keybd();
-	return install_handler_in_idt(idt_entry, asm_wrapper);
+	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0);
 }
 
 /*********************************************************************/
