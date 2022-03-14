@@ -72,10 +72,10 @@ int make_runnable(int pid)
 	return -1;
 }
 
-int gettid(void)
-{
-	return -1;
-}
+//int gettid(void)
+//{
+//	return -1;
+//}
 
 int sleep(int ticks)
 {

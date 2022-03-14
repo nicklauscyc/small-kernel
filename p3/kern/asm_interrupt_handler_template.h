@@ -28,14 +28,17 @@ call_ ## HANDLER_NAME ## :;\
 .globl call_##HANDLER_NAME; /* create the asm function call_HANDLER_NAME */\
 \
 call_ ## HANDLER_NAME ## :;\
-	push %esi; /* Pushes all registers onto the stack */\
-	push %edi;\
-	push %ebx;\
-	push %ebp;\
+	/* Save all callee save registers */\
+	pushl %ebp;\
+	movl  %esp, %ebp;\
+	pushl %edi;\
+	pushl %ebx;\
+	pushl %esi;\
 	call HANDLER_NAME; /* calls timer interrupt handler */\
-	pop %ebp;\
-	pop %ebx;\
-	pop %edi;\
-	pop %esi;\
+	/* Restore all callee save registers */\
+	popl %esi;\
+	popl %ebx;\
+	popl %edi;\
+	popl %ebp;\
 	iret; /* Return to procedure before interrupt */
 

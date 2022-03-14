@@ -18,12 +18,11 @@ init_gettid( void )
 }
 
 int
-gettid(void )
+gettid( void )
 {
-	assert(0);
 	lprintf("gettid called");
   /* Acknowledge interrupt and return */
-  outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	  outb(INT_CTL_PORT, INT_ACK_CURRENT);
 	lprintf("gettid ack ");
 
   return 0;
@@ -34,13 +33,11 @@ gettid(void )
 int
 install_gettid_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 {
-	lprintf("inside install_gettid_handler");
 	if (!asm_wrapper) {
 		return -1;
 	}
 	init_gettid();
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_0);
-	lprintf("installed gettid, res:%d", res);
+	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
 	return res;
 }
 

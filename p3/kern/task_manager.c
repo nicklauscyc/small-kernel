@@ -117,7 +117,6 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
         task_prepare(pcb->pid);
     }
 
-    lprintf("before iret travel");
 
     /* Before going to user mode, update esp0, so we know where to go back to */
     lprintf("tcb->kernel_esp %p", tcb->kernel_esp);
@@ -127,6 +126,9 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
      * however, we should go to some "receiver" function which appropriately
      * sets user registers and segment selectors, and lastly RETs to
      * the entry_point. */
+    lprintf("before iret travel");
+	MAGIC_BREAK;
+
     iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
                 esp, SEGSEL_USER_DS);
 

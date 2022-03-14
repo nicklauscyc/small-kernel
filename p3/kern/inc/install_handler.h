@@ -16,8 +16,8 @@
 
 /* Trap gate flag masks */
 #define PRESENT             0x00008000
-#define DPL_0               0x00000000
-#define DPL_3               0x00000003
+#define DPL_0               (0x00000000 << 13)
+#define DPL_3               (0x00000003 << 13)
 
 #define D16                 0x00000700
 #define D32                 0x00000F00
