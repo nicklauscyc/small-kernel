@@ -18,8 +18,11 @@ init_gettid( void )
 int
 gettid(void )
 {
+	lprintf("gettid called");
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	lprintf("gettid ack ");
+
   return 0;
 }
 
@@ -32,6 +35,7 @@ install_gettid_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 		return -1;
 	}
 	init_gettid();
+	lprintf("DPL for gettid:%d", DPL_3);
 	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
 }
 
