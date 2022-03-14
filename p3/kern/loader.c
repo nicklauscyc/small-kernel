@@ -142,9 +142,13 @@ configure_stack( int argc, char **argv )
 
     /* As a pointer to uint32_t, it must point to the lowest address of
      * the value. */
-    uint32_t *esp = (uint32_t *)UINT32_MAX - (sizeof(uint32_t) - 1);
+    uint32_t *esp = (uint32_t *)(UINT32_MAX - (sizeof(uint32_t) - 1));
+
+    lprintf("esp %p", esp);
 
     *esp = argc;
+
+    lprintf("esp %p", esp);
 
     if (argc == 0) {
         *(--esp) = 0;
@@ -152,17 +156,29 @@ configure_stack( int argc, char **argv )
     }
 
     esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
+
+    lprintf("esp %p", esp);
+
 	// TODO what if argv has a string
     memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
     esp--;
 
+    lprintf("esp %p", esp);
+
     *(esp--) = UINT32_MAX; /* Put stack_high on stack */
+
+    lprintf("esp %p", esp);
+
     *(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
+
+    lprintf("esp %p", esp);
 
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main
      * is never supposed to return. */
     esp--;
+
+    lprintf("esp %p", esp);
 
     return esp;
 }
@@ -197,6 +213,8 @@ execute_user_program( const char *fname, int argc, char **argv )
         return -1;
 
     uint32_t *esp = configure_stack(argc, argv);
+
+    lprintf("esp at %p", esp);
 
     task_set(0, (uint32_t)esp, se_hdr.e_entry);
 

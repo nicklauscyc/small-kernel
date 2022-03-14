@@ -9,6 +9,7 @@
 #include <malloc.h>     /* malloc, smemalign, free, sfree */
 #include <elf_410.h>    /* simple_elf_t */
 #include <page.h>       /* PAGE_SIZE */
+#include <cr.h>         /* set_esp0 */
 #include <string.h>     /* memset */
 #include <assert.h>     /* affirm, assert */
 #include <simics.h>     /* sim_reg_process */
@@ -116,6 +117,10 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
     }
 
     lprintf("before iret travel");
+
+    /* Before going to user mode, update esp0, so we know where to go back to */
+    lprintf("tcb->kernel_esp %p", tcb->kernel_esp);
+    set_esp0((uint32_t)tcb->kernel_esp);
 
     /* We're currently going directly to entry point. In the future,
      * however, we should go to some "receiver" function which appropriately
@@ -241,6 +246,14 @@ new_tcb( int pid, int tid )
     tcb->owning_task = owning_task;
     tcb->next_thread = NULL;
     tcb->tid = tid;
+    tcb->kernel_esp = smemalign(PAGE_SIZE, PAGE_SIZE);
+    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
+            PAGE_SIZE - sizeof(uint32_t));
+
+    if (!tcb->kernel_esp) {
+        free(tcb);
+        return -1;
+    }
 
     return 0;
 }
