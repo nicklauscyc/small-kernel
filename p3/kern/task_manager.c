@@ -15,6 +15,7 @@
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* vm_task_new, vm_enable_task */
 
+#define ELF_IF (1 << 9);
 /** @brief Pointer to first task control block. */
 pcb_t *pcb_list_start = NULL;
 
@@ -150,6 +151,7 @@ get_user_eflags( void )
     eflags |= EFL_RESV1; /* Maitain reserved as 1 */
     eflags &= ~(EFL_AC); /* Disable alignment-checking */
     eflags |= EFL_IF; /* TODO:(should we???) Enable hardware interrupts */
+	lprintf("eflags:%lx", eflags);
 
     return eflags;
 }

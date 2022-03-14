@@ -92,6 +92,8 @@ vm_task_new ( void *pd, simple_elf_t *elf,
         uint32_t stack_lo, uint32_t stack_len )
 {
     affirm(pd);
+	lprintf("elf->e_entry:%lx", elf->e_entry);
+
 
     //lprintf("Direct mapping kernel");
 
@@ -351,6 +353,7 @@ enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+	lprintf("enabled paging");
 }
 
 /** @brief Disables paging mechanism. */
