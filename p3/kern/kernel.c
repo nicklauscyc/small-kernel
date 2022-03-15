@@ -22,10 +22,14 @@
 /* x86 specific includes */
 #include <x86/asm.h>                /* enable_interrupts() */
 
+#include <x86/cr.h> /* get_cr3() */
 
-#include <console.h> /* clear_console(), putbytes() */
+#include <exec2obj.h> /* MAX_EXECNAME_LEN */
+
+#include <loader.h>     /* execute_user_program() */
+#include <console.h>    /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
-#include <loader.h> /* execute_user_program() */
+#include <malloc.h> /*malloc() */
 
 volatile static int __kernel_all_done = 0;
 
@@ -42,23 +46,22 @@ void tick(unsigned int numTicks) {
  *
  * @return Does not return
  */
-int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
+int
+kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 {
-    // placate compiler
+    /* FIXME: What to do with mbinfo and envp? */
     (void)mbinfo;
-    (void)argc;
-    (void)argv;
     (void)envp;
 
-	/* initialize device-driver library */
-	int res = handler_install(tick);
-	lprintf("res of handler_install: %d", res);
-
-
+	/* initialize handlers and enable interrupts */
+	if (handler_install(tick) < 0) {
+		panic("cannot install handlers");
+	}
+	enable_interrupts();
 
 	clear_console();
 
-    /*
+    /* TODO
      * When kernel_main() begins, interrupts are DISABLED.
      * You should delete this comment, and enable them --
      * when you are ready.
@@ -70,16 +73,35 @@ int kernel_main(mbinfo_t *mbinfo, int argc, char **argv, char **envp)
 	putbytes("loader_test2\n", 13);
 	putbytes("getpid_test1\n", 13);
 
+	///* On kernel_main() entry, all control registers are 0 */
+	//lprintf("cr1: %p", (void *) get_cr3());
+	//lprintf("cr2: %p", (void *) get_cr3());
+	//lprintf("cr3: %p", (void *) get_cr3());
+	//lprintf("cr4: %p", (void *) get_cr3());
+	//char * nullp = 0;
+	//lprintf("garbage at address 0x0:%d", *nullp);
+    //lprintf("&nullp:%p", &nullp);
+	void *p = malloc(8);
+	(void) p;
 
     while (!__kernel_all_done) {
-     	int n =  CONSOLE_HEIGHT * CONSOLE_WIDTH;
+     	int n = MAX_EXECNAME_LEN;
      	char s[n];
 
 	 	/* Display prompt */
      	putbytes("pebbles>",8);
      	int res = readline(s, n);
-	    lprintf("read %d bytes: \"%s\"", res, s);
-		res = execute_user_program(s);
+
+        if (res == n)
+            continue; /* Executable name too large */
+
+        /* Swap \n returned by readline for null-terminator */
+        s[res - 1] = '\0';
+
+	    lprintf("Executing: %s", s);
+
+        char *user_argv = (char *)s;
+		execute_user_program(s, 1, &user_argv);
     }
 
     return 0;

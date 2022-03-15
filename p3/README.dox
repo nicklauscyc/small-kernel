@@ -5,11 +5,77 @@
 @author Name1 (id1)
 @author Name2 (id2)
 
-Same drill as last time.
+Currently using README.dox as a bug tracker and TODO list.
 
-Ideally, this is not a place to say which functions appear
-in which files, or to narrate what code does step by step.
-Please use most of the README to document design decisions
-that you made.
+BUGS:
+    - Currently accessing invalid memory with eip. This happens during call
+      to smemalign (it seems). Eip is set to a value just above USER_MEM_START,
+      and at that time no user memory has been allocated. This probably means some interrupt
+      is triggering a handler which is supposed to be located at that eip.
+
+      Very puzzling. Maybe something to do with the console/keyboard interrupts????
+CK1:
+    - Write gettid handler              [essential]
+    - Store tid at top of kernel stack  [nice to have]
+    - Pass gettid_test1
+    - Cleanup unecessary files and organize into folders [nice to have]
+
+CK2:
+    - Synchronization design
+    - Context switch
+    - Proper physical memory management
+    - Trace facility                    [nice to have]
+    - Fork or exec?
+
+TODO:
+    0. Figure out synchronization mechanism
+
+    1. Fix gettid handler not executing
+        + in stack manager, create int next_tid, and use atomic_add (from p2 mutex implementation) to get next tid. Encapsulate in function.
+        + store tid at highest address of kernel stack
+        + create PR for merge into main (and have other person check)
+
+    2. Physical page allocator component
+        -> free list
+        -> per task allocated-list
+        -> manipulation functions (some interface)
+
+    3. Context switcher:
+        -> receiver (register restoring) function
+        -> register saving function
+
+    4. Scheduler:
+        -> Figure out necessary synchronization primitives
+        -> Create scheduler component (aka, new file)
+        -> Responds to timer interrupts by triggering context switch every 2ms (currently do it for keyboard interrupts (maybe a specific character))
+        -> Keep list of active, runnable and descheduled threads
+
+    5. Implement fork call:
+        -> Figure out VM copying mechanism (working with 2 page directories at once, one for each task).
+
+        Implementation suggestion:
+        On fork, do not reallocate memory for all kernel memory. -> Just share page tables below user mem_start
+        memcpy(A, B);
+        pd_update(); // (point A to newly allocated physical frames);
+        memcpy(B, A);
+        unallocate(B);
+
+    6. Create tracing facility:
+        -> 3 priorities, just call printf
+
+TODO Andre:
+    - 0
+    - 3
+    - 4
+    - 6
+
+TODO Nick:
+    - 0
+    - 1
+    - 2
+    - 5
+
 
 */
+
+

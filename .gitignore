@@ -26,6 +26,7 @@
 !/p3/Makefile
 !/nick-p1/kern
 !/andre-p1/kern
+!/p3/kernel.pdf
 
 # ignore all files in user/progs
 /p2/user/progs/*
