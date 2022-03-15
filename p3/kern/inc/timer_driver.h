@@ -12,7 +12,7 @@
 
 void init_timer(void (*tickback)(unsigned int));
 
-#endif
+#endif /* _P1_TIMER_DRIVER_H_ */
 
 
 

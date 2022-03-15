@@ -5,6 +5,11 @@
 @author Name1 (id1)
 @author Name2 (id2)
 
+Using assert() vs affirm(). We have used assert() to catch our own mess ups to
+aid our own debugging. On the other hand, affirm() is used to catch user mess
+ups when they use our interface function. For example, we affirm pointers
+passed as arguments to interface functions.
+
 Currently using README.dox as a bug tracker and TODO list.
 
 BUGS:
