@@ -170,6 +170,7 @@ test_physalloc( void )
 		i++;
 		total--;
 	}
+	lprintf("total frames supported:%08x", (unsigned int) machine_phys_frames());
 	assert(total == machine_phys_frames() - 1024);
 	/* all phys frames, populate reuse list */
 	assert(i == 1024);
