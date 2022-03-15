@@ -204,6 +204,7 @@ test_physalloc( void )
 		total--;
 		x = physalloc();
 	}
+	lprintf("last frame start address:%lx", x);
 	assert(!physalloc());
 	/* put them all back */
 	lprintf("put all into linked list");
