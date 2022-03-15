@@ -42,7 +42,7 @@ TODO:
 
     2. Physical page allocator component
         -> free list
-        -> per task allocated-list
+        -> per task allocated-list (not too sure if we need a distinction between user tasks, since kernel maintains all allocated physical frames across all user tasks)
         -> manipulation functions (some interface)
 
     3. Context switcher:
@@ -77,7 +77,7 @@ TODO Andre:
 TODO Nick:
     - 0
     - 1
-    - 2
+    - 2 Awaiting review
     - 5
 
 
