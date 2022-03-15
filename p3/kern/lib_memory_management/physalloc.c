@@ -24,15 +24,16 @@
 #define PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)\
 	((phys_address & (PAGE_SIZE - 1)) == 0)
 
+/* Boolean for whether initialization has taken place */
 static int physalloc_init = 0;
 
-void physfree( uint32_t phys_address );
-
+/* List node to store a free physical frame address */
 typedef struct free_frame_node {
 	Q_NEW_LINK(free_frame_node) link;
 	uint32_t phys_address;
 } free_frame_node_t;
 
+/* List head definition */
 Q_NEW_HEAD(list_t, free_frame_node);
 
 /* Address of the highest free physical frame currently in list */
@@ -47,6 +48,8 @@ static list_t reuse_list;
 /** @brief Initializes physical allocator family of functions
  *
  *  Must be called once and only once
+ *
+ *  @param Void.
  */
 void
 init_physalloc( void )
@@ -66,6 +69,12 @@ init_physalloc( void )
 	physalloc_init = 1;
 }
 
+/** @brief Allocates a physical frame by returning its address
+ *
+ *  If there is a reusable free frame, we use that frame first.
+ *
+ *  @return Next free physical frame address
+ */
 uint32_t
 physalloc( void )
 {
@@ -110,17 +119,29 @@ physalloc( void )
 	return next_free_address;
 }
 
+/** @brief Frees a physical frame address
+ *
+ *  Does necessary but not sufficient checksto see if it is indeed a valid
+ *  address before freeing (double freeing is not checked).
+ *  Requires that this phys_address was returned from a call to
+ *  physalloc(), else behavior is undefined. Free every allocated physical
+ *  address exactly once.
+ *
+ *  @param phys_address Physical address to be freed.
+ *  @return Void.
+ */
 void
 physfree(uint32_t phys_address)
 {
-	affirm(USER_MEM_START <= phys_address);
 	affirm(PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address));
-	affirm(phys_address <= max_free_address);
+	affirm(USER_MEM_START <= phys_address && phys_address <= max_free_address);
 
-	/* Add to reuse list */
+	/* Allocate and initialize new list node */
 	free_frame_node_t *newp = malloc(sizeof(free_frame_node_t));
 	Q_INIT_ELEM(newp, link);
 	newp->phys_address = phys_address;
+
+	/* Add to reuse list */
 	Q_INSERT_FRONT(&reuse_list, newp, link);
 	assert(Q_GET_FRONT(&reuse_list) == newp);
 	num_alloc--;
@@ -170,7 +191,8 @@ test_physalloc( void )
 		i++;
 		total--;
 	}
-	lprintf("total frames supported:%08x", (unsigned int) machine_phys_frames());
+	lprintf("total frames supported:%08x",
+		    (unsigned int) machine_phys_frames());
 	assert(total == machine_phys_frames() - 1024);
 	/* all phys frames, populate reuse list */
 	assert(i == 1024);
@@ -181,6 +203,7 @@ test_physalloc( void )
 	}
 	assert(total == machine_phys_frames());
 	assert(i == 0);
+
 	/* exhaust reuse list, check implicit stack ordering of reuse list */
 	while (i < 1024) {
 		uint32_t addr = physalloc();
@@ -207,6 +230,7 @@ test_physalloc( void )
 	}
 	lprintf("last frame start address:%lx", x);
 	assert(!physalloc());
+
 	/* put them all back */
 	lprintf("put all into linked list");
 	while (total < machine_phys_frames()) {
