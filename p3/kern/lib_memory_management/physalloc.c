@@ -82,8 +82,8 @@ physalloc( void )
 	if (!physalloc_init) {
 		init_physalloc();
 	}
-	/* Check if there are still available physical frames */
-    int remaining = machine_phys_frames() - num_alloc;
+	/* Check if there are still available physical frames >= USER_MEM_START */
+    int remaining = machine_phys_frames() - (USER_MEM_START / PAGE_SIZE) - num_alloc;
 	if (remaining <= 0) {
 
 		/* Never have -ve remaining frames */
@@ -97,6 +97,8 @@ physalloc( void )
 	}
 	/* Exist available physical frames, so check for reusable free frames */
 	uint32_t next_free_address = 0;
+	
+	/* Reusable free frames are unallocated and thus not counted in num_alloc */
 	if (Q_GET_FRONT(&reuse_list)) {
 		free_frame_node_t *frontp = Q_GET_FRONT(&reuse_list);
 		next_free_address = frontp->phys_address;
