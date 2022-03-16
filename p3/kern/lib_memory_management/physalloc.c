@@ -39,7 +39,8 @@ Q_NEW_HEAD(list_t, free_frame_node);
 /* Address of the highest free physical frame currently in list */
 static uint32_t max_free_address;
 
-/* Number of presently allocated free physical frames */
+/* Number of allocated free physical frames >= USER_MEM_START */
+/* # calls to physalloc() - # calls to physfree() */
 static int num_alloc;
 
 /* Linked list of free physical frames */
