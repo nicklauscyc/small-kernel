@@ -62,7 +62,7 @@ init_physalloc( void )
 	num_alloc = 0;
 
 	/* Some essential checks that should never fail */
-    assert(!Q_GET_TAIL(&reuse_list));
+	assert(!Q_GET_TAIL(&reuse_list));
 	assert(!Q_GET_FRONT(&reuse_list));
 
 	max_free_address = USER_MEM_START;
@@ -83,19 +83,19 @@ physalloc( void )
 		init_physalloc();
 	}
 	/* Check if there are still available physical frames >= USER_MEM_START */
-    int remaining = machine_phys_frames() - (USER_MEM_START / PAGE_SIZE) - num_alloc;
+	int remaining = machine_phys_frames() - (USER_MEM_START / PAGE_SIZE) - num_alloc;
 	if (remaining <= 0) {
 
 		/* Never have -ve remaining frames */
 		assert(remaining == 0);
 
 		/* Reuse list must be empty */
-	    assert(!Q_GET_TAIL(&reuse_list));
+		assert(!Q_GET_TAIL(&reuse_list));
 		assert(!Q_GET_FRONT(&reuse_list));
 
 		return 0;
 	}
-	/* Exist available physical frames, so check for reusable free frames */
+	/* Exist available physical frames, so check for reusable free frames first */
 	uint32_t next_free_address = 0;
 	
 	/* Reusable free frames are unallocated and thus not counted in num_alloc */
@@ -108,9 +108,10 @@ physalloc( void )
 		Q_REMOVE(&reuse_list, frontp, link);
 		free(frontp);
 
-	/* Nothing to reuse, so return a new address */
+	/* Nothing to reuse, so return a new address that is guaranteed supported */
 	} else {
 		next_free_address = max_free_address;
+		assert(next_free_address / PAGE_SIZE <= machine_phys_frames());
 		max_free_address += PAGE_SIZE;
 	}
 	num_alloc++;
