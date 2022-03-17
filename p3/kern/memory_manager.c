@@ -61,7 +61,7 @@ enum write_mode { READ_ONLY, READ_WRITE };
 
 static uint32_t num_free_frames( void );
 static uint32_t *get_pte( uint32_t **pd, uint32_t virtual_address );
-static void allocate_frame( uint32_t **pd,
+static int allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
 static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
@@ -245,7 +245,7 @@ get_pte( uint32_t **pd, uint32_t virtual_address )
  *  If memory location already had a frame, checks whether it's allocated with
  *  the same flags as this function would set.
  *  */
-static void
+static int
 allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode )
 {
     affirm(pd);
@@ -259,10 +259,12 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
         else
             affirm((*pte & (PAGE_SIZE - 1)) == PE_USER_READABLE);
 
-        return;
+        return 0;
     }
     uint32_t free_frame = physalloc();
-	affirm(free_frame); // What if out of memory though
+	if (!free_frame) {
+		return -1;
+	}
 
     *pte = free_frame;
 
@@ -276,10 +278,13 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
     //enable_paging();
     /* ATOMICALLY end*/
 
-    if (write_mode == READ_WRITE)
+    if (write_mode == READ_WRITE) {
         *pte |= PE_USER_WRITABLE;
-    else
+    } else {
         *pte |= PE_USER_READABLE;
+	}
+
+	return 0;
 }
 
 /** Allocates a memory region in virtual memory.
@@ -309,13 +314,16 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
      *        regions should not be intersect with the same page, as they
      *        could require distinct permissions. THis might not be the case
      *        for data and bss, though, as both are read-write sections. */
-
     uint32_t u_start = (uint32_t)start;
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
-        allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i, write_mode);
-    }
-
+        int res = allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i,
+			                     write_mode);
+		if (res < 0) {
+			// TODO CLEAN UP ALL PREVIOUSLY ALLOCATED PHYS FRAMES
+			return -1;
+		}
+	}
     return 0;
 }
 
