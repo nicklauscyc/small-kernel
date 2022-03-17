@@ -1,7 +1,12 @@
 /** Virtual memory manager
  *
+ *
+ * TODO need to figure out when to free physical pages, probably when
+ * cleaning up thread resources ?
+ *
  * */
 
+#include <physalloc.h> /* physalloc() */
 #include <memory_manager.h>
 #include <stdint.h>     /* uint32_t */
 #include <stddef.h>     /* NULL */
@@ -54,10 +59,9 @@ static uint32_t next_free_phys_frame;
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
 
-static int get_next_free_frame( uint32_t *frame );
 static uint32_t num_free_frames( void );
 static uint32_t *get_pte( uint32_t **pd, uint32_t virtual_address );
-static void allocate_frame( uint32_t **pd,
+static int allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
 static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
@@ -65,16 +69,16 @@ static void enable_paging( void );
 //static void disable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 
-/** Initialize virtual memory. */
-int
-vm_init( void )
-{
-    next_free_phys_frame = USER_MEM_START;
-
-    assert((next_free_phys_frame & (PAGE_SIZE - 1)) == 0);
-
-    return 0;
-}
+///** Initialize virtual memory. */
+//int
+//vm_init( void )
+//{
+//    next_free_phys_frame = USER_MEM_START;
+//
+//    assert((next_free_phys_frame & (PAGE_SIZE - 1)) == 0);
+//
+//    return 0;
+//}
 
 /** Allocate memory for new task at given page table directory.
  *  Assumes page table directory is empty. Sets appropriate
@@ -172,22 +176,22 @@ vm_new_pages ( void *pd, void *base, int len )
  *
  *  @return 0 on success, negative value on failure
  * */
-static int
-get_next_free_frame( uint32_t *frame )
-{
-    uint32_t free_frame = next_free_phys_frame;
-
-    if (num_free_frames() == 0)
-        return -1;
-
-    next_free_phys_frame += PAGE_SIZE;
-
-    assert((free_frame & (PAGE_SIZE - 1)) == 0);
-
-    *frame = free_frame;
-
-    return 0;
-}
+//static int
+//get_next_free_frame( uint32_t *frame )
+//{
+//    uint32_t free_frame = next_free_phys_frame;
+//
+//    if (num_free_frames() == 0)
+//        return -1;
+//
+//    next_free_phys_frame += PAGE_SIZE;
+//
+//    assert((free_frame & (PAGE_SIZE - 1)) == 0);
+//
+//    *frame = free_frame;
+//
+//    return 0;
+//}
 
 /** Gets number of remaining free physical frames. */
 static uint32_t
@@ -241,7 +245,7 @@ get_pte( uint32_t **pd, uint32_t virtual_address )
  *  If memory location already had a frame, checks whether it's allocated with
  *  the same flags as this function would set.
  *  */
-static void
+static int
 allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode )
 {
     affirm(pd);
@@ -255,10 +259,12 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
         else
             affirm((*pte & (PAGE_SIZE - 1)) == PE_USER_READABLE);
 
-        return;
+        return 0;
     }
-    uint32_t free_frame;
-    affirm(get_next_free_frame(&free_frame) == 0);
+    uint32_t free_frame = physalloc();
+	if (!free_frame) {
+		return -1;
+	}
 
     *pte = free_frame;
 
@@ -272,10 +278,13 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
     //enable_paging();
     /* ATOMICALLY end*/
 
-    if (write_mode == READ_WRITE)
+    if (write_mode == READ_WRITE) {
         *pte |= PE_USER_WRITABLE;
-    else
+    } else {
         *pte |= PE_USER_READABLE;
+	}
+
+	return 0;
 }
 
 /** Allocates a memory region in virtual memory.
@@ -305,13 +314,16 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
      *        regions should not be intersect with the same page, as they
      *        could require distinct permissions. THis might not be the case
      *        for data and bss, though, as both are read-write sections. */
-
     uint32_t u_start = (uint32_t)start;
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
-        allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i, write_mode);
-    }
-
+        int res = allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i,
+			                     write_mode);
+		if (res < 0) {
+			// TODO CLEAN UP ALL PREVIOUSLY ALLOCATED PHYS FRAMES
+			return -1;
+		}
+	}
     return 0;
 }
 

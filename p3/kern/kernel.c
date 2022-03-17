@@ -31,6 +31,8 @@
 #include <keybd_driver.h> /* readline() */
 #include <malloc.h> /*malloc() */
 
+#include <physalloc.h> /* test_physalloc() */
+
 volatile static int __kernel_all_done = 0;
 
 /* Think about where this declaration
@@ -39,6 +41,8 @@ volatile static int __kernel_all_done = 0;
 void tick(unsigned int numTicks) {
   //lprintf("numTicks: %d\n", numTicks);
 }
+
+
 
 /** @brief Kernel entrypoint.
  *
@@ -66,6 +70,8 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
      * You should delete this comment, and enable them --
      * when you are ready.
      */
+
+	test_physalloc();
 
     lprintf( "Hello from a brand new kernel!" );
 	putbytes("executable user programs:\n", 26);

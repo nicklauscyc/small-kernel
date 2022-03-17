@@ -5,6 +5,11 @@
 @author Name1 (id1)
 @author Name2 (id2)
 
+Using assert() vs affirm(). We have used assert() to catch our own mess ups to
+aid our own debugging. On the other hand, affirm() is used to catch user mess
+ups when they use our interface function. For example, we affirm pointers
+passed as arguments to interface functions.
+
 Currently using README.dox as a bug tracker and TODO list.
 
 BUGS:
@@ -37,7 +42,7 @@ TODO:
 
     2. Physical page allocator component
         -> free list
-        -> per task allocated-list
+        -> per task allocated-list (not too sure if we need a distinction between user tasks, since kernel maintains all allocated physical frames across all user tasks)
         -> manipulation functions (some interface)
 
     3. Context switcher:
@@ -72,7 +77,7 @@ TODO Andre:
 TODO Nick:
     - 0
     - 1
-    - 2
+    - 2 Awaiting review
     - 5
 
 
