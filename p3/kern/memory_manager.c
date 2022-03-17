@@ -1,8 +1,13 @@
-/** Virtual memory manager
+/** @file memory_manager.c
+ *  @brief Functions to initialize and manage virtual memory
  *
  *
- * TODO need to figure out when to free physical pages, probably when
- * cleaning up thread resources ?
+ *
+ *  TODO need to figure out when to free physical pages, probably when
+ *  cleaning up thread resources ?
+ *
+ *  @author Andre Nascimento (anascime)
+ *  @author Nicklaus Choo (nchoo)
  *
  * */
 
@@ -14,7 +19,7 @@
 #include <elf_410.h>    /* simple_elf_t */
 #include <assert.h>     /* assert, affirm */
 #include <page.h>       /* PAGE_SIZE */
-#include <x86/cr.h>     /* {get,set}_cr0 */
+#include <x86/cr.h>     /* {get,set}_{cr0,cr3} */
 #include <string.h>     /* memset, memcpy */
 #include <common_kern.h>/* USER_MEM_START */
 
@@ -50,16 +55,10 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
-/* FIXME: Temporary variable for enabling allocation of physical frames.
- *        Only to be used for user memory. Starts at USER_MEM_START, where
- *        the first phys frames are available. */
-static uint32_t next_free_phys_frame;
-
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
 
-static uint32_t num_free_frames( void );
 static uint32_t *get_pte( uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
@@ -69,18 +68,8 @@ static void enable_paging( void );
 //static void disable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 
-///** Initialize virtual memory. */
-//int
-//vm_init( void )
-//{
-//    next_free_phys_frame = USER_MEM_START;
-//
-//    assert((next_free_phys_frame & (PAGE_SIZE - 1)) == 0);
-//
-//    return 0;
-//}
-
-/** Allocate memory for new task at given page table directory.
+/** @brief Allocate memory for new task at given page table directory.
+ *
  *  Assumes page table directory is empty. Sets appropriate
  *  read/write permissions. To copy memory over, set the WP flag
  *  in the CR0 register to 0 - this will make it so that write
@@ -169,38 +158,6 @@ vm_new_pages ( void *pd, void *base, int len )
 }
 
 /* ----- HELPER FUNCTIONS ----- */
-
-/** Gets new page-aligned physical frame.
- *
- *  @arg frame Memory location in which to store new frame address
- *
- *  @return 0 on success, negative value on failure
- * */
-//static int
-//get_next_free_frame( uint32_t *frame )
-//{
-//    uint32_t free_frame = next_free_phys_frame;
-//
-//    if (num_free_frames() == 0)
-//        return -1;
-//
-//    next_free_phys_frame += PAGE_SIZE;
-//
-//    assert((free_frame & (PAGE_SIZE - 1)) == 0);
-//
-//    *frame = free_frame;
-//
-//    return 0;
-//}
-
-/** Gets number of remaining free physical frames. */
-static uint32_t
-num_free_frames( void )
-{
-    int remaining = machine_phys_frames() - (next_free_phys_frame / PAGE_SIZE);
-    affirm(remaining >= 0); /* We should never allocate memory we don't have! */
-    return (uint32_t)remaining;
-}
 
 /** Gets pointer to page table entry in a given page directory.
  *  Allocates page table if necessary. */
@@ -306,9 +263,9 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
     uint32_t pages_to_alloc = (len + PAGE_SIZE - 1) / PAGE_SIZE;
 
     /* Ensure we have enough free frames to fulfill request */
-    if (num_free_frames() < pages_to_alloc)
+    if (num_free_phys_frames() < pages_to_alloc) {
         return -1;
-
+	}
     /* FIXME: Do we have any guarantee memory regions are page aligned?
      *        They should be, to some extent. At the very least, 2 memory
      *        regions should not be intersect with the same page, as they

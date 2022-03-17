@@ -42,8 +42,6 @@ task_new( int pid, int tid, simple_elf_t *elf )
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
 
-    // TODO: Check if VM already initialized. Only initialize if it hasn't
-    // vm_init();
 
     if (new_pcb(pid) < 0)
         return -1;
