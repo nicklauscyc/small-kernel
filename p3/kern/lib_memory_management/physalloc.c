@@ -24,6 +24,8 @@
 #define PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)\
 	((phys_address & (PAGE_SIZE - 1)) == 0)
 
+#define TOTAL_USER_FRAMES (machine_phys_frames() - (USER_MEM_START / PAGE_SIZE))
+
 /* Boolean for whether initialization has taken place */
 static int physalloc_init = 0;
 
@@ -63,7 +65,7 @@ init_physalloc( void )
 	num_alloc = 0;
 
 	/* Some essential checks that should never fail */
-	assert(!Q_GET_TAIL(&reuse_list));
+    assert(!Q_GET_TAIL(&reuse_list));
 	assert(!Q_GET_FRONT(&reuse_list));
 
 	max_free_address = USER_MEM_START;
@@ -84,21 +86,21 @@ physalloc( void )
 		init_physalloc();
 	}
 	/* Check if there are still available physical frames >= USER_MEM_START */
-	int remaining = machine_phys_frames() - (USER_MEM_START / PAGE_SIZE) - num_alloc;
+    int remaining = TOTAL_USER_FRAMES - num_alloc;
 	if (remaining <= 0) {
 
 		/* Never have -ve remaining frames */
 		assert(remaining == 0);
 
 		/* Reuse list must be empty */
-		assert(!Q_GET_TAIL(&reuse_list));
+	    assert(!Q_GET_TAIL(&reuse_list));
 		assert(!Q_GET_FRONT(&reuse_list));
 
 		return 0;
 	}
-	/* Exist available physical frames, so check for reusable free frames first */
+	/* Exist available physical frames, so check for reusable free frames */
 	uint32_t next_free_address = 0;
-	
+
 	/* Reusable free frames are unallocated and thus not counted in num_alloc */
 	if (Q_GET_FRONT(&reuse_list)) {
 		free_frame_node_t *frontp = Q_GET_FRONT(&reuse_list);
@@ -109,10 +111,9 @@ physalloc( void )
 		Q_REMOVE(&reuse_list, frontp, link);
 		free(frontp);
 
-	/* Nothing to reuse, so return a new address that is guaranteed supported */
+	/* Nothing to reuse, so return a new address */
 	} else {
 		next_free_address = max_free_address;
-		assert(next_free_address / PAGE_SIZE <= machine_phys_frames());
 		max_free_address += PAGE_SIZE;
 	}
 	num_alloc++;
@@ -185,7 +186,7 @@ test_physalloc( void )
 	physfree(USER_MEM_START);
 
 	/* Use all phys frames */
-	int total = machine_phys_frames();
+	int total = TOTAL_USER_FRAMES;
 	int i = 0;
 	uint32_t all_phys[1024];
 	lprintf("after all_phys");
@@ -196,8 +197,8 @@ test_physalloc( void )
 		total--;
 	}
 	lprintf("total frames supported:%08x",
-		    (unsigned int) machine_phys_frames());
-	assert(total == machine_phys_frames() - 1024);
+		    (unsigned int) TOTAL_USER_FRAMES);
+	assert(total == TOTAL_USER_FRAMES - 1024);
 	/* all phys frames, populate reuse list */
 	assert(i == 1024);
 	while (i > 0) {
@@ -205,7 +206,7 @@ test_physalloc( void )
 		physfree(all_phys[i]);
 		total++;
 	}
-	assert(total == machine_phys_frames());
+	assert(total == TOTAL_USER_FRAMES);
 	assert(i == 0);
 
 	/* exhaust reuse list, check implicit stack ordering of reuse list */
@@ -226,7 +227,7 @@ test_physalloc( void )
 	}
 	/*use ALL phys frames */
 	assert(i == 0);
-	assert(total == machine_phys_frames());
+	assert(total == TOTAL_USER_FRAMES);
 	uint32_t x = 0;
 	while (total > 0) {
 		total--;
@@ -237,7 +238,7 @@ test_physalloc( void )
 
 	/* put them all back */
 	lprintf("put all into linked list");
-	while (total < machine_phys_frames()) {
+	while (total < TOTAL_USER_FRAMES) {
 		total++;
 		physfree(x);
 		x -= PAGE_SIZE;
