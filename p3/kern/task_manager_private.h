@@ -10,7 +10,7 @@ typedef struct tcb tcb_t;
 /* TODO: Do we even want PCB and TCB to be available to others? */
 /** @brief Task control block */
 struct pcb {
-    void *ptd; // page table directory
+    void *pd; // page directory
     tcb_t *first_thread; // First thread in linked list
 
     int pid;

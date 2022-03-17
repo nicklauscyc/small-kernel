@@ -57,11 +57,11 @@ task_new( int pid, int tid, simple_elf_t *elf )
     affirm(find_pcb(pid, &pcb) == 0);
 
     /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-    vm_task_new(pcb->ptd, elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+    vm_task_new(pcb->pd, elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
-    sim_reg_process(pcb->ptd, elf->e_fname);
+    sim_reg_process(pcb->pd, elf->e_fname);
 #endif
 
     return 0;
@@ -83,7 +83,7 @@ task_prepare( int pid )
         return -1;
 
     /* Enable VM */
-    vm_enable_task(pcb->ptd);
+    vm_enable_task(pcb->pd);
 
     pcb->prepared = 1;
     return 0;
@@ -197,22 +197,22 @@ static int
 new_pcb( int pid )
 {
     /* Ensure alignment of page table directory */
-    void *ptd = smemalign(PAGE_SIZE, PAGE_SIZE);
-    if (!ptd)
+    void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!pd)
         return -1;
 
-    assert(((uint32_t)ptd & (PAGE_SIZE - 1)) == 0);
+    assert(((uint32_t)pd & (PAGE_SIZE - 1)) == 0);
 
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
-        sfree(ptd, PAGE_SIZE);
+        sfree(pd, PAGE_SIZE);
         return -1;
     }
 
     /* Ensure all entries are 0 and therefore not present */
-    memset(ptd, 0, PAGE_SIZE);
+    memset(pd, 0, PAGE_SIZE);
 
-    pcb->ptd = ptd;
+    pcb->pd = pd;
     pcb->pid = pid;
     pcb->first_thread = NULL;
     pcb->prepared = 0;
