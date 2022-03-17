@@ -1,0 +1,44 @@
+/** @file fork.c
+ *  @brief Contains fork interrupt handler and helper functions for
+ *  	   installation
+ *
+ *
+ */
+
+#include <assert.h>
+#include <x86/asm.h> /* idt_base() */
+#include <install_handler.h> /* install_handler_in_idt() */
+#include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
+
+void
+init_fork( void )
+{
+	/* honestly not sure what to init */
+}
+
+int
+fork( void )
+{
+    /* Acknowledge interrupt and return */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+    /* TODO: Just return 0 for now. Later, get
+     * current thread from scheduler. */
+    return 0;
+}
+
+/** @brief Installs the fork() interrupt handler
+ */
+int
+install_fork_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
+{
+	if (!asm_wrapper) {
+		return -1;
+	}
+	init_fork();
+	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
+	return res;
+}
+
+
+
