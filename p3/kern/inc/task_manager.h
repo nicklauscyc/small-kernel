@@ -11,6 +11,7 @@
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
+int find_tcb( int tid, tcb_t **tcb );
 
 int get_new_task_data_structures( int pid, int tid, simple_elf_t *elf );
 int task_prepare( int pid );

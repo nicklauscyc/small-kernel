@@ -53,7 +53,7 @@ fork( void )
         return -1;
 
     /* TODO: Deallocate pcb if this fails */
-	tcb_t *tcb = (tcb_t *) get_new_tcb(1, 1);
+	tcb_t *child_tcb = (tcb_t *) get_new_tcb(1, 1);
     //if (get_new_tcb(1, 1) < 0)
     //    return -1;
 #ifndef NDEBUG
@@ -62,13 +62,25 @@ fork( void )
     //sim_reg_process(pd, elf->e_fname);
 #endif
 
-	tcb->kernel_esp = save_child_regs(tcb->kernel_esp);
+	// Duplicate parent kern stack in child kern stack
+	tcb_t *parent_tcb;
+	assert(find_tcb(0, &parent_tcb) == 0);
 
-
-
-
-    /* Acknowledge interrupt and return */
+	/* Acknowledge interrupt and return */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	memcpy(child_tcb->kernel_stack_lowest_address,
+		parent_tcb->kernel_stack_lowest_address,
+		PAGE_SIZE);
+
+	lprintf("before save_child_regs");
+	MAGIC_BREAK;
+	child_tcb->kernel_esp = save_child_regs(child_tcb->kernel_esp);
+	lprintf("after save_child_regs");
+	// after this point, both child and parent will run this code
+
+
+
 
 	// This is where esp should diverge
 

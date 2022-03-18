@@ -34,8 +34,9 @@ struct tcb {
     /* Stack info. Needed for resuming execution.
      * General purpose registers, program counter
      * are stored on stack pointed to by esp. */
-    uint32_t *user_esp;
+    uint32_t *user_esp;// TODO delete this
     uint32_t *kernel_esp;
+	uint32_t *kernel_stack_lowest_address;
 };
 
 

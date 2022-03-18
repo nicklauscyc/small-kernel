@@ -24,7 +24,7 @@ pcb_t *pcb_list_start = NULL;
 static int find_pcb( int pid, pcb_t **pcb );
 int get_new_pcb( int pid, void *pd );
 
-static int find_tcb( int tid, tcb_t **pcb );
+int find_tcb( int tid, tcb_t **tcb );
 int get_new_tcb( int pid, int tid );
 
 static uint32_t get_user_eflags( void );
@@ -184,7 +184,7 @@ find_pcb( int pid, pcb_t **pcb )
  *  @arg tcb Memory location where to store tcb, if found.
  *
  *  @return 0 on success, negative value on error. */
-static int
+int
 find_tcb( int tid, tcb_t **tcb )
 {
     // TODO: Actually implement the search
@@ -211,8 +211,9 @@ get_new_pcb( int pid, void *pd )
     pcb->pid = pid;
     pcb->first_thread = NULL;
     pcb->prepared = 0;
-
-    pcb_list_start = pcb;
+	if (pid == 0) {
+		pcb_list_start = pcb;
+	}
 
     return 0;
 }
@@ -226,19 +227,21 @@ get_new_tcb( int pid, int tid )
     if (find_pcb(pid, &owning_task) < 0) {
         return -1;
     }
-
     tcb_t *tcb = malloc(sizeof(tcb_t));
     if (!tcb) {
         return -1;
     }
 
-    owning_task->first_thread = tcb;
+	if (pid == 0) {
+		owning_task->first_thread = tcb;
+	}
 
     /* Set tcb/pcb values  */
     tcb->owning_task = owning_task;
     tcb->next_thread = NULL;
     tcb->tid = tid;
-    tcb->kernel_esp = smemalign(PAGE_SIZE, PAGE_SIZE);
+	tcb->kernel_stack_lowest_address = smemalign(PAGE_SIZE, PAGE_SIZE);
+    tcb->kernel_esp = tcb->kernel_stack_lowest_address;
     tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
             PAGE_SIZE - sizeof(uint32_t));
 
