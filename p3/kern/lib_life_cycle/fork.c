@@ -14,7 +14,8 @@
 #include <malloc.h> /* smemalign() */
 #include <string.h> /* memcpy() */
 #include <x86/page.h> /* PAGE_SIZE */
-
+#include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
+#include <simics.h>
 void
 init_fork( void )
 {
@@ -25,7 +26,10 @@ int
 fork( void )
 {
 	/* TODO This thing needs to defer execution of copy till later? */
-	uint32_t *parent_pd = (uint32_t *) get_cr3();
+	uint32_t cr3 = get_cr3();
+	lprintf("fork() thinks cr3 is:%lx", cr3);
+	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
+	lprintf("parent_pd:%p", parent_pd);
 
 	/* parent_pd in kernel memory, unaffected by paging */
 	assert((uint32_t) parent_pd < USER_MEM_START);
@@ -37,9 +41,22 @@ fork( void )
 	}
 	assert((uint32_t) child_pd < USER_MEM_START);
 	memset(child_pd, 0, PAGE_SIZE);
-	for (int i = 0; i < PAGE_SIZE; i++) {
+	for (int i = 0; i < (PAGE_SIZE / sizeof(uint32_t)); i++) {
 		child_pd[i] = parent_pd[i];
 	}
+	/* TODO hard code child pid, tid to 1 */
+    if (get_new_pcb(1, child_pd) < 0)
+        return -1;
+
+    /* TODO: Deallocate pcb if this fails */
+    if (get_new_tcb(1, 1) < 0)
+        return -1;
+#ifndef NDEBUG
+    /* Register this task with simics for better debugging */
+	// TODO what is elf->e_fname for this guy?
+    //sim_reg_process(pd, elf->e_fname);
+#endif
+
 
 
 
