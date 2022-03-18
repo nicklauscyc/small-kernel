@@ -99,19 +99,22 @@ get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
-        uint32_t *pte = get_ptep(pd, addr);
-		if (!pte) return 0;
+        uint32_t *ptep = get_ptep(pd, addr);
+		if (!ptep) {
+			return 0;
+		}
+		/* Indicate page table entry permissions */
 	    if (addr == 0) {
-            *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
+            *ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
-            *pte = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
+            *ptep = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
         }
     }
-
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
 
+	// TODO
     if (!valid_memory_regions(elf))
         return 0;
 

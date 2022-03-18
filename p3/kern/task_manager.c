@@ -21,10 +21,10 @@
 pcb_t *pcb_list_start = NULL;
 
 static int find_pcb( int pid, pcb_t **pcb );
-static int new_pcb( int pid, void *pd );
+static int get_new_pcb( int pid, void *pd );
 
 static int find_tcb( int tid, tcb_t **pcb );
-static int new_tcb( int pid, int tid );
+static int get_new_tcb( int pid, int tid );
 
 static uint32_t get_user_eflags( void );
 
@@ -49,11 +49,11 @@ get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
 	if (!pd) {
 		return -1;
 	}
-    if (new_pcb(pid, pd) < 0)
+    if (get_new_pcb(pid, pd) < 0)
         return -1;
 
     /* TODO: Deallocate pcb if this fails */
-    if (new_tcb(pid, tid) < 0)
+    if (get_new_tcb(pid, tid) < 0)
         return -1;
 
 
@@ -198,7 +198,7 @@ find_tcb( int tid, tcb_t **tcb )
  * TODO: Should we initialize a TCB here as well?
  *       Does it make sense for a task with no threads to exist? */
 static int
-new_pcb( int pid, void *pd )
+get_new_pcb( int pid, void *pd )
 {
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
@@ -219,7 +219,7 @@ new_pcb( int pid, void *pd )
 /* TODO: To what extent should this function exist?
  *       When we thread_fork, will we actually use this function? */
 static int
-new_tcb( int pid, int tid )
+get_new_tcb( int pid, int tid )
 {
     pcb_t *owning_task;
     if (find_pcb(pid, &owning_task) < 0) {

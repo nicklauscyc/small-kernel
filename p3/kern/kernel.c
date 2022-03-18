@@ -78,6 +78,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	putbytes("loader_test1\n", 13);
 	putbytes("loader_test2\n", 13);
 	putbytes("getpid_test1\n", 13);
+	putbytes("fork_test1\n", 13);
 
 	///* On kernel_main() entry, all control registers are 0 */
 	//lprintf("cr1: %p", (void *) get_cr3());
@@ -92,30 +93,30 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
     while (!__kernel_all_done) {
 
-		char* s = "getpid_test1";
-        char *user_argv = (char *)s;
-		execute_user_program(s, 1, &user_argv);
+		//char* s = "getpid_test1";
+        //char *user_argv = (char *)s;
+		//execute_user_program(s, 1, &user_argv);
 
 		//TODO original code is below. code above this is for running
 		//getpid_test1 pronto with no user input (for testing)
 
-		//int n = MAX_EXECNAME_LEN;
-     	//char s[n];
+		int n = MAX_EXECNAME_LEN;
+     	char s[n];
 
-	 	///* Display prompt */
-     	//putbytes("pebbles>",8);
-     	//int res = readline(s, n);
+	 	/* Display prompt */
+     	putbytes("pebbles>",8);
+     	int res = readline(s, n);
 
-        //if (res == n)
-        //    continue; /* Executable name too large */
+        if (res == n)
+            continue; /* Executable name too large */
 
-        ///* Swap \n returned by readline for null-terminator */
-        //s[res - 1] = '\0';
+        /* Swap \n returned by readline for null-terminator */
+        s[res - 1] = '\0';
 
-	    //lprintf("Executing: %s", s);
+	    lprintf("Executing: %s", s);
 
-        //char *user_argv = (char *)s;
-		//execute_user_program(s, 1, &user_argv);
+        char *user_argv = (char *)s;
+		execute_user_program(s, 1, &user_argv);
     }
 
     return 0;
