@@ -12,7 +12,7 @@ typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
 
-int task_new( int pid, int tid, simple_elf_t *elf );
+int get_new_task_data_structures( int pid, int tid, simple_elf_t *elf );
 int task_prepare( int pid );
 void task_set( int tid, uint32_t esp, uint32_t entry_point );
 void task_switch( int pid );

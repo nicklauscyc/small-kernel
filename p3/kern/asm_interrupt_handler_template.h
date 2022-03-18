@@ -28,7 +28,7 @@ call_ ## HANDLER_NAME ## :;\
 	pushl %edi;\
 	pushl %ebx;\
 	pushl %esi;\
-	call HANDLER_NAME; /* calls timer interrupt handler */\
+	call HANDLER_NAME; /* calls syscall handler */\
 	/* Restore all callee save registers */\
 	popl %esi;\
 	popl %ebx;\

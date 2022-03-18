@@ -14,14 +14,14 @@
 #include <assert.h>     /* affirm, assert */
 #include <simics.h>     /* sim_reg_process */
 #include <iret_travel.h>    /* iret_travel */
-#include <memory_manager.h> /* vm_task_new, vm_enable_task */
+#include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 
 #define ELF_IF (1 << 9);
 /** @brief Pointer to first task control block. */
 pcb_t *pcb_list_start = NULL;
 
 static int find_pcb( int pid, pcb_t **pcb );
-static int new_pcb( int pid );
+static int new_pcb( int pid, void *pd );
 
 static int find_tcb( int tid, tcb_t **pcb );
 static int new_tcb( int pid, int tid );
@@ -37,13 +37,20 @@ static uint32_t get_user_eflags( void );
  *  @return 0 on success, negative value on failure.
  * */
 int
-task_new( int pid, int tid, simple_elf_t *elf )
+get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
 {
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
 
+	/* Allocates physical memory to a new page table and enables VM */
+    /* Ensure alignment of page table directory */
+    /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
+    void *pd = get_new_page_table(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+	if (!pd) {
+		return -1;
+	}
 
-    if (new_pcb(pid) < 0)
+    if (new_pcb(pid, pd) < 0)
         return -1;
 
     /* TODO: Deallocate pcb if this fails */
@@ -56,8 +63,6 @@ task_new( int pid, int tid, simple_elf_t *elf )
     pcb_t *pcb;
     affirm(find_pcb(pid, &pcb) == 0);
 
-    /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-    vm_task_new(pcb->pd, elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
@@ -194,23 +199,13 @@ find_tcb( int tid, tcb_t **tcb )
  * TODO: Should we initialize a TCB here as well?
  *       Does it make sense for a task with no threads to exist? */
 static int
-new_pcb( int pid )
+new_pcb( int pid, void *pd )
 {
-    /* Ensure alignment of page table directory */
-    void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
-    if (!pd)
-        return -1;
-
-    assert(((uint32_t)pd & (PAGE_SIZE - 1)) == 0);
-
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
         sfree(pd, PAGE_SIZE);
         return -1;
     }
-
-    /* Ensure all entries are 0 and therefore not present */
-    memset(pd, 0, PAGE_SIZE);
 
     pcb->pd = pd;
     pcb->pid = pid;

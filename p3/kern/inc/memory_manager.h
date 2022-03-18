@@ -7,8 +7,8 @@
 #include <stdint.h> /* uint32_t */
 
 int vm_init( void );
-int vm_task_new ( void *ptd, simple_elf_t *elf,
-        uint32_t stack_lo, uint32_t stack_len );
+void *get_new_page_table(simple_elf_t *elf, uint32_t stack_lo,
+                         uint32_t stack_len );
 void vm_enable_task( void *ptd );
 void enable_write_protection( void );
 void disable_write_protection( void );

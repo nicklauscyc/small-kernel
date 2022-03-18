@@ -91,23 +91,31 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	(void) p;
 
     while (!__kernel_all_done) {
-     	int n = MAX_EXECNAME_LEN;
-     	char s[n];
 
-	 	/* Display prompt */
-     	putbytes("pebbles>",8);
-     	int res = readline(s, n);
-
-        if (res == n)
-            continue; /* Executable name too large */
-
-        /* Swap \n returned by readline for null-terminator */
-        s[res - 1] = '\0';
-
-	    lprintf("Executing: %s", s);
-
+		char* s = "getpid_test1";
         char *user_argv = (char *)s;
 		execute_user_program(s, 1, &user_argv);
+
+		//TODO original code is below. code above this is for running
+		//getpid_test1 pronto with no user input (for testing)
+
+		//int n = MAX_EXECNAME_LEN;
+     	//char s[n];
+
+	 	///* Display prompt */
+     	//putbytes("pebbles>",8);
+     	//int res = readline(s, n);
+
+        //if (res == n)
+        //    continue; /* Executable name too large */
+
+        ///* Swap \n returned by readline for null-terminator */
+        //s[res - 1] = '\0';
+
+	    //lprintf("Executing: %s", s);
+
+        //char *user_argv = (char *)s;
+		//execute_user_program(s, 1, &user_argv);
     }
 
     return 0;

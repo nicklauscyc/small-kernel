@@ -80,16 +80,23 @@ static int valid_memory_regions( simple_elf_t *elf );
  *  TODO: Implement ZFOD here. (Handler should probably be defined
  *  elsewhere, though)
  *  */
-int
-vm_task_new ( void *pd, simple_elf_t *elf,
-        uint32_t stack_lo, uint32_t stack_len )
+void *
+get_new_page_table( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
+    void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!pd) {
+        return 0;
+	}
+    /* Ensure all entries are 0 and therefore not present */
+    memset(pd, 0, PAGE_SIZE);
+	assert(((uint32_t)pd & (PAGE_SIZE - 1)) == 0);
+
     affirm(pd);
 
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *pte = get_pte(pd, addr);
-		if (!pte) return -1;
+		if (!pte) return 0;
 	    if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
@@ -102,7 +109,7 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     int i = 0;
 
     if (!valid_memory_regions(elf))
-        return -1;
+        return 0;
 
     i += allocate_region(pd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
     i += allocate_region(pd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
@@ -110,7 +117,7 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     i += allocate_region(pd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
     i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
 
-    return i;
+    return pd;
 }
 
 /** @brief Sets new page table directory and enables paging. */

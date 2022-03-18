@@ -192,7 +192,7 @@ execute_user_program( const char *fname, int argc, char **argv )
         return -1;
 
     /* FIXME: Hard coded pid and tid for now */
-    if (task_new(0, 0, &se_hdr) < 0)
+    if (get_new_task_data_structures(0, 0, &se_hdr) < 0)
         return -1;
 
     /* Enable VM */
