@@ -81,7 +81,7 @@ static int valid_memory_regions( simple_elf_t *elf );
  *  elsewhere, though)
  *  */
 void *
-get_new_page_table( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
+get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
     void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
     if (!pd) {

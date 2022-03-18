@@ -45,7 +45,7 @@ get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
 	/* Allocates physical memory to a new page table and enables VM */
     /* Ensure alignment of page table directory */
     /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-    void *pd = get_new_page_table(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+    void *pd = get_new_pd(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
 	if (!pd) {
 		return -1;
 	}

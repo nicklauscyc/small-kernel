@@ -7,7 +7,7 @@
 #include <stdint.h> /* uint32_t */
 
 int vm_init( void );
-void *get_new_page_table(simple_elf_t *elf, uint32_t stack_lo,
+void *get_new_pd(simple_elf_t *elf, uint32_t stack_lo,
                          uint32_t stack_len );
 void vm_enable_task( void *ptd );
 void enable_write_protection( void );
