@@ -14,8 +14,9 @@
 #include <assert.h> /* assert() */
 #include "stddef.h" /* NULL */
 #include <x86/timer_defines.h> /* TIMER_SQUARE_WAVE */
+#include <scheduler.h> /* scheduler_on_timer_interrupt */
 
-#define INTERRUPT 100
+#define INTERRUPT 1000
 #define SHORT_LSB_MASK 0x00FF
 #define SHORT_MSB_MASK 0xFF00
 
@@ -41,7 +42,7 @@ static unsigned int total_ticks = 0;
  *
  *  @return Void.
  */
-void timer_int_handler(void) {
+void timer_int_handler( void ) {
 
   /* Update total ticks */
   total_ticks += 1;
@@ -51,6 +52,10 @@ void timer_int_handler(void) {
 
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+  /* Call scheduler and let them know interrupt occurred. */
+  scheduler_on_timer_interrupt(total_ticks);
+
   return;
 }
 

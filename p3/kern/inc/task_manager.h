@@ -11,10 +11,10 @@
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
-
-int task_new( int pid, int tid, simple_elf_t *elf );
-int task_prepare( int pid );
-void task_set( int tid, uint32_t esp, uint32_t entry_point );
-void task_switch( int pid );
+int thread_switch ( uint32_t from_tid, uint32_t to_tid );
+int task_new( uint32_t *pid, simple_elf_t *elf );
+int task_prepare( uint32_t pid );
+void task_set( uint32_t tid, uint32_t esp, uint32_t entry_point );
+void task_switch( uint32_t pid );
 
 #endif /* _TASK_MANAGER_H */
