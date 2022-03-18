@@ -55,11 +55,14 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
+/* True if address if paged align, false otherwise */
+#define PAGE_ALIGNED(address) (((address) & (PAGE_SIZE - 1)) == 0)
+
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
 
-static uint32_t *get_pte( uint32_t **pd, uint32_t virtual_address );
+static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
 static int allocate_region( void *pd, void *start,
@@ -68,7 +71,8 @@ static void enable_paging( void );
 //static void disable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 
-/** @brief Allocate memory for new task at given page table directory.
+/** @brief Sets up a new page directory by allocating physical memory for it.
+ * 	       Does not transfer executable data into physical memory.
  *
  *  Assumes page table directory is empty. Sets appropriate
  *  read/write permissions. To copy memory over, set the WP flag
@@ -79,6 +83,8 @@ static int valid_memory_regions( simple_elf_t *elf );
  *
  *  TODO: Implement ZFOD here. (Handler should probably be defined
  *  elsewhere, though)
+ *
+ *  @return Page directory that is backed by physical memory
  *  */
 void *
 get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
@@ -89,18 +95,16 @@ get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 	}
     /* Ensure all entries are 0 and therefore not present */
     memset(pd, 0, PAGE_SIZE);
-	assert(((uint32_t)pd & (PAGE_SIZE - 1)) == 0);
-
-    affirm(pd);
+	assert(PAGE_ALIGNED((uint32_t) pd));
 
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
-        uint32_t *pte = get_pte(pd, addr);
+        uint32_t *pte = get_ptep(pd, addr);
 		if (!pte) return 0;
 	    if (addr == 0) {
             *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
-            *pte = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME FIXME FIXME FIXME FIXME FIXME FIXME */
+            *pte = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
         }
     }
 
@@ -166,41 +170,63 @@ vm_new_pages ( void *pd, void *base, int len )
 
 /* ----- HELPER FUNCTIONS ----- */
 
-/** Gets pointer to page table entry in a given page directory.
- *  Allocates page table if necessary. */
+/** @brief Allocate memory for a new page table and zero all entries
+ *
+ * 	Ensures that the allocated page table has an address that is page
+ * 	aligned
+ *
+ *  @return Pointer in kernel VM of page table if successful, 0 otherwise
+ */
+void *
+get_new_pt( void )
+{
+	/* Allocate memory for a new page table */
+	void *pt = smemalign(PAGE_SIZE, PAGE_SIZE);
+	if (!pt) {
+		return 0;
+	}
+	assert(PAGE_ALIGNED((uint32_t) pt));
+
+	/* Initialize all page table entries as non-present */
+	memset(pt, 0, PAGE_SIZE);
+
+	return pt;
+}
+
+/** @brief Gets pointer to page table entry in a given page directory.
+ *         Allocates page table if necessary.
+ *
+ *  @param pd Page table address
+ *  @param virtual_address Virtual address corresponding to page table
+ *  @return Pointer to a page table entry that can be dereferenced to get
+ *          a physical address
+ */
 static uint32_t *
-get_pte( uint32_t **pd, uint32_t virtual_address )
+get_ptep( uint32_t **pd, uint32_t virtual_address )
 {
     affirm(pd);
     uint32_t pd_index = PD_INDEX(virtual_address);
     uint32_t pt_index = PT_INDEX(virtual_address);
 
-	uint32_t *ptp = pd[pd_index];
-
+	/* If page table has not been allocated, allocate a new one */
     if (!((uint32_t)pd[pd_index] & PRESENT_FLAG)) {
-        /* Allocate new page table, which must be page-aligned */
-		ptp	= smemalign(PAGE_SIZE, PAGE_SIZE);
-		if (!ptp) {
-			return ptp;
+		void *pt = get_new_pt();
+		if (!pt) {
+			return 0;
 		}
-		assert(((uint32_t)ptp & 0xfff) == 0);
-        pd[pd_index] = ptp;
-
-        /* Initialize all page table entries as non-present */
-        memset(pd[pd_index], 0, PAGE_SIZE);
+		/* Page table should be in kernel memory */
+		assert((uint32_t) pt < USER_MEM_START);
+        pd[pd_index] = pt;
 
         /* Set all page directory entries as writable, determine
          * whether truly writable in page table entry. */
         pd[pd_index] = (uint32_t *)((uint32_t)pd[pd_index] | PE_USER_WRITABLE);
     }
+    /* Page table entry pointer zeroes out bottom 12 bits */
+    uint32_t *ptep = (uint32_t *)((uint32_t)pd[pd_index] & ~(PAGE_SIZE - 1));
 
-    /* Clear out bottom 12 bits */
-    ptp = (uint32_t *)((uint32_t)ptp & ~(PAGE_SIZE - 1));
-
-	/* the entry address is different since we don't use the bits in the
-	 * page table entry address
-	 */
-	return ptp + pt_index;
+	/* Return pointer to appropriate index */
+	return ptep + pt_index;
 }
 
 /** Allocate new frame at given virtual memory address.
@@ -214,7 +240,7 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
 {
     affirm(pd);
 
-    uint32_t *pte = get_pte(pd, virtual_address);
+    uint32_t *pte = get_ptep(pd, virtual_address);
 
     if ((*pte & PRESENT_FLAG) != 0) { /* if allocated */
         /* Ensure it's allocated with same flags. */

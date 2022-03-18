@@ -49,7 +49,6 @@ get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
 	if (!pd) {
 		return -1;
 	}
-
     if (new_pcb(pid, pd) < 0)
         return -1;
 
