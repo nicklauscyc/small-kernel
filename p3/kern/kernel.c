@@ -32,14 +32,19 @@
 #include <malloc.h> /*malloc() */
 
 #include <physalloc.h> /* test_physalloc() */
-
+#include <scheduler.h> /* run_next_tcb() */
 volatile static int __kernel_all_done = 0;
 
 /* Think about where this declaration
  * should be... probably not here!
  */
+extern int scheduler_init;
+
 void tick(unsigned int numTicks) {
-  //lprintf("numTicks: %d\n", numTicks);
+	if (numTicks % 100 == 0 && scheduler_init) {
+		lprintf("ctx switchnumTicks: %d\n", numTicks);
+		run_next_tcb();
+	}
 }
 
 

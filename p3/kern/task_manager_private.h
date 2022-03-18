@@ -8,6 +8,8 @@
 #ifndef _TASK_MANAGER_INTERNAL_H_
 #define _TASK_MANAGER_INTERNAL_H_
 
+#include <stdint.h> /* uint32_t */
+
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 

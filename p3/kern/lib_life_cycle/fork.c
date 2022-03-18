@@ -16,6 +16,10 @@
 #include <x86/page.h> /* PAGE_SIZE */
 #include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
 #include <simics.h>
+
+// saves regs and returns new esp
+void *save_child_regs(void * kernel_esp);
+
 void
 init_fork( void )
 {
@@ -49,13 +53,16 @@ fork( void )
         return -1;
 
     /* TODO: Deallocate pcb if this fails */
-    if (get_new_tcb(1, 1) < 0)
-        return -1;
+	tcb_t *tcb = (tcb_t *) get_new_tcb(1, 1);
+    //if (get_new_tcb(1, 1) < 0)
+    //    return -1;
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
 	// TODO what is elf->e_fname for this guy?
     //sim_reg_process(pd, elf->e_fname);
 #endif
+
+	tcb->kernel_esp = save_child_regs(tcb->kernel_esp);
 
 
 
@@ -63,9 +70,11 @@ fork( void )
     /* Acknowledge interrupt and return */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
+	// This is where esp should diverge
+
     /* TODO: Just return 0 for now. Later, get
      * current thread from scheduler. */
-    return 0;
+    return 1; // child TID HARDCODED
 }
 
 /** @brief Installs the fork() interrupt handler

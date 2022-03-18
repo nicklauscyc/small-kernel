@@ -1,6 +1,7 @@
 /** @brief Module for management of tasks.
  *  Includes context switch facilities. */
 
+#include <scheduler.h> /* add_tcb_to_run_queue() */
 #include <task_manager.h>
 #include <eflags.h>     /* get_eflags*/
 #include <seg.h>        /* SEGSEL_... */
@@ -245,6 +246,14 @@ get_new_tcb( int pid, int tid )
         free(tcb);
         return -1;
     }
+	// store tid at highest kernel stack address
+	*(tcb->kernel_esp) = tid;
+	tcb->kernel_esp++;
 
-    return 0;
+	/* add to run queue */
+	add_tcb_to_run_queue(tcb);
+	lprintf("tcb->kernel_esp:%p", tcb->kernel_esp);
+
+	//TODO temp hack
+    return (uint32_t) tcb;
 }
