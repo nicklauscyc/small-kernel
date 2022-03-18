@@ -146,7 +146,7 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 	/* Initialize and install gettid() */
-	if (install_gettid_handler(FORK_INT, call_fork) < 0) {
+	if (install_fork_handler(FORK_INT, call_fork) < 0) {
 		return -1;
 	}
 	return 0;
