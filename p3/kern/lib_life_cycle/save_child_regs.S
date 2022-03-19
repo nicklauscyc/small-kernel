@@ -44,7 +44,15 @@ save_child_regs:
 	pushl %edx
 	movl -36(%ecx), %edx /* parent esi in %edx from call_fork() */
 	pushl %edx
-	movl -40(%ecx), %edx /* return address to call_fork() in %edx */
+	movl -40(%ecx), %edx /* parent ds in %edx from call_fork() */
+	pushl %edx
+	movl -44(%ecx), %edx /* parent es in %edx from call_fork() */
+	pushl %edx
+	movl -48(%ecx), %edx /* parent fs in %edx from call_fork() */
+	pushl %edx
+	movl -52(%ecx), %edx /* parent gs in %edx from call_fork() */
+	pushl %edx
+	movl -56(%ecx), %edx /* return address to call_fork() in %edx */
 	pushl %edx
 
 	/* This part onwards must match with context switcher */
@@ -57,15 +65,15 @@ save_child_regs:
 	                   * tid */
 	pushl %edx
 
-	movl -52(%ecx), %edx /* parent ebx in %edx */
+	movl -60(%ecx), %edx /* parent ebx in %edx */
 	pushl %edx
-	movl -56(%ecx), %edx /* parent ecx in %edx */
+	movl -64(%ecx), %edx /* parent ecx in %edx */
 	pushl %edx
-	movl -60(%ecx), %edx /* parent edx in %edx */
+	movl -68(%ecx), %edx /* parent edx in %edx */
 	pushl %edx
-	movl -64(%ecx), %edx /* parent edi in %edx */
+	movl -72(%ecx), %edx /* parent edi in %edx */
 	pushl %edx
-	movl -68(%ecx), %edx /* parent esi in %edx */
+	movl -76(%ecx), %edx /* parent esi in %edx */
 	pushl %edx
 
 	movl %esp, %eax /* return the stack pointer for child to use */
