@@ -56,7 +56,7 @@
 #define PE_UNMAPPED 0
 
 /* True if address if paged align, false otherwise */
-#define PAGE_ALIGNED(address) (((address) & (PAGE_SIZE - 1)) == 0)
+#define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
 
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
@@ -151,6 +151,7 @@ new_pd_from_parent( void *v_parent_pd )
     if (!child_pd) {
         return NULL;
     }
+	assert(PAGE_ALIGNED(child_pd));
     memset(child_pd, 0, PAGE_SIZE); /* Set all entries to empty initially */
 
     uint32_t *temp_buf = smemalign(PAGE_SIZE, PAGE_SIZE);
@@ -160,6 +161,7 @@ new_pd_from_parent( void *v_parent_pd )
     }
 
     for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+
         if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
             /* Allocate new child page_table */
             uint32_t *child_pt = smemalign(PAGE_SIZE, PAGE_SIZE);
@@ -169,34 +171,67 @@ new_pd_from_parent( void *v_parent_pd )
                 sfree(child_pd, PAGE_SIZE);
                 return NULL;
             }
+			memset(child_pt, 0, PAGE_SIZE);
+			assert(PAGE_ALIGNED(child_pt));
 
-            uint32_t *parent_pt = (uint32_t *)parent_pd[i];
-            assert(parent_pt);
+			// update child_pd[i]
+			child_pd[i] = (uint32_t) child_pt;
+			// OR the flags
+			child_pd[i] |= (parent_pd[i] & (PAGE_SIZE - 1));
+
+			// Get address of parent_pt
+            uint32_t *parent_pt = (uint32_t *)(parent_pd[i] & ~(PAGE_SIZE - 1));
+            assert(PAGE_ALIGNED(parent_pt));
+
+			// parent_pt and child_pt are actual addresses without flags
 
             /* Copy entries in page tables */
             for (int j=0; j < (PAGE_SIZE / sizeof(uint32_t)); ++j) {
-                if ((parent_pt[i] & PRESENT_FLAG) && (parent_pt[i] & RW_FLAG)) {
+
+				// Constructing the virtual address
+				uint32_t vm_address = ((i << 22) | (j << 12));
+				assert(PAGE_ALIGNED(vm_address));
+
+				// direct map kernel memory
+				if (vm_address < USER_MEM_START) {
+					child_pt[j] = parent_pt[j];
+					continue;
+				}
+
+
+                if ((parent_pt[j] & PRESENT_FLAG) && (parent_pt[j] & RW_FLAG)) {
                     /* Allocate new physical frame for child. */
-                    child_pt[i] = physalloc();
-                    if (!child_pt[i]) {
+                    child_pt[j] = physalloc();
+					assert(PAGE_ALIGNED(child_pt[j]));
+                    if (!child_pt[j]) {
                         free_pd_memory(child_pd); // Cleanup previous allocs
+
                         sfree(temp_buf, PAGE_SIZE);
                         sfree(child_pd, PAGE_SIZE);
                         return NULL;
                     }
 
                     /* Set child_pt flags, then memcpy */
-                    child_pt[i] |= parent_pt[i] & (PAGE_SIZE - 1);
+                    child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
+
+					lprintf("vm_address:%lx, i:0x%x, j:0x%x, "
+					"parent_pd[i]:0x%lx, child_pd[i]:0x%lx, "
+					"parent_pt[j]:0x%lx, child_pt[j]:0x%lx",
+					vm_address, i, j,
+					parent_pd[i], child_pd[i],
+					parent_pt[j], child_pt[j]);
 
                     /* Copy parent to temp, change page-directory,
                      * copy child to parent, restore parent page-directory */
-                    memcpy(temp_buf, (uint32_t *)(parent_pt[i] & ~(PAGE_SIZE - 1)), PAGE_SIZE);
+					// this memcpy will not work since it's using physical
+					// memory
+                    memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
                     vm_set_pd(child_pd);
-                    memcpy((uint32_t *)(child_pt[i] & ~(PAGE_SIZE - 1)), temp_buf, PAGE_SIZE);
+                    memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
                     vm_set_pd(parent_pd);
 
                 } else {
-                    child_pt[i] = parent_pt[i];
+                    child_pt[j] = parent_pt[j];
                 }
             }
 

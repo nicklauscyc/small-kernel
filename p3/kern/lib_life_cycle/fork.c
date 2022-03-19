@@ -40,6 +40,8 @@ fork( void )
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
     uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
+	MAGIC_BREAK;
+
 	/* TODO hard code child pid, tid to 1 */
     if (get_new_pcb(1, child_pd) < 0)
         return -1;
@@ -74,6 +76,9 @@ fork( void )
 	child_tcb->pd =  child_pd;
 	lprintf("child_pd:%p", child_pd);
 	parent_tcb->pd = parent_pd;
+
+
+
 	lprintf("print parent stack");
 	for (int i = 0; i < 18; i++) {
 		lprintf("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
