@@ -6,5 +6,8 @@
 iret_travel:
     movl $SEGSEL_USER_DS, %ax
     movl %ax, %ds   # Update ds to user data segment
+    movl %ax, %es   # Update ds to user data segment
+    movl %ax, %fs   # Update ds to user data segment
+    movl %ax, %gs   # Update ds to user data segment
     addl $4, %esp   # Point esp to last argument
     iret            # Consume all arguments and go to user mode!

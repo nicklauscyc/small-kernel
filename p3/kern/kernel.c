@@ -46,7 +46,6 @@ void tick(unsigned int numTicks) {
 		lprintf("ctx switchnumTicks: %d\n", numTicks);
 		if (! start) {
 			run_next_tcb();
-			start = 1;
 		}
 	}
 }

@@ -93,8 +93,7 @@ run_next_tcb( void )
 	assert(to_run != running);
 	assert(to_run);
 	assert(running);
-	assert(running->tcb->tid == 0);
-	assert(to_run->tcb->tid == 1);
+	assert(running->tcb->tid == 1 - to_run->tcb->tid);
 
     //assert(1 - running->tcb->tid == to_run->tcb->tid);
 
