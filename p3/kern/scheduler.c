@@ -11,6 +11,17 @@
 /* Boolean for whether initialization has taken place */
 int scheduler_init = 0;
 
+/* Global variable for the currently running thread's id */
+static int running_tid = 0;
+
+int get_current_tid( void );
+
+int
+get_running_tid( void )
+{
+	return running_tid;
+}
+
 /* List node to store a tcb in the run queue */
 typedef struct run_q_node {
 	Q_NEW_LINK(run_q_node) link;
@@ -102,6 +113,7 @@ run_next_tcb( void )
 	/* Context switch */
 	lprintf("to_run->tcb->kernel_esp:%p", to_run->tcb->kernel_esp);
 	lprintf("to_run->tcb->pd:%p", to_run->tcb->pd);
+	running_tid = to_run->tcb->tid;
 
 	context_switch((void **)&(running->tcb->kernel_esp),
 	               to_run->tcb->kernel_esp, to_run->tcb->pd);

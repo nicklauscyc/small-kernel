@@ -80,13 +80,13 @@ fork( void )
 
 
 	lprintf("print parent stack");
-	for (int i = 0; i < 22; i++) {
+	for (int i = 0; i < 32; i++) {
 		lprintf("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
 		*(parent_tcb->kernel_stack_hi - i));
 	}
 
 	lprintf("print child stack");
-	for (int i = 0; i < 22; i++) {
+	for (int i = 0; i < 32; i++) {
 		lprintf("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
 		*(child_tcb->kernel_stack_hi - i));
 	}
