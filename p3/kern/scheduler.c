@@ -100,7 +100,7 @@ run_next_tcb( void )
 	lprintf("context switching");
 	/* Context switch */
 	lprintf("to_run->tcb->kernel_esp:%p", to_run->tcb->kernel_esp);
-	context_switch(running->tcb->kernel_esp,
+	context_switch(&(running->tcb->kernel_esp),
 	               to_run->tcb->kernel_esp, to_run->tcb->pd);
 	lprintf("after context switching");
 

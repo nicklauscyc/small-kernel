@@ -153,7 +153,7 @@ get_user_eflags( void )
     uint32_t eflags = get_eflags();
 
     /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
-    eflags |= EFL_IOPL_RING3; /* Set privilege level to user */
+    eflags |= EFL_IOPL_RING0; /* Set privilege level to user */
     eflags |= EFL_RESV1; /* Maitain reserved as 1 */
     eflags &= ~(EFL_AC); /* Disable alignment-checking */
     eflags |= EFL_IF; /* TODO:(should we???) Enable hardware interrupts */
