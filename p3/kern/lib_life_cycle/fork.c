@@ -15,6 +15,7 @@
 #include <string.h> /* memcpy() */
 #include <x86/page.h> /* PAGE_SIZE */
 #include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
+#include <memory_manager.h> /* new_pd_from_parent */
 #include <simics.h>
 
 // saves regs and returns new esp
@@ -38,16 +39,7 @@ fork( void )
 	/* parent_pd in kernel memory, unaffected by paging */
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
-	/* child_pd is a shallow copy of parent_pd */
-	uint32_t *child_pd = smemalign(PAGE_SIZE, PAGE_SIZE);
-	if (!child_pd) {
-		return -1;
-	}
-	assert((uint32_t) child_pd < USER_MEM_START);
-	memset(child_pd, 0, PAGE_SIZE);
-	for (int i = 0; i < (PAGE_SIZE / sizeof(uint32_t)); i++) {
-		child_pd[i] = parent_pd[i];
-	}
+    uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 	/* TODO hard code child pid, tid to 1 */
     if (get_new_pcb(1, child_pd) < 0)
         return -1;
