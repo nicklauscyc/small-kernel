@@ -82,49 +82,40 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	//test_physalloc();
 
     lprintf( "Hello from a brand new kernel!" );
+    //TODO: Print programs using elf->e_name
 	putbytes("executable user programs:\n", 26);
 	putbytes("loader_test1\n", 13);
 	putbytes("loader_test2\n", 13);
 	putbytes("getpid_test1\n", 13);
 	putbytes("fork_test1\n", 13);
 
-	///* On kernel_main() entry, all control registers are 0 */
-	//lprintf("cr1: %p", (void *) get_cr3());
-	//lprintf("cr2: %p", (void *) get_cr3());
-	//lprintf("cr3: %p", (void *) get_cr3());
-	//lprintf("cr4: %p", (void *) get_cr3());
-	//char * nullp = 0;
-	//lprintf("garbage at address 0x0:%d", *nullp);
-    //lprintf("&nullp:%p", &nullp);
-	lprintf("get_esp0 returns:%lx", get_esp0());
-
     while (!__kernel_all_done) {
 
-		char* s = "fork_test1";
-        char *user_argv = (char *)s;
-		execute_user_program(s, 1, &user_argv);
-		break;
-
-		//TODO original code is below. code above this is for running
-		//getpid_test1 pronto with no user input (for testing)
-
-		//int n = MAX_EXECNAME_LEN;
-     	//char s[n];
-
-	 	///* Display prompt */
-     	//putbytes("pebbles>",8);
-     	//int res = readline(s, n);
-
-        //if (res == n)
-        //    continue; /* Executable name too large */
-
-        ///* Swap \n returned by readline for null-terminator */
-        //s[res - 1] = '\0';
-
-	    //lprintf("Executing: %s", s);
-
+        //char* s = "fork_test1";
         //char *user_argv = (char *)s;
-		//execute_user_program(s, 1, &user_argv);
+        //execute_user_program(s, 1, &user_argv);
+        //break;
+
+        //TODO original code is below. code above this is for running
+        //getpid_test1 pronto with no user input (for testing)
+
+        int n = MAX_EXECNAME_LEN;
+        char s[n];
+
+        /* Display prompt */
+        putbytes("pebbles>",8);
+        int res = readline(s, n);
+
+        if (res == n)
+            continue; /* Executable name too large */
+
+        /* Swap \n returned by readline for null-terminator */
+        s[res - 1] = '\0';
+
+        lprintf("Executing: %s", s);
+
+        char *user_argv = (char *)s;
+        execute_user_program(s, 1, &user_argv);
     }
 
     return 0;

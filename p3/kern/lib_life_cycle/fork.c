@@ -78,30 +78,25 @@ fork( void )
 	lprintf("child_pd:%p", child_pd);
 	parent_tcb->pd = parent_pd;
 
+	//lprintf("print parent stack");
+	//for (int i = 0; i < 32; i++) {
+	//	lprintf("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
+	//	*(parent_tcb->kernel_stack_hi - i));
+	//}
 
-
-	lprintf("print parent stack");
-	for (int i = 0; i < 32; i++) {
-		lprintf("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
-		*(parent_tcb->kernel_stack_hi - i));
-	}
-
-	lprintf("print child stack");
-	for (int i = 0; i < 32; i++) {
-		lprintf("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
-		*(child_tcb->kernel_stack_hi - i));
-	}
+	//lprintf("print child stack");
+	//for (int i = 0; i < 32; i++) {
+	//	lprintf("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
+	//	*(child_tcb->kernel_stack_hi - i));
+	//}
 	// after this point, both child and parent will run this code
-
-
-
 
 	// This is where esp should diverge
 
-    /* TODO: Just return 0 for now. Later, get
-     * current thread from scheduler. */
-	int tid = get_running_tid();
-    return 1- tid; // child TID HARDCODED
+    /* Return 0 for child, child_tid for parent */
+    if (get_running_tid() == parent_tcb->tid)
+        return 0;
+    return get_running_tid();
 }
 
 /** @brief Installs the fork() interrupt handler
