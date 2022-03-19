@@ -68,8 +68,9 @@ static int allocate_frame( uint32_t **pd,
 static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
-//static void disable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
+static void vm_set_pd( void *pd );
+static void free_pd_memory( void *pd );
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
  * 	       Does not transfer executable data into physical memory.
@@ -87,11 +88,11 @@ static int valid_memory_regions( simple_elf_t *elf );
  *  @return Page directory that is backed by physical memory
  *  */
 void *
-get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
+new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
     void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
     if (!pd) {
-        return 0;
+        return NULL;
 	}
     /* Ensure all entries are 0 and therefore not present */
     memset(pd, 0, PAGE_SIZE);
@@ -101,7 +102,8 @@ get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *ptep = get_ptep(pd, addr);
 		if (!ptep) {
-			return 0;
+            sfree(pd, PAGE_SIZE);
+			return NULL;
 		}
 		/* Indicate page table entry permissions */
 	    if (addr == 0) {
@@ -115,8 +117,10 @@ get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
     int i = 0;
 
 	// TODO
-    if (!valid_memory_regions(elf))
-        return 0;
+    if (!valid_memory_regions(elf)) {
+        sfree(pd, PAGE_SIZE);
+        return NULL;
+    }
 
     i += allocate_region(pd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
     i += allocate_region(pd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
@@ -124,21 +128,92 @@ get_new_pd( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
     i += allocate_region(pd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
     i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
 
+    if (i < 0) {
+        sfree(pd, PAGE_SIZE);
+        return NULL;
+    }
+
     return pd;
+}
+
+/** @brief Initialized child pd from parent pd. Deep copies writable
+ *         entries, allocating new physical frame. Returns child_pd on success
+ *
+ *         TODO: Revisit to implement ZFOD. Also, avoid flushing tlb
+ *         all the time.
+ * */
+void *
+new_pd_from_parent( void *v_parent_pd )
+{
+    uint32_t *parent_pd = (uint32_t *)v_parent_pd;
+    /* Create temp_buf for deep copy. Too large to stack allocate */
+    uint32_t *child_pd = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!child_pd) {
+        return NULL;
+    }
+    memset(child_pd, 0, PAGE_SIZE); /* Set all entries to empty initially */
+
+    uint32_t *temp_buf = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!temp_buf) {
+        sfree(child_pd, PAGE_SIZE);
+        return NULL;
+    }
+
+    for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+        if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
+            /* Allocate new child page_table */
+            uint32_t *child_pt = smemalign(PAGE_SIZE, PAGE_SIZE);
+            if (!child_pt) {
+                free_pd_memory(child_pd); // Cleanup previous allocs
+                sfree(temp_buf, PAGE_SIZE);
+                sfree(child_pd, PAGE_SIZE);
+                return NULL;
+            }
+
+            uint32_t *parent_pt = (uint32_t *)parent_pd[i];
+            assert(parent_pt);
+
+            /* Copy entries in page tables */
+            for (int j=0; j < (PAGE_SIZE / sizeof(uint32_t)); ++j) {
+                if ((parent_pt[i] & PRESENT_FLAG) && (parent_pt[i] & RW_FLAG)) {
+                    /* Allocate new physical frame for child. */
+                    child_pt[i] = physalloc();
+                    if (!child_pt[i]) {
+                        free_pd_memory(child_pd); // Cleanup previous allocs
+                        sfree(temp_buf, PAGE_SIZE);
+                        sfree(child_pd, PAGE_SIZE);
+                        return NULL;
+                    }
+
+                    /* Set child_pt flags, then memcpy */
+                    child_pt[i] |= parent_pt[i] & (PAGE_SIZE - 1);
+
+                    /* Copy parent to temp, change page-directory,
+                     * copy child to parent, restore parent page-directory */
+                    memcpy(temp_buf, (uint32_t *)(parent_pt[i] & ~(PAGE_SIZE - 1)), PAGE_SIZE);
+                    vm_set_pd(child_pd);
+                    memcpy((uint32_t *)(child_pt[i] & ~(PAGE_SIZE - 1)), temp_buf, PAGE_SIZE);
+                    vm_set_pd(parent_pd);
+
+                } else {
+                    child_pt[i] = parent_pt[i];
+                }
+            }
+
+        } else {
+            child_pd[i] = parent_pd[i];
+        }
+    }
+
+    sfree(temp_buf, PAGE_SIZE);
+    return child_pd;
 }
 
 /** @brief Sets new page table directory and enables paging. */
 void
 vm_enable_task( void *pd )
 {
-    uint32_t cr3 = get_cr3();
-    /* Unset top 20 bits where new page table will be stored.*/
-    cr3 &= PAGE_SIZE - 1;
-    cr3 |= (uint32_t)pd;
-
-    set_cr3(cr3);
-
-    //disable_paging(); /* FIXME: Remove, annoying compiler*/
+    vm_set_pd(pd);
     enable_paging();
 }
 
@@ -338,6 +413,22 @@ enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+}
+
+static void
+vm_set_pd( void *pd )
+{
+    uint32_t cr3 = get_cr3();
+    /* Unset top 20 bits where new page table will be stored.*/
+    cr3 &= PAGE_SIZE - 1;
+    cr3 |= (uint32_t)pd;
+
+    set_cr3(cr3);
+}
+
+static void
+free_pd_memory( void *pd ) {
+    // TODO: Free all physical frames in pd. Do not free pd itself.
 }
 
 /** @brief Disables paging mechanism. */

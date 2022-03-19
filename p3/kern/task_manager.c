@@ -38,7 +38,7 @@ static uint32_t get_user_eflags( void );
  *  @return 0 on success, negative value on failure.
  * */
 int
-get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
+create_new_task( int pid, int tid, simple_elf_t *elf )
 {
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
@@ -46,7 +46,7 @@ get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
 	/* Allocates physical memory to a new page table and enables VM */
     /* Ensure alignment of page table directory */
     /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-    void *pd = get_new_pd(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+    void *pd = new_pd_from_elf(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
 	if (!pd) {
 		return -1;
 	}
@@ -79,7 +79,7 @@ get_new_task_data_structures( int pid, int tid, simple_elf_t *elf )
  *  into task's memory.
  *  */
 int
-task_prepare( int pid )
+activate_task_memory( int pid )
 {
     /* Likely messing up direct mapping of kernel memory, and
      * some instruction after task_prepare is being seen as invalid?*/
@@ -90,7 +90,6 @@ task_prepare( int pid )
     /* Enable VM */
     vm_enable_task(pcb->pd);
 
-    pcb->prepared = 1;
     return 0;
 }
 
@@ -110,16 +109,16 @@ task_prepare( int pid )
  *  @return Never returns.
  *  */
 void
-task_set( int tid, uint32_t esp, uint32_t entry_point )
+task_set_active( int tid, uint32_t esp, uint32_t entry_point )
 {
     tcb_t *tcb;
     affirm(find_tcb(tid, &tcb) == 0);
     pcb_t *pcb = tcb->owning_task;
 
+    // FIXME: Remove this check?
     if (!pcb->prepared) {
-        task_prepare(pcb->pid);
+        activate_task_memory(pcb->pid);
     }
-
 
     /* Before going to user mode, update esp0, so we know where to go back to */
     set_esp0((uint32_t)tcb->kernel_esp);
@@ -134,15 +133,6 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
     /* NOTREACHED */
     panic("iret_travel should not return");
 }
-
-/* Aka context_switch */
-void
-task_switch( int pid )
-{
-    (void)pid;
-    /* TODO: Unimplemented */
-}
-
 
 /* ------ HELPER FUNCTIONS ------ */
 

@@ -61,6 +61,7 @@ init_scheduler( tcb_t *tcb )
 	assert(Q_GET_FRONT(&run_q) == first);
 	return 0;
 }
+
 void
 add_tcb_to_run_queue(tcb_t *tcb)
 {
@@ -77,7 +78,6 @@ add_tcb_to_run_queue(tcb_t *tcb)
 	Q_INSERT_TAIL(&run_q, new, link);
 	assert(Q_GET_TAIL(&run_q) == new);
 }
-
 
 void
 run_next_tcb( void )
@@ -96,11 +96,13 @@ run_next_tcb( void )
 	assert(running->tcb->tid == 0);
 	assert(to_run->tcb->tid == 1);
 
+    //assert(1 - running->tcb->tid == to_run->tcb->tid);
+
 #include <simics.h>
 	lprintf("context switching");
 	/* Context switch */
 	lprintf("to_run->tcb->kernel_esp:%p", to_run->tcb->kernel_esp);
-	context_switch(&(running->tcb->kernel_esp),
+	context_switch((void **)&(running->tcb->kernel_esp),
 	               to_run->tcb->kernel_esp, to_run->tcb->pd);
 	lprintf("after context switching");
 
