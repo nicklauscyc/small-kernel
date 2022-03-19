@@ -80,7 +80,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
      * when you are ready.
      */
 
-	test_physalloc();
+	//test_physalloc();
 
     lprintf( "Hello from a brand new kernel!" );
 	putbytes("executable user programs:\n", 26);

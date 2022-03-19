@@ -132,6 +132,7 @@ physalloc( void )
 	/* Check alignment and return */
 	assert(next_free_address);
 	assert(PHYS_FRAME_ADDRESS_ALIGNMENT(next_free_address));
+	lprintf("physalloc() returns:%lx", next_free_address);
 	return next_free_address;
 }
 
