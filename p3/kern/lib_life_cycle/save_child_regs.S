@@ -56,7 +56,7 @@ save_child_regs:
 	pushl %edx
 
 	/* This part onwards must match with context switcher */
-	leal 16(%esp), %edx /* parent ebp in %edx */
+	leal 32(%esp), %edx /* parent ebp in %edx */
 	pushl %edx
 
 	/* stuff to store child tid in stack position for future eax value */
@@ -65,15 +65,15 @@ save_child_regs:
 	                   * tid */
 	pushl %edx
 
-	movl -60(%ecx), %edx /* parent ebx in %edx */
+	movl -68(%ecx), %edx /* parent ebx in %edx */
 	pushl %edx
-	movl -64(%ecx), %edx /* parent ecx in %edx */
+	movl -72(%ecx), %edx /* parent ecx in %edx */
 	pushl %edx
-	movl -68(%ecx), %edx /* parent edx in %edx */
+	movl -76(%ecx), %edx /* parent edx in %edx */
 	pushl %edx
-	movl -72(%ecx), %edx /* parent edi in %edx */
+	movl -80(%ecx), %edx /* parent edi in %edx */
 	pushl %edx
-	movl -76(%ecx), %edx /* parent esi in %edx */
+	movl -84(%ecx), %edx /* parent esi in %edx */
 	pushl %edx
 
 	movl %esp, %eax /* return the stack pointer for child to use */
