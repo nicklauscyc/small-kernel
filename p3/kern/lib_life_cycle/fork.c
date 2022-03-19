@@ -17,6 +17,7 @@
 #include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
 #include <memory_manager.h> /* new_pd_from_parent */
 #include <simics.h>
+#include <scheduler.h>
 
 // saves regs and returns new esp
 void *save_child_regs(void *parent_kern_esp, void *child_kern_esp);
@@ -99,7 +100,8 @@ fork( void )
 
     /* TODO: Just return 0 for now. Later, get
      * current thread from scheduler. */
-    return 1; // child TID HARDCODED
+	int tid = get_running_tid();
+    return tid; // child TID HARDCODED
 }
 
 /** @brief Installs the fork() interrupt handler
