@@ -40,10 +40,14 @@ volatile static int __kernel_all_done = 0;
  */
 extern int scheduler_init;
 
+int start = 0;
 void tick(unsigned int numTicks) {
 	if (numTicks % 100 == 0 && scheduler_init) {
 		lprintf("ctx switchnumTicks: %d\n", numTicks);
-		run_next_tcb();
+		if (! start) {
+			run_next_tcb();
+			start = 1;
+		}
 	}
 }
 
@@ -93,35 +97,35 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	//char * nullp = 0;
 	//lprintf("garbage at address 0x0:%d", *nullp);
     //lprintf("&nullp:%p", &nullp);
-	void *p = malloc(8);
-	(void) p;
+	lprintf("get_esp0 returns:%lx", get_esp0());
 
     while (!__kernel_all_done) {
 
-		//char* s = "getpid_test1";
-        //char *user_argv = (char *)s;
-		//execute_user_program(s, 1, &user_argv);
+		char* s = "fork_test1";
+        char *user_argv = (char *)s;
+		execute_user_program(s, 1, &user_argv);
+		break;
 
 		//TODO original code is below. code above this is for running
 		//getpid_test1 pronto with no user input (for testing)
 
-		int n = MAX_EXECNAME_LEN;
-     	char s[n];
+		//int n = MAX_EXECNAME_LEN;
+     	//char s[n];
 
-	 	/* Display prompt */
-     	putbytes("pebbles>",8);
-     	int res = readline(s, n);
+	 	///* Display prompt */
+     	//putbytes("pebbles>",8);
+     	//int res = readline(s, n);
 
-        if (res == n)
-            continue; /* Executable name too large */
+        //if (res == n)
+        //    continue; /* Executable name too large */
 
-        /* Swap \n returned by readline for null-terminator */
-        s[res - 1] = '\0';
+        ///* Swap \n returned by readline for null-terminator */
+        //s[res - 1] = '\0';
 
-	    lprintf("Executing: %s", s);
+	    //lprintf("Executing: %s", s);
 
-        char *user_argv = (char *)s;
-		execute_user_program(s, 1, &user_argv);
+        //char *user_argv = (char *)s;
+		//execute_user_program(s, 1, &user_argv);
     }
 
     return 0;

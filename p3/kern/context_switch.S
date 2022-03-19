@@ -1,4 +1,4 @@
-
+#include <seg.h>
 .globl context_switch
 
 context_switch:
@@ -12,6 +12,10 @@ context_switch:
 	pushl %esi
 	movl %esp, 8(%ebp) /* save current %esp to first arg */
 	movl 12(%ebp), %esp /* restore %esp from second arg */
+	movl 16(%ebp), %ecx
+	movl %ecx, %cr3 /* update page directory */
+	movl $SEGSEL_KERNEL_DS, %ax /* update ds */ //TODO update to save and restore ds
+	movl %ax, %ds
 	popl %esi
 	popl %edi
 	popl %edx

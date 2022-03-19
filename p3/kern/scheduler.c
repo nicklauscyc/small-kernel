@@ -99,8 +99,9 @@ run_next_tcb( void )
 #include <simics.h>
 	lprintf("context switching");
 	/* Context switch */
-	context_switch(running->tcb->kernel_esp = (void *) get_esp0(),
-	               to_run->tcb->kernel_esp);
+	lprintf("to_run->tcb->kernel_esp:%p", to_run->tcb->kernel_esp);
+	context_switch(running->tcb->kernel_esp,
+	               to_run->tcb->kernel_esp, to_run->tcb->pd);
 	lprintf("after context switching");
 
 }

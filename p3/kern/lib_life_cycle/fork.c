@@ -18,7 +18,7 @@
 #include <simics.h>
 
 // saves regs and returns new esp
-void *save_child_regs(void * kernel_esp);
+void *save_child_regs(void *parent_kern_esp, void *child_kern_esp);
 
 void
 init_fork( void )
@@ -69,14 +69,30 @@ fork( void )
 	/* Acknowledge interrupt and return */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-	memcpy(child_tcb->kernel_stack_lowest_address,
-		parent_tcb->kernel_stack_lowest_address,
-		PAGE_SIZE);
-
 	lprintf("before save_child_regs");
-	MAGIC_BREAK;
-	child_tcb->kernel_esp = save_child_regs(child_tcb->kernel_esp);
+	uint32_t *child_kernel_esp_on_ctx_switch;
+	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_esp,
+	                                                 child_tcb->kernel_esp);
 	lprintf("after save_child_regs");
+	lprintf("child_esp on context switch:%p", child_kernel_esp_on_ctx_switch);
+	// update child kernel stack pointer
+	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
+
+	//TODO hacky page directory
+	child_tcb->pd =  child_pd;
+	lprintf("child_pd:%p", child_pd);
+	parent_tcb->pd = parent_pd;
+	lprintf("print parent stack");
+	for (int i = 0; i < 18; i++) {
+		lprintf("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
+		*(parent_tcb->kernel_stack_hi - i));
+	}
+
+	lprintf("print child stack");
+	for (int i = 0; i < 18; i++) {
+		lprintf("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
+		*(child_tcb->kernel_stack_hi - i));
+	}
 	// after this point, both child and parent will run this code
 
 

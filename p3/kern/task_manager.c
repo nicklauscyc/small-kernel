@@ -240,22 +240,32 @@ get_new_tcb( int pid, int tid )
     tcb->owning_task = owning_task;
     tcb->next_thread = NULL;
     tcb->tid = tid;
-	tcb->kernel_stack_lowest_address = smemalign(PAGE_SIZE, PAGE_SIZE);
-    tcb->kernel_esp = tcb->kernel_stack_lowest_address;
-    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
-            PAGE_SIZE - sizeof(uint32_t));
-
-    if (!tcb->kernel_esp) {
+	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!tcb->kernel_stack_lo) {
         free(tcb);
         return -1;
     }
+	/* memset the whole thing, TODO delete this in future, only good for
+	 * debugging when printing the whole stack
+	 */
+	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
+
+	lprintf("tid[%d]: tcb->stack_lo:%p",tcb->tid,
+	        tcb->kernel_stack_lo);
+
+    tcb->kernel_esp = tcb->kernel_stack_lo;
+    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
+            PAGE_SIZE - sizeof(uint32_t));
+
 	// store tid at highest kernel stack address
 	*(tcb->kernel_esp) = tid;
-	tcb->kernel_esp++;
+	tcb->kernel_stack_hi = tcb->kernel_esp;
+	// tcb->kernel_esp--; // I feel like this is not needed cuz u will decrement
+	// esp then store under all cases
 
 	/* add to run queue */
 	add_tcb_to_run_queue(tcb);
-	lprintf("tcb->kernel_esp:%p", tcb->kernel_esp);
+	lprintf("tid[%d]: tcb->kernel_esp:%p",tcb->tid, tcb->kernel_esp);
 
 	//TODO temp hack
     return (uint32_t) tcb;

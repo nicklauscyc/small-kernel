@@ -1,3 +1,4 @@
+#include <seg.h>
 
 /** @brief Macro to call a particular function handler with name
  * 		   HANDLER_NAME
@@ -34,5 +35,5 @@ call_ ## HANDLER_NAME ## :;\
 	popl %ebx;\
 	popl %edi;\
 	popl %ebp;\
-	iret; /* Return to procedure before interrupt */
+   	iret; /* Return to procedure before interrupt */
 

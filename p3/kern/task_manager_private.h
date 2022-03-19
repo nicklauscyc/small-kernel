@@ -27,6 +27,7 @@ struct pcb {
 /** @brief Thread control block */
 struct tcb {
     pcb_t *owning_task;
+	void *pd; //TODO change this once owning task is set
     tcb_t *next_thread; // Embeded linked list of threads from same task
 
     int tid;
@@ -34,9 +35,10 @@ struct tcb {
     /* Stack info. Needed for resuming execution.
      * General purpose registers, program counter
      * are stored on stack pointed to by esp. */
-    uint32_t *user_esp;// TODO delete this
-    uint32_t *kernel_esp;
-	uint32_t *kernel_stack_lowest_address;
+    uint32_t *kernel_stack_hi; /* Highest _writable_ address in kernel stack */
+	                           /* that is stack aligned */
+    uint32_t *kernel_esp; // needed for context switch
+	uint32_t *kernel_stack_lo;
 };
 
 
