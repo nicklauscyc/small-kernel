@@ -101,7 +101,7 @@ fork( void )
     /* TODO: Just return 0 for now. Later, get
      * current thread from scheduler. */
 	int tid = get_running_tid();
-    return tid; // child TID HARDCODED
+    return 1- tid; // child TID HARDCODED
 }
 
 /** @brief Installs the fork() interrupt handler
