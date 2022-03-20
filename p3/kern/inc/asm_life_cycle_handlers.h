@@ -3,4 +3,5 @@
  *
  *  @author Nicklaus Choo (nchoo)
  */
-extern void call_gettid( void );
+
+extern void call_fork( void );

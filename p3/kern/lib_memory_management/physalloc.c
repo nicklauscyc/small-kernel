@@ -48,6 +48,17 @@ static int num_alloc;
 /* Linked list of free physical frames */
 static list_t reuse_list;
 
+/** @brief Returns number of free physical frames with physical address at
+ *         least USER_MEM_START
+ *
+ *  @return Number of free physical frames
+ */
+uint32_t
+num_free_phys_frames( void )
+{
+	return TOTAL_USER_FRAMES - num_alloc;
+}
+
 /** @brief Initializes physical allocator family of functions
  *
  *  Must be called once and only once
@@ -121,6 +132,7 @@ physalloc( void )
 	/* Check alignment and return */
 	assert(next_free_address);
 	assert(PHYS_FRAME_ADDRESS_ALIGNMENT(next_free_address));
+	lprintf("physalloc() returns:%lx", next_free_address);
 	return next_free_address;
 }
 

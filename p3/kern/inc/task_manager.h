@@ -11,10 +11,14 @@
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
+int find_tcb( int tid, tcb_t **tcb );
 
-int task_new( int pid, int tid, simple_elf_t *elf );
-int task_prepare( int pid );
-void task_set( int tid, uint32_t esp, uint32_t entry_point );
-void task_switch( int pid );
+int create_new_task( int pid, int tid, simple_elf_t *elf );
+int activate_task_memory( int pid );
+void task_set_active( int tid, uint32_t esp, uint32_t entry_point );
+
+// TODO temp for demo
+int get_new_pcb( int pid, void *pd );
+int get_new_tcb( int pid, int tid );
 
 #endif /* _TASK_MANAGER_H */

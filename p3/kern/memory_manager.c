@@ -1,8 +1,13 @@
-/** Virtual memory manager
+/** @file memory_manager.c
+ *  @brief Functions to initialize and manage virtual memory
  *
  *
- * TODO need to figure out when to free physical pages, probably when
- * cleaning up thread resources ?
+ *
+ *  TODO need to figure out when to free physical pages, probably when
+ *  cleaning up thread resources ?
+ *
+ *  @author Andre Nascimento (anascime)
+ *  @author Nicklaus Choo (nchoo)
  *
  * */
 
@@ -14,7 +19,7 @@
 #include <elf_410.h>    /* simple_elf_t */
 #include <assert.h>     /* assert, affirm */
 #include <page.h>       /* PAGE_SIZE */
-#include <x86/cr.h>     /* {get,set}_cr0 */
+#include <x86/cr.h>     /* {get,set}_{cr0,cr3} */
 #include <string.h>     /* memset, memcpy */
 #include <common_kern.h>/* USER_MEM_START */
 
@@ -50,37 +55,26 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
-/* FIXME: Temporary variable for enabling allocation of physical frames.
- *        Only to be used for user memory. Starts at USER_MEM_START, where
- *        the first phys frames are available. */
-static uint32_t next_free_phys_frame;
+/* True if address if paged align, false otherwise */
+#define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
 
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
 
-static uint32_t num_free_frames( void );
-static uint32_t *get_pte( uint32_t **pd, uint32_t virtual_address );
+static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
 static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
-//static void disable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
+static void vm_set_pd( void *pd );
+static void free_pd_memory( void *pd );
 
-///** Initialize virtual memory. */
-//int
-//vm_init( void )
-//{
-//    next_free_phys_frame = USER_MEM_START;
-//
-//    assert((next_free_phys_frame & (PAGE_SIZE - 1)) == 0);
-//
-//    return 0;
-//}
-
-/** Allocate memory for new task at given page table directory.
+/** @brief Sets up a new page directory by allocating physical memory for it.
+ * 	       Does not transfer executable data into physical memory.
+ *
  *  Assumes page table directory is empty. Sets appropriate
  *  read/write permissions. To copy memory over, set the WP flag
  *  in the CR0 register to 0 - this will make it so that write
@@ -90,30 +84,43 @@ static int valid_memory_regions( simple_elf_t *elf );
  *
  *  TODO: Implement ZFOD here. (Handler should probably be defined
  *  elsewhere, though)
+ *
+ *  @return Page directory that is backed by physical memory
  *  */
-int
-vm_task_new ( void *pd, simple_elf_t *elf,
-        uint32_t stack_lo, uint32_t stack_len )
+void *
+new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
-    affirm(pd);
+    void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!pd) {
+        return NULL;
+	}
+    /* Ensure all entries are 0 and therefore not present */
+    memset(pd, 0, PAGE_SIZE);
+	assert(PAGE_ALIGNED((uint32_t) pd));
 
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
-        uint32_t *pte = get_pte(pd, addr);
-		if (!pte) return -1;
+        uint32_t *ptep = get_ptep(pd, addr);
+		if (!ptep) {
+            sfree(pd, PAGE_SIZE);
+			return NULL;
+		}
+		/* Indicate page table entry permissions */
 	    if (addr == 0) {
-            *pte = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
+            *ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
-            *pte = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME FIXME FIXME FIXME FIXME FIXME FIXME */
+            *ptep = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
         }
     }
-
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
 
-    if (!valid_memory_regions(elf))
-        return -1;
+	// TODO
+    if (!valid_memory_regions(elf)) {
+        sfree(pd, PAGE_SIZE);
+        return NULL;
+    }
 
     i += allocate_region(pd, (void *)elf->e_txtstart, elf->e_txtlen, READ_ONLY);
     i += allocate_region(pd, (void *)elf->e_datstart, elf->e_datlen, READ_WRITE);
@@ -121,21 +128,129 @@ vm_task_new ( void *pd, simple_elf_t *elf,
     i += allocate_region(pd, (void *)elf->e_bssstart, elf->e_bsslen, READ_WRITE);
     i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
 
-    return i;
+    if (i < 0) {
+        sfree(pd, PAGE_SIZE);
+        return NULL;
+    }
+
+    return pd;
+}
+
+/** @brief Initialized child pd from parent pd. Deep copies writable
+ *         entries, allocating new physical frame. Returns child_pd on success
+ *
+ *         TODO: Revisit to implement ZFOD. Also, avoid flushing tlb
+ *         all the time.
+ * */
+void *
+new_pd_from_parent( void *v_parent_pd )
+{
+    uint32_t *parent_pd = (uint32_t *)v_parent_pd;
+    /* Create temp_buf for deep copy. Too large to stack allocate */
+    uint32_t *child_pd = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!child_pd) {
+        return NULL;
+    }
+	assert(PAGE_ALIGNED(child_pd));
+    memset(child_pd, 0, PAGE_SIZE); /* Set all entries to empty initially */
+
+    uint32_t *temp_buf = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!temp_buf) {
+        sfree(child_pd, PAGE_SIZE);
+        return NULL;
+    }
+
+    for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+
+        if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
+            /* Allocate new child page_table */
+            uint32_t *child_pt = smemalign(PAGE_SIZE, PAGE_SIZE);
+            if (!child_pt) {
+                free_pd_memory(child_pd); // Cleanup previous allocs
+                sfree(temp_buf, PAGE_SIZE);
+                sfree(child_pd, PAGE_SIZE);
+                return NULL;
+            }
+			memset(child_pt, 0, PAGE_SIZE);
+			assert(PAGE_ALIGNED(child_pt));
+			lprintf("child_pt:%p", child_pt);
+
+			// update child_pd[i]
+			child_pd[i] = (uint32_t) child_pt;
+			// OR the flags
+			child_pd[i] |= (parent_pd[i] & (PAGE_SIZE - 1));
+
+			// Get address of parent_pt
+            uint32_t *parent_pt = (uint32_t *)(parent_pd[i] & ~(PAGE_SIZE - 1));
+            assert(PAGE_ALIGNED(parent_pt));
+
+			// parent_pt and child_pt are actual addresses without flags
+
+            /* Copy entries in page tables */
+            for (int j=0; j < (PAGE_SIZE / sizeof(uint32_t)); ++j) {
+
+				// Constructing the virtual address
+				uint32_t vm_address = ((i << 22) | (j << 12));
+				assert(PAGE_ALIGNED(vm_address));
+
+				// direct map kernel memory
+				if (vm_address < USER_MEM_START) {
+					child_pt[j] = parent_pt[j];
+					continue;
+				}
+                if ((parent_pt[j] & PRESENT_FLAG) && (parent_pt[j] & RW_FLAG)) {
+                    /* Allocate new physical frame for child. */
+                    child_pt[j] = physalloc();
+					assert(PAGE_ALIGNED(child_pt[j]));
+                    if (!child_pt[j]) {
+                        free_pd_memory(child_pd); // Cleanup previous allocs
+
+                        sfree(temp_buf, PAGE_SIZE);
+                        sfree(child_pd, PAGE_SIZE);
+                        return NULL;
+                    }
+
+                    /* Set child_pt flags, then memcpy */
+                    child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
+
+					lprintf("vm_address:%lx, i:0x%x, j:0x%x, "
+					"parent_pd[i]:0x%lx, child_pd[i]:0x%lx, "
+					"parent_pt[j]:0x%lx, child_pt[j]:0x%lx",
+					vm_address, i, j,
+					parent_pd[i], child_pd[i],
+					parent_pt[j], child_pt[j]);
+
+                    /* Copy parent to temp, change page-directory,
+                     * copy child to parent, restore parent page-directory */
+					// this memcpy will not work since it's using physical
+					// memory
+                    memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
+					//lprintf("memcpy from parent done");
+                    vm_set_pd(child_pd);
+					//lprintf("after vm_set_pd");
+                    memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
+					//lprintf("memcpy to child done");
+                    vm_set_pd(parent_pd);
+
+                } else {
+                    child_pt[j] = parent_pt[j];
+                }
+            }
+
+        } else {
+            child_pd[i] = parent_pd[i];
+        }
+    }
+
+    sfree(temp_buf, PAGE_SIZE);
+    return child_pd;
 }
 
 /** @brief Sets new page table directory and enables paging. */
 void
 vm_enable_task( void *pd )
 {
-    uint32_t cr3 = get_cr3();
-    /* Unset top 20 bits where new page table will be stored.*/
-    cr3 &= PAGE_SIZE - 1;
-    cr3 |= (uint32_t)pd;
-
-    set_cr3(cr3);
-
-    //disable_paging(); /* FIXME: Remove, annoying compiler*/
+    vm_set_pd(pd);
     enable_paging();
 }
 
@@ -170,73 +285,63 @@ vm_new_pages ( void *pd, void *base, int len )
 
 /* ----- HELPER FUNCTIONS ----- */
 
-/** Gets new page-aligned physical frame.
+/** @brief Allocate memory for a new page table and zero all entries
  *
- *  @arg frame Memory location in which to store new frame address
+ * 	Ensures that the allocated page table has an address that is page
+ * 	aligned
  *
- *  @return 0 on success, negative value on failure
- * */
-//static int
-//get_next_free_frame( uint32_t *frame )
-//{
-//    uint32_t free_frame = next_free_phys_frame;
-//
-//    if (num_free_frames() == 0)
-//        return -1;
-//
-//    next_free_phys_frame += PAGE_SIZE;
-//
-//    assert((free_frame & (PAGE_SIZE - 1)) == 0);
-//
-//    *frame = free_frame;
-//
-//    return 0;
-//}
-
-/** Gets number of remaining free physical frames. */
-static uint32_t
-num_free_frames( void )
+ *  @return Pointer in kernel VM of page table if successful, 0 otherwise
+ */
+void *
+get_new_pt( void )
 {
-    int remaining = machine_phys_frames() - (next_free_phys_frame / PAGE_SIZE);
-    affirm(remaining >= 0); /* We should never allocate memory we don't have! */
-    return (uint32_t)remaining;
+	/* Allocate memory for a new page table */
+	void *pt = smemalign(PAGE_SIZE, PAGE_SIZE);
+	if (!pt) {
+		return 0;
+	}
+	assert(PAGE_ALIGNED((uint32_t) pt));
+
+	/* Initialize all page table entries as non-present */
+	memset(pt, 0, PAGE_SIZE);
+
+	return pt;
 }
 
-/** Gets pointer to page table entry in a given page directory.
- *  Allocates page table if necessary. */
+/** @brief Gets pointer to page table entry in a given page directory.
+ *         Allocates page table if necessary.
+ *
+ *  @param pd Page table address
+ *  @param virtual_address Virtual address corresponding to page table
+ *  @return Pointer to a page table entry that can be dereferenced to get
+ *          a physical address
+ */
 static uint32_t *
-get_pte( uint32_t **pd, uint32_t virtual_address )
+get_ptep( uint32_t **pd, uint32_t virtual_address )
 {
     affirm(pd);
     uint32_t pd_index = PD_INDEX(virtual_address);
     uint32_t pt_index = PT_INDEX(virtual_address);
 
-	uint32_t *ptp = pd[pd_index];
-
+	/* If page table has not been allocated, allocate a new one */
     if (!((uint32_t)pd[pd_index] & PRESENT_FLAG)) {
-        /* Allocate new page table, which must be page-aligned */
-		ptp	= smemalign(PAGE_SIZE, PAGE_SIZE);
-		if (!ptp) {
-			return ptp;
+		void *pt = get_new_pt();
+		if (!pt) {
+			return 0;
 		}
-		assert(((uint32_t)ptp & 0xfff) == 0);
-        pd[pd_index] = ptp;
-
-        /* Initialize all page table entries as non-present */
-        memset(pd[pd_index], 0, PAGE_SIZE);
+		/* Page table should be in kernel memory */
+		assert((uint32_t) pt < USER_MEM_START);
+        pd[pd_index] = pt;
 
         /* Set all page directory entries as writable, determine
          * whether truly writable in page table entry. */
         pd[pd_index] = (uint32_t *)((uint32_t)pd[pd_index] | PE_USER_WRITABLE);
     }
+    /* Page table entry pointer zeroes out bottom 12 bits */
+    uint32_t *ptep = (uint32_t *)((uint32_t)pd[pd_index] & ~(PAGE_SIZE - 1));
 
-    /* Clear out bottom 12 bits */
-    ptp = (uint32_t *)((uint32_t)ptp & ~(PAGE_SIZE - 1));
-
-	/* the entry address is different since we don't use the bits in the
-	 * page table entry address
-	 */
-	return ptp + pt_index;
+	/* Return pointer to appropriate index */
+	return ptep + pt_index;
 }
 
 /** Allocate new frame at given virtual memory address.
@@ -250,7 +355,7 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
 {
     affirm(pd);
 
-    uint32_t *pte = get_pte(pd, virtual_address);
+    uint32_t *pte = get_ptep(pd, virtual_address);
 
     if ((*pte & PRESENT_FLAG) != 0) { /* if allocated */
         /* Ensure it's allocated with same flags. */
@@ -306,9 +411,9 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
     uint32_t pages_to_alloc = (len + PAGE_SIZE - 1) / PAGE_SIZE;
 
     /* Ensure we have enough free frames to fulfill request */
-    if (num_free_frames() < pages_to_alloc)
+    if (num_free_phys_frames() < pages_to_alloc) {
         return -1;
-
+	}
     /* FIXME: Do we have any guarantee memory regions are page aligned?
      *        They should be, to some extent. At the very least, 2 memory
      *        regions should not be intersect with the same page, as they
@@ -345,6 +450,22 @@ enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+}
+
+static void
+vm_set_pd( void *pd )
+{
+    uint32_t cr3 = get_cr3();
+    /* Unset top 20 bits where new page table will be stored.*/
+    cr3 &= PAGE_SIZE - 1;
+    cr3 |= (uint32_t)pd;
+
+    set_cr3(cr3);
+}
+
+static void
+free_pd_memory( void *pd ) {
+    // TODO: Free all physical frames in pd. Do not free pd itself.
 }
 
 /** @brief Disables paging mechanism. */

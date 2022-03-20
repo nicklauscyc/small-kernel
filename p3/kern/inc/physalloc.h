@@ -17,6 +17,7 @@
 /* Function prototypes */
 uint32_t physalloc( void );
 void physfree( uint32_t phys_address );
+uint32_t num_free_phys_frames( void );
 
 /* Test functions */
 void test_physalloc( void );

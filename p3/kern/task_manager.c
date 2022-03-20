@@ -1,6 +1,7 @@
 /** @brief Module for management of tasks.
  *  Includes context switch facilities. */
 
+#include <scheduler.h> /* add_tcb_to_run_queue() */
 #include <task_manager.h>
 #include <eflags.h>     /* get_eflags*/
 #include <seg.h>        /* SEGSEL_... */
@@ -14,17 +15,17 @@
 #include <assert.h>     /* affirm, assert */
 #include <simics.h>     /* sim_reg_process */
 #include <iret_travel.h>    /* iret_travel */
-#include <memory_manager.h> /* vm_task_new, vm_enable_task */
+#include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 
 #define ELF_IF (1 << 9);
 /** @brief Pointer to first task control block. */
 pcb_t *pcb_list_start = NULL;
 
 static int find_pcb( int pid, pcb_t **pcb );
-static int new_pcb( int pid );
+int get_new_pcb( int pid, void *pd );
 
-static int find_tcb( int tid, tcb_t **pcb );
-static int new_tcb( int pid, int tid );
+int find_tcb( int tid, tcb_t **tcb );
+int get_new_tcb( int pid, int tid );
 
 static uint32_t get_user_eflags( void );
 
@@ -37,19 +38,23 @@ static uint32_t get_user_eflags( void );
  *  @return 0 on success, negative value on failure.
  * */
 int
-task_new( int pid, int tid, simple_elf_t *elf )
+create_new_task( int pid, int tid, simple_elf_t *elf )
 {
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
 
-    // TODO: Check if VM already initialized. Only initialize if it hasn't
-    // vm_init();
-
-    if (new_pcb(pid) < 0)
+	/* Allocates physical memory to a new page table and enables VM */
+    /* Ensure alignment of page table directory */
+    /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
+    void *pd = new_pd_from_elf(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+	if (!pd) {
+		return -1;
+	}
+    if (get_new_pcb(pid, pd) < 0)
         return -1;
 
     /* TODO: Deallocate pcb if this fails */
-    if (new_tcb(pid, tid) < 0)
+    if (get_new_tcb(pid, tid) < 0)
         return -1;
 
 
@@ -58,12 +63,10 @@ task_new( int pid, int tid, simple_elf_t *elf )
     pcb_t *pcb;
     affirm(find_pcb(pid, &pcb) == 0);
 
-    /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-    vm_task_new(pcb->ptd, elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
-    sim_reg_process(pcb->ptd, elf->e_fname);
+    sim_reg_process(pcb->pd, elf->e_fname);
 #endif
 
     return 0;
@@ -76,7 +79,7 @@ task_new( int pid, int tid, simple_elf_t *elf )
  *  into task's memory.
  *  */
 int
-task_prepare( int pid )
+activate_task_memory( int pid )
 {
     /* Likely messing up direct mapping of kernel memory, and
      * some instruction after task_prepare is being seen as invalid?*/
@@ -85,9 +88,8 @@ task_prepare( int pid )
         return -1;
 
     /* Enable VM */
-    vm_enable_task(pcb->ptd);
+    vm_enable_task(pcb->pd);
 
-    pcb->prepared = 1;
     return 0;
 }
 
@@ -107,16 +109,16 @@ task_prepare( int pid )
  *  @return Never returns.
  *  */
 void
-task_set( int tid, uint32_t esp, uint32_t entry_point )
+task_set_active( int tid, uint32_t esp, uint32_t entry_point )
 {
     tcb_t *tcb;
     affirm(find_tcb(tid, &tcb) == 0);
     pcb_t *pcb = tcb->owning_task;
 
+    // FIXME: Remove this check?
     if (!pcb->prepared) {
-        task_prepare(pcb->pid);
+        activate_task_memory(pcb->pid);
     }
-
 
     /* Before going to user mode, update esp0, so we know where to go back to */
     set_esp0((uint32_t)tcb->kernel_esp);
@@ -131,15 +133,6 @@ task_set( int tid, uint32_t esp, uint32_t entry_point )
     /* NOTREACHED */
     panic("iret_travel should not return");
 }
-
-/* Aka context_switch */
-void
-task_switch( int pid )
-{
-    (void)pid;
-    /* TODO: Unimplemented */
-}
-
 
 /* ------ HELPER FUNCTIONS ------ */
 
@@ -181,7 +174,7 @@ find_pcb( int pid, pcb_t **pcb )
  *  @arg tcb Memory location where to store tcb, if found.
  *
  *  @return 0 on success, negative value on error. */
-static int
+int
 find_tcb( int tid, tcb_t **tcb )
 {
     // TODO: Actually implement the search
@@ -195,64 +188,75 @@ find_tcb( int tid, tcb_t **tcb )
  *
  * TODO: Should we initialize a TCB here as well?
  *       Does it make sense for a task with no threads to exist? */
-static int
-new_pcb( int pid )
+int
+get_new_pcb( int pid, void *pd )
 {
-    /* Ensure alignment of page table directory */
-    void *ptd = smemalign(PAGE_SIZE, PAGE_SIZE);
-    if (!ptd)
-        return -1;
-
-    assert(((uint32_t)ptd & (PAGE_SIZE - 1)) == 0);
-
     pcb_t *pcb = malloc(sizeof(pcb_t));
     if (!pcb) {
-        sfree(ptd, PAGE_SIZE);
+        sfree(pd, PAGE_SIZE);
         return -1;
     }
 
-    /* Ensure all entries are 0 and therefore not present */
-    memset(ptd, 0, PAGE_SIZE);
-
-    pcb->ptd = ptd;
+    pcb->pd = pd;
     pcb->pid = pid;
     pcb->first_thread = NULL;
     pcb->prepared = 0;
-
-    pcb_list_start = pcb;
+	if (pid == 0) {
+		pcb_list_start = pcb;
+	}
 
     return 0;
 }
 
 /* TODO: To what extent should this function exist?
  *       When we thread_fork, will we actually use this function? */
-static int
-new_tcb( int pid, int tid )
+int
+get_new_tcb( int pid, int tid )
 {
     pcb_t *owning_task;
     if (find_pcb(pid, &owning_task) < 0) {
         return -1;
     }
-
     tcb_t *tcb = malloc(sizeof(tcb_t));
     if (!tcb) {
         return -1;
     }
 
-    owning_task->first_thread = tcb;
+	if (pid == 0) {
+		owning_task->first_thread = tcb;
+	}
 
     /* Set tcb/pcb values  */
     tcb->owning_task = owning_task;
     tcb->next_thread = NULL;
     tcb->tid = tid;
-    tcb->kernel_esp = smemalign(PAGE_SIZE, PAGE_SIZE);
-    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
-            PAGE_SIZE - sizeof(uint32_t));
-
-    if (!tcb->kernel_esp) {
+	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, PAGE_SIZE);
+    if (!tcb->kernel_stack_lo) {
         free(tcb);
         return -1;
     }
+	/* memset the whole thing, TODO delete this in future, only good for
+	 * debugging when printing the whole stack
+	 */
+	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-    return 0;
+	lprintf("tid[%d]: tcb->stack_lo:%p",tcb->tid,
+	        tcb->kernel_stack_lo);
+
+    tcb->kernel_esp = tcb->kernel_stack_lo;
+    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
+            PAGE_SIZE - sizeof(uint32_t));
+
+	// store tid at highest kernel stack address
+	*(tcb->kernel_esp) = tid;
+	tcb->kernel_stack_hi = tcb->kernel_esp;
+	// tcb->kernel_esp--; // I feel like this is not needed cuz u will decrement
+	// esp then store under all cases
+
+	/* add to run queue */
+	add_tcb_to_run_queue(tcb);
+	lprintf("tid[%d]: tcb->kernel_esp:%p",tcb->tid, tcb->kernel_esp);
+
+	//TODO temp hack
+    return (uint32_t) tcb;
 }

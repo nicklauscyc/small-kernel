@@ -24,10 +24,10 @@
 
 volatile static int placate_the_compiler;
 
-int fork(void)
-{
-	return -1;
-}
+//int fork(void)
+//{
+//	return -1;
+//}
 
 int exec(char *execname, char *argvec[])
 {

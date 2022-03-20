@@ -7,8 +7,9 @@
 #include <stdint.h> /* uint32_t */
 
 int vm_init( void );
-int vm_task_new ( void *ptd, simple_elf_t *elf,
+void *new_pd_from_elf( simple_elf_t *elf,
         uint32_t stack_lo, uint32_t stack_len );
+void *new_pd_from_parent( void *parent_pd );
 void vm_enable_task( void *ptd );
 void enable_write_protection( void );
 void disable_write_protection( void );

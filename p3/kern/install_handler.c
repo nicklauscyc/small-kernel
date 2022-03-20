@@ -20,6 +20,8 @@
 
 #include <install_thread_management_handlers.h> /* install_gettid_handler() */
 #include <asm_thread_management_handlers.h> /* call_gettid() */
+#include <install_life_cycle_handlers.h> /* install_fork_handler() */
+#include <asm_life_cycle_handlers.h> /* call_fork() */
 
 #include <syscall_int.h> /* GETTID_INT */
 
@@ -141,6 +143,10 @@ handler_install(void (*tick)(unsigned int))
 	}
 	/* Initialize and install gettid() */
 	if (install_gettid_handler(GETTID_INT, call_gettid) < 0) {
+		return -1;
+	}
+	/* Initialize and install gettid() */
+	if (install_fork_handler(FORK_INT, call_fork) < 0) {
 		return -1;
 	}
 	return 0;
