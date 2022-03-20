@@ -101,7 +101,6 @@ run_next_tcb( void )
 
 	/* Get next tcb to run */
 	run_q_node_t *to_run = Q_GET_FRONT(&run_q);
-	assert(to_run != running);
 	assert(to_run);
 	assert(running);
 	assert(running->tcb->tid == 1 - to_run->tcb->tid);

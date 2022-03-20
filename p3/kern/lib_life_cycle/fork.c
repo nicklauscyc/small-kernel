@@ -49,6 +49,8 @@ fork( void )
 
     /* TODO: Deallocate pcb if this fails */
 	tcb_t *child_tcb = (tcb_t *) get_new_tcb(1, 1);
+	// After this, we have 2 threads running
+
     //if (get_new_tcb(1, 1) < 0)
     //    return -1;
 #ifndef NDEBUG
@@ -93,10 +95,9 @@ fork( void )
 
 	// This is where esp should diverge
 
-    /* Return 0 for child, child_tid for parent */
-    if (get_running_tid() == parent_tcb->tid)
-        return 0;
-    return get_running_tid();
+    /* Only parent will return here */
+    assert(get_running_tid() == parent_tcb->tid);
+	return child_tcb->tid;
 }
 
 /** @brief Installs the fork() interrupt handler

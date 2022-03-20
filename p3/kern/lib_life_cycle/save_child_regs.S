@@ -60,9 +60,11 @@ save_child_regs:
 	pushl %edx
 
 	/* stuff to store child tid in stack position for future eax value */
-	movl 12(%ebp), %edx /* parent eax in %edx, contains child tid now */
-	movl (%edx), %edx /* dereference child stack highest address to get child
-	                   * tid */
+	//movl 12(%ebp), %edx /* parent eax in %edx, contains child tid now */
+	//movl (%edx), %edx /* dereference child stack highest address to get child
+	                   //* tid */
+	movl $0, %edx
+
 	pushl %edx
 
 	movl -68(%ecx), %edx /* parent ebx in %edx */
