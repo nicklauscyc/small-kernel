@@ -33,15 +33,12 @@ fork( void )
 {
 	/* TODO This thing needs to defer execution of copy till later? */
 	uint32_t cr3 = get_cr3();
-	lprintf("fork() thinks cr3 is:%lx", cr3);
 	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
-	lprintf("parent_pd:%p", parent_pd);
 
 	/* parent_pd in kernel memory, unaffected by paging */
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
     uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
-	MAGIC_BREAK;
 
 	/* TODO hard code child pid, tid to 1 */
     if (get_new_pcb(1, child_pd) < 0)
@@ -64,6 +61,7 @@ fork( void )
 	assert(find_tcb(0, &parent_tcb) == 0);
 
 	/* Acknowledge interrupt and return */
+	// before any allocation functions TODO
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	lprintf("before save_child_regs");

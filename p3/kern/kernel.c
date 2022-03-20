@@ -40,13 +40,9 @@ volatile static int __kernel_all_done = 0;
  */
 extern int scheduler_init;
 
-int start = 0;
 void tick(unsigned int numTicks) {
-	if (numTicks % 100 == 0 && scheduler_init) {
-		lprintf("ctx switchnumTicks: %d\n", numTicks);
-		if (! start) {
-			run_next_tcb();
-		}
+	if (scheduler_init) {
+		run_next_tcb();
 	}
 }
 

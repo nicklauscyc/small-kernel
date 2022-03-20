@@ -9,7 +9,7 @@ update_child_esp:
 
 
 .globl save_child_regs
-
+//TODO if possible do it in C
 /* void *save_child_regs(void *parent_kern_esp, void *child_kern_esp); */
 save_child_regs:
 	/**************************************************************************/

@@ -93,6 +93,11 @@ add_tcb_to_run_queue(tcb_t *tcb)
 void
 run_next_tcb( void )
 {
+	// Do nothing if there's only 1 tcb in run queue
+	if (Q_GET_FRONT(&run_q) == Q_GET_TAIL(&run_q)) {
+		return;
+	}
+
 	run_q_node_t *running = Q_GET_FRONT(&run_q);
 
 	/* Put to back of queue */
@@ -103,7 +108,7 @@ run_next_tcb( void )
 	run_q_node_t *to_run = Q_GET_FRONT(&run_q);
 	assert(to_run);
 	assert(running);
-	assert(running->tcb->tid == 1 - to_run->tcb->tid);
+	assert(to_run != running? running->tcb->tid == 1 - to_run->tcb->tid : 1);
 
     //assert(1 - running->tcb->tid == to_run->tcb->tid);
 
