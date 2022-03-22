@@ -95,6 +95,10 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	putbytes("getpid_test1\n", 13);
 	putbytes("fork_test1\n", 13);
 
+	log("this is DEBUG");
+	log_info("this is INFO");
+	log_warn("this is WARN");
+
     while (!__kernel_all_done) {
 
         //char* s = "fork_test1";
