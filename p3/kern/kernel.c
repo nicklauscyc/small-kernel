@@ -35,18 +35,10 @@
 #include <scheduler.h> /* run_next_tcb() */
 volatile static int __kernel_all_done = 0;
 
-/* Think about where this declaration
- * should be... probably not here!
- */
-extern int scheduler_init;
 
 void tick(unsigned int numTicks) {
-	if (scheduler_init) {
-		run_next_tcb();
-	}
+	scheduler_on_tick(numTicks);
 }
-
-
 
 /** @brief Kernel entrypoint.
  *
@@ -79,11 +71,11 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
     lprintf( "Hello from a brand new kernel!" );
     //TODO: Print programs using elf->e_name
-	putbytes("executable user programs:\n", 26);
-	putbytes("loader_test1\n", 13);
-	putbytes("loader_test2\n", 13);
-	putbytes("getpid_test1\n", 13);
-	putbytes("fork_test1\n", 13);
+	printf("executable user programs:\n");
+	printf("loader_test1\n");
+	printf("loader_test2\n");
+	printf("getpid_test1\n");
+	printf("fork_test1\n");
 
     while (!__kernel_all_done) {
 

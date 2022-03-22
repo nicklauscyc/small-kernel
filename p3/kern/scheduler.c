@@ -1,12 +1,21 @@
-
-#include <inc/task_manager.h> /* tcb_t */
+#include <task_manager.h> /* tcb_t */
 
 #include <variable_queue.h> /* Q_NEW_LINK() */
 #include <assert.h> /* affirm() */
 #include <malloc.h> /* malloc() */
 #include <stdint.h> /* uint32_t */
 #include <context_switch.h> /* context_switch() */
-#include <x86/cr.h> /* get_esp0() */
+#include <cr.h> /* get_esp0() */
+
+/* Timer interrupts every ms, we want to swap every 2 ms. */
+#define WAIT_TICKS 2
+
+/* List node to store a tcb in the run queue */
+typedef struct run_q_node {
+	Q_NEW_LINK(run_q_node) link;
+	tcb_t *tcb; // doesn't need to malloc more to hold this pointer
+	// TODO change to generic queue so u can legit just add the tcb in
+} run_q_node_t;
 
 /* Boolean for whether initialization has taken place */
 int scheduler_init = 0;
@@ -22,12 +31,6 @@ get_running_tid( void )
 	return running_tid;
 }
 
-/* List node to store a tcb in the run queue */
-typedef struct run_q_node {
-	Q_NEW_LINK(run_q_node) link;
-	tcb_t *tcb; // doesn't need to malloc more to hold this pointer
-	// TODO change to generic queue so u can legit just add the tcb in
-} run_q_node_t;
 
 /* List head definition */
 Q_NEW_HEAD(list_t, run_q_node);
@@ -108,9 +111,7 @@ run_next_tcb( void )
 	run_q_node_t *to_run = Q_GET_FRONT(&run_q);
 	assert(to_run);
 	assert(running);
-	assert(to_run != running? running->tcb->tid == 1 - to_run->tcb->tid : 1);
-
-    //assert(1 - running->tcb->tid == to_run->tcb->tid);
+    assert(1 - running->tcb->tid == to_run->tcb->tid);
 
 #include <simics.h>
 	lprintf("context switching");
@@ -123,5 +124,14 @@ run_next_tcb( void )
 	               to_run->tcb->kernel_esp, to_run->tcb->pd);
 	lprintf("after context switching");
 
+}
+
+void
+scheduler_on_tick( unsigned int num_ticks )
+{
+    if (!scheduler_init)
+        return;
+    if (num_ticks % WAIT_TICKS == 0) /* Context switch every 2 ms */
+        run_next_tcb();
 }
 

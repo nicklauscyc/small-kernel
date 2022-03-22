@@ -22,7 +22,7 @@
 #define MSB(x) (((long unsigned int)x >> 8) & 0xFF)
 
 /* 1 khz. */
-#define DESIRED_TIMER_RATE 1000
+#define DESIRED_TIMER_RATE 50
 
 /* Initialize tick to NULL */
 static void (*application_tickback) (unsigned int) = NULL;
@@ -48,7 +48,7 @@ static unsigned int total_ticks = 0;
  */
 void timer_int_handler(void) {
   /* Pass total ticks to application callback which should run quickly */
-  application_tickback(++total_ticks);
+  application_tickback(total_ticks++);
 
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
