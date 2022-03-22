@@ -174,6 +174,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  context_switch.o \
 			  scheduler.o \
 			  lib_life_cycle/save_child_regs.o\
+			  logger.o
 
 
 ###########################################################################
