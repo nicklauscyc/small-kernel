@@ -9,6 +9,7 @@
  *  @bug No known bugs.
  */
 
+#include <logger.h> /* log(), log_med(), log_hi() */
 #include <install_handler.h> /* handler_install() */
 #include <common_kern.h>
 
@@ -39,6 +40,15 @@ volatile static int __kernel_all_done = 0;
  * should be... probably not here!
  */
 extern int scheduler_init;
+
+/* Level of logging, set to 4 to turn logging off,
+ * 1 to print logs for log priorities lo, med, hi
+ * 2 to print logs for log priorities med, hi
+ * 3 to print logs for log priorities hi
+ *
+ * defining the NDEBUG flag will also turn logging off
+ */
+int log_level = 1;
 
 void tick(unsigned int numTicks) {
 	if (scheduler_init) {

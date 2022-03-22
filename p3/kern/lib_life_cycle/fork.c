@@ -58,7 +58,10 @@ fork( void )
 
 	// Duplicate parent kern stack in child kern stack
 	tcb_t *parent_tcb;
-	assert(find_tcb(0, &parent_tcb) == 0);
+	// Error if cannot find parent_tcb
+	if (find_tcb(0, &parent_tcb) != 0) {
+		return -1;
+	}
 
 	/* Acknowledge interrupt and return */
 	// before any allocation functions TODO
