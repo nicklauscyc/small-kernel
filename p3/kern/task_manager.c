@@ -69,6 +69,9 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
         return -1;
     }
 
+    /* Let scheduler know it can now run this thread */
+    register_thread(*tid);
+
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
     sim_reg_process(pcb->pd, elf->e_fname);
@@ -192,7 +195,8 @@ create_pcb( uint32_t *pid, void *pd )
     return 0;
 }
 
-/** @brief Initializes new tcb.
+/** @brief Initializes new tcb. Does not add thread to scheduler.
+ *         This should be done by whoever creates this thread.
  *
  *  @arg pid    Id of owning task
  *  @arg tid    Pointer to where id of new thread will be stored
@@ -244,10 +248,6 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	tcb->kernel_stack_hi = tcb->kernel_esp;
 	// tcb->kernel_esp--; // I feel like this is not needed cuz u will decrement
 	// esp then store under all cases
-
-	/* add to run queue */
-	add_tcb_to_run_queue(tcb);
-	lprintf("tid[%lu]: tcb->kernel_esp:%p",tcb->tid, tcb->kernel_esp);
 
     return 0;
 }

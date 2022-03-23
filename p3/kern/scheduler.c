@@ -1,5 +1,8 @@
-#include <task_manager.h> /* tcb_t */
+/** @file scheduler.c
+ *  @brief A round-robin scheduler. */
 
+#include <scheduler.h>
+#include <task_manager.h>   /* tcb_t */
 #include <variable_queue.h> /* Q_NEW_LINK() */
 #include <context_switch.h> /* context_switch() */
 #include <assert.h>         /* affirm() */
@@ -14,7 +17,7 @@
 typedef struct run_q_node {
 	Q_NEW_LINK(run_q_node) link;
 	tcb_t *tcb; // doesn't need to malloc more to hold this pointer
-	// TODO change to generic queue so u can legit just add the tcb in
+	// TODO change to generic queue so u can just add the tcb in
 } run_q_node_t;
 
 /* Boolean for whether initialization has taken place */
@@ -23,25 +26,24 @@ int scheduler_init = 0;
 /* Global variable for the currently running thread's id */
 static int running_tid = 0;
 
-int get_current_tid( void );
-
-int
-get_running_tid( void )
-{
-	return running_tid;
-}
-
-
 /* List head definition */
 Q_NEW_HEAD(list_t, run_q_node);
 
 /* Linked list of run queue. Front element is run */
 static list_t run_q;
 
-int init_scheduler( tcb_t *tcb );
-void add_tcb_to_run_queue(tcb_t *tcb);
-void run_next_tcb( void );
 
+static void run_next_tcb( void );
+
+
+/** @brief Gets tid of currently active thread.
+ *
+ *  @return Tid */
+int
+get_running_tid( void )
+{
+	return running_tid;
+}
 
 /** @brief Initializes physical allocator family of functions
  *
@@ -76,24 +78,48 @@ init_scheduler( tcb_t *tcb )
 	return 0;
 }
 
-void
-add_tcb_to_run_queue(tcb_t *tcb)
+/** @brief Registers thread with scheduler. After this call,
+ *         the thread may be executed by the scheduler.
+ *
+ *  @arg tid Id of thread to register
+ *
+ *  @return 0 on success, negative value on error */
+int
+register_thread(uint32_t tid)
 {
-	if (!scheduler_init) {
-		init_scheduler(tcb);
-		return;
-	}
-	//TODO this needs to change to generic tcb in task_manager
-	/* add first tcb */
-	run_q_node_t *new = malloc(sizeof(run_q_node_t));
-	affirm(new);
+    tcb_t *tcb = find_tcb(tid);
+    if (!tcb)
+        return -1;
 
-	new->tcb = tcb;
-	Q_INSERT_TAIL(&run_q, new, link);
-	assert(Q_GET_TAIL(&run_q) == new);
+    if (!scheduler_init) {
+        init_scheduler(tcb);
+        return - 1;
+    }
+
+    //TODO this needs to change to generic tcb in task_manager
+    /* add first tcb */
+    run_q_node_t *new = malloc(sizeof(run_q_node_t));
+    affirm(new);
+
+    new->tcb = tcb;
+    Q_INSERT_TAIL(&run_q, new, link);
+    assert(Q_GET_TAIL(&run_q) == new);
+
+    return 0;
 }
 
 void
+scheduler_on_tick( unsigned int num_ticks )
+{
+    if (!scheduler_init)
+        return;
+    if (num_ticks % WAIT_TICKS == 0) /* Context switch every 2 ms */
+        run_next_tcb();
+}
+
+/* ------- HELPER FUNCTIONS -------- */
+
+static void
 run_next_tcb( void )
 {
 	// Do nothing if there's only 1 tcb in run queue
@@ -113,24 +139,11 @@ run_next_tcb( void )
     assert(1 - running->tcb->tid == to_run->tcb->tid);
 
 #include <simics.h>
-	lprintf("context switching");
 	/* Context switch */
-	lprintf("to_run->tcb->kernel_esp:%p", to_run->tcb->kernel_esp);
-	//lprintf("to_run->tcb->pd:%p", to_run->tcb->pd);
 	running_tid = to_run->tcb->tid;
 
 	context_switch((void **)&(running->tcb->kernel_esp),
 	               to_run->tcb->kernel_esp, to_run->tcb->owning_task->pd);
-	lprintf("after context switching");
 
-}
-
-void
-scheduler_on_tick( unsigned int num_ticks )
-{
-    if (!scheduler_init)
-        return;
-    if (num_ticks % WAIT_TICKS == 0) /* Context switch every 2 ms */
-        run_next_tcb();
 }
 
