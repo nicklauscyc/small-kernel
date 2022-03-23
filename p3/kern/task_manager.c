@@ -223,6 +223,8 @@ create_tcb( uint32_t pid, uint32_t *tid )
         return -1;
     }
 
+    tcb->status = UNINITIALIZED;
+
     /* Add to owning task's list of threads */
     tcb->owning_task = owning_task;
     tcb->next_thread = tcb->owning_task->first_thread;

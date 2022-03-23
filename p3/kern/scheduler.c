@@ -13,68 +13,55 @@
 /* Timer interrupts every ms, we want to swap every 2 ms. */
 #define WAIT_TICKS 2
 
-/* List node to store a tcb in the run queue */
-typedef struct run_q_node {
-	Q_NEW_LINK(run_q_node) link;
-	tcb_t *tcb; // doesn't need to malloc more to hold this pointer
-	// TODO change to generic queue so u can just add the tcb in
-} run_q_node_t;
+/* Whether scheduler has been initialized */
+static int scheduler_init = 0;
 
-/* Boolean for whether initialization has taken place */
-int scheduler_init = 0;
+/* Queue head definition */
+Q_NEW_HEAD(queue_t, tcb);
 
-/* Global variable for the currently running thread's id */
-static int running_tid = 0;
-
-/* List head definition */
-Q_NEW_HEAD(list_t, run_q_node);
-
-/* Linked list of run queue. Front element is run */
-static list_t run_q;
+/* Thread queues.*/
+static queue_t runnable_q;
+static queue_t descheduled_q;
+static queue_t dead_q;
+static tcb_t *running_thread = NULL; // Currently running thread
 
 
 static void run_next_tcb( void );
 
 
+// FIXME: Maybe crash if !scheduler_init???
 /** @brief Gets tid of currently active thread.
  *
- *  @return Tid */
+ *  @return Id of running thread on success, negative value on error */
 int
 get_running_tid( void )
 {
-	return running_tid;
+    if (!running_thread)
+        return -1;
+    return running_thread->tid;
 }
 
-/** @brief Initializes physical allocator family of functions
+/** @brief Initializes scheduler and registers its first thread.
  *
- *  Must be called once and only once
+ *  Must be called once and only once. A thread must be supplied
+ *  as the scheduler maintains the invariant that there is always
+ *  one thread running. If this cannot be met, we are facing a deadlock.
  *
- *  @param tcb tcb to add to run queue. the first tcb.
+ *  @arg tid Id of thread to start running.
  *  @return 0 on success, -1 on error
  */
 int
-init_scheduler( tcb_t *tcb )
+init_scheduler( uint32_t tid )
 {
 	/* Initialize once and only once */
 	affirm(!scheduler_init);
 
-	/* Initialize queue head and add the first node into queue */
-	Q_INIT_HEAD(&run_q);
-
-	/* Some essential checks that should never fail */
-    assert(!Q_GET_TAIL(&run_q));
-	assert(!Q_GET_FRONT(&run_q));
+	Q_INIT_HEAD(&runnable_q);
+	Q_INIT_HEAD(&descheduled_q);
+	Q_INIT_HEAD(&dead_q);
 
 	scheduler_init = 1;
 
-	/* add first tcb */
-	run_q_node_t *first = malloc(sizeof(run_q_node_t));
-	if (!first) {
-		return -1;
-	}
-	first->tcb = tcb;
-	Q_INSERT_TAIL(&run_q, first, link);
-	assert(Q_GET_FRONT(&run_q) == first);
 	return 0;
 }
 
@@ -84,27 +71,29 @@ init_scheduler( tcb_t *tcb )
  *  @arg tid Id of thread to register
  *
  *  @return 0 on success, negative value on error */
+/* TODO: Think of synchronization here*/
 int
 register_thread(uint32_t tid)
 {
+    int first_thread = !scheduler_init;
+    if (!scheduler_init) {
+        init_scheduler(tid);
+    }
+
     tcb_t *tcb = find_tcb(tid);
     if (!tcb)
         return -1;
 
-    if (!scheduler_init) {
-        init_scheduler(tcb);
-        return - 1;
+    assert(tcb->status == UNINITIALIZED);
+
+    /* Add tcb to runnable queue, as any thread starts as runnable */
+    if (first_thread) {
+        tcb->status = RUNNING;
+        running_thread = tcb;
+    } else {
+        tcb->status = RUNNABLE;
+        Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
     }
-
-    //TODO this needs to change to generic tcb in task_manager
-    /* add first tcb */
-    run_q_node_t *new = malloc(sizeof(run_q_node_t));
-    if (!new)
-        return -1;
-
-    new->tcb = tcb;
-    Q_INSERT_TAIL(&run_q, new, link);
-    assert(Q_GET_TAIL(&run_q) == new);
 
     return 0;
 }
@@ -120,33 +109,38 @@ scheduler_on_tick( unsigned int num_ticks )
 
 /* ------- HELPER FUNCTIONS -------- */
 
+
+/* TODO: Think of synchronization here*/
 static void
 run_next_tcb( void )
 {
-    // Do nothing if there's only 1 tcb in run queue
-    if (Q_GET_FRONT(&run_q) == Q_GET_TAIL(&run_q)) {
+    if (!scheduler_init)
         return;
-    }
 
-    run_q_node_t *running = Q_GET_FRONT(&run_q);
+    tcb_t *to_run;
+    /* Do nothing if there's no thread waiting to be run */
+    if (!(to_run = Q_GET_FRONT(&runnable_q)))
+        return;
+    Q_REMOVE(&runnable_q, to_run, thr_queue);
 
-	/* Put to back of queue */
-    Q_REMOVE(&run_q, running, link);
-    Q_INSERT_TAIL(&run_q, running, link);
+    assert(to_run->tid != running_thread->tid);
 
-    run_q_node_t *to_run = Q_GET_FRONT(&run_q);
-    assert(to_run);
-    assert(running);
-    assert(1 - running->tcb->tid == to_run->tcb->tid);
+    /* Start context switch */
+    tcb_t *running = running_thread;
+    assert(running->status == RUNNING);
 
-    /* Context switch */
-    running_tid = to_run->tcb->tid;
+    to_run->status = RUNNING;
+    running_thread = to_run;
+
+    /* Put currently running thread to back of runnable queue */
+    running->status = RUNNABLE;
+    Q_INSERT_TAIL(&runnable_q, running, thr_queue);
 
     /* Let thread know where to come back to on USER->KERN mode switch */
-    set_esp0((uint32_t)to_run->tcb->kernel_stack_hi);
+    set_esp0((uint32_t)to_run->kernel_stack_hi);
 
-    context_switch((void **)&(running->tcb->kernel_esp),
-            to_run->tcb->kernel_esp, to_run->tcb->owning_task->pd);
+    context_switch((void **)&(running->kernel_esp),
+            to_run->kernel_esp, to_run->owning_task->pd);
 
 }
 
