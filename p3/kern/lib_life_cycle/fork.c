@@ -81,7 +81,8 @@ fork( void )
 	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
 
     /* After setting up child stack and VM, register with scheduler */
-    register_thread(child_tcb->tid);
+    if (register_thread(child_tcb->tid) < 0)
+        return -1;
 
     /* Only parent will return here */
     assert(get_running_tid() == parent_tcb->tid);

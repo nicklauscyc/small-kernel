@@ -99,7 +99,8 @@ register_thread(uint32_t tid)
     //TODO this needs to change to generic tcb in task_manager
     /* add first tcb */
     run_q_node_t *new = malloc(sizeof(run_q_node_t));
-    affirm(new);
+    if (!new)
+        return -1;
 
     new->tcb = tcb;
     Q_INSERT_TAIL(&run_q, new, link);
@@ -122,28 +123,30 @@ scheduler_on_tick( unsigned int num_ticks )
 static void
 run_next_tcb( void )
 {
-	// Do nothing if there's only 1 tcb in run queue
-	if (Q_GET_FRONT(&run_q) == Q_GET_TAIL(&run_q)) {
-		return;
-	}
+    // Do nothing if there's only 1 tcb in run queue
+    if (Q_GET_FRONT(&run_q) == Q_GET_TAIL(&run_q)) {
+        return;
+    }
 
-	run_q_node_t *running = Q_GET_FRONT(&run_q);
+    run_q_node_t *running = Q_GET_FRONT(&run_q);
 
 	/* Put to back of queue */
-	Q_REMOVE(&run_q, running, link);
-	Q_INSERT_TAIL(&run_q, running, link);
+    Q_REMOVE(&run_q, running, link);
+    Q_INSERT_TAIL(&run_q, running, link);
 
-	run_q_node_t *to_run = Q_GET_FRONT(&run_q);
-	assert(to_run);
-	assert(running);
+    run_q_node_t *to_run = Q_GET_FRONT(&run_q);
+    assert(to_run);
+    assert(running);
     assert(1 - running->tcb->tid == to_run->tcb->tid);
 
-#include <simics.h>
-	/* Context switch */
-	running_tid = to_run->tcb->tid;
+    /* Context switch */
+    running_tid = to_run->tcb->tid;
 
-	context_switch((void **)&(running->tcb->kernel_esp),
-	               to_run->tcb->kernel_esp, to_run->tcb->owning_task->pd);
+    /* Let thread know where to come back to on USER->KERN mode switch */
+    set_esp0((uint32_t)to_run->tcb->kernel_stack_hi);
+
+    context_switch((void **)&(running->tcb->kernel_esp),
+            to_run->tcb->kernel_esp, to_run->tcb->owning_task->pd);
 
 }
 
