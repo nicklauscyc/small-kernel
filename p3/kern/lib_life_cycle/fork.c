@@ -40,18 +40,20 @@ fork( void )
 
     uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 
-	/* TODO hard code child pid, tid to 1 */
-    if (create_pcb(1, child_pd) < 0)
+    uint32_t pid, tid;
+    if (create_pcb(&pid, child_pd) < 0) {
+        // TODO: delete page directory
         return -1;
+    }
 
-    if (create_tcb(1, 1) < 0) {
+    if (create_tcb(pid, &tid) < 0) {
+        // TODO: delete page directory
         // TODO: delete_pcb of parent
         return -1;
     }
 
 	tcb_t *child_tcb;
-    affirm((child_tcb = find_tcb(1)) != NULL);
-	// After this, we have 2 threads running
+    affirm((child_tcb = find_tcb(tid)) != NULL);
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
@@ -61,7 +63,7 @@ fork( void )
 
 	// Duplicate parent kern stack in child kern stack
 	tcb_t *parent_tcb;
-	assert((parent_tcb = find_tcb(0)) != NULL);
+	assert((parent_tcb = find_tcb(get_running_tid())) != NULL);
 
 	/* Acknowledge interrupt and return */
 	// before any allocation functions TODO

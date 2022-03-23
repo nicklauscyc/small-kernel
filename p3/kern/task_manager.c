@@ -18,23 +18,31 @@
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 #include <lib_thread_management/hashmap.h> /* map_* functions */
+#include <lib_thread_management/add_one_atomic.h>
 
 #define ELF_IF (1 << 9);
 
+static uint32_t get_unique_tid( void );
+static uint32_t get_unique_pid( void );
 static uint32_t get_user_eflags( void );
 
 static pcb_t *first_pcb = NULL;
 
+/** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
+static uint32_t next_pid = 0;
+/** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
+static uint32_t next_tid = 0;
+
 /*  Creates a task
  *
- *  @arg pid Task id for new task
- *  @arg tid Thread id for new thread
+ *  @arg pid Pointer where task id for new task is stored
+ *  @arg tid Pointer where thread id for new thread is stored
  *  @arg elf Elf header for use in allocating new task's memory
  *
  *  @return 0 on success, negative value on failure.
  * */
 int
-create_task( uint32_t pid, uint32_t tid, simple_elf_t *elf )
+create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 {
     // TODO: Think about preconditions for this.
     // Paging fine, how about making it a critical section?
@@ -52,11 +60,10 @@ create_task( uint32_t pid, uint32_t tid, simple_elf_t *elf )
         return -1;
     }
 
-    pcb_t *pcb = find_pcb(pid);
+    pcb_t *pcb = find_pcb(*pid);
     affirm(pcb);
 
-    /* TODO: Deallocate pcb if this fails */
-    if (create_tcb(pid, tid) < 0) {
+    if (create_tcb(*pid, tid) < 0) {
         // TODO: Delete pcb, and return -1
         sfree(pd, PAGE_SIZE);
         return -1;
@@ -132,23 +139,6 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
     panic("iret_travel should not return");
 }
 
-/* ------ HELPER FUNCTIONS ------ */
-
-/** @brief Returns eflags with PL altered to 3 */
-static uint32_t
-get_user_eflags( void )
-{
-    uint32_t eflags = get_eflags();
-
-    /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
-    eflags |= EFL_IOPL_RING0; /* Set privilege level to user */
-    eflags |= EFL_RESV1;      /* Maitain reserved as 1 */
-    eflags &= ~(EFL_AC);      /* Disable alignment-checking */
-    eflags |= EFL_IF;         /* Enable hardware interrupts */
-
-    return eflags;
-}
-
 /** Looks for pcb with given pid.
  *
  *  @arg pid Task id to look for
@@ -175,24 +165,25 @@ find_tcb( uint32_t tid )
     return (tcb_t *)map_get(tid);
 }
 
-/** @brief Initializes new pcb.
+/** @brief Initializes new pcb, and corresponding tcb.
  *
- *  @arg pid Task id for new pcb
+ *  @arg pid Pointer to where pid should be stored
  *  @arg pd  Pointer to page directory for new task
  *
  *  @return 0 on success, negative value on error
  * */
 int
-create_pcb( uint32_t pid, void *pd )
+create_pcb( uint32_t *pid, void *pd )
 {
     pcb_t *pcb = smalloc(sizeof(pcb_t));
     if (!pcb)
         return -1;
 
+    *pid = get_unique_pid();
+    pcb->pid = *pid;
     pcb->pd = pd;
-    pcb->pid = pid;
-    pcb->first_thread = NULL;
     pcb->prepared = 0;
+    pcb->first_thread = NULL;
 
     /* Add to pcb linked list*/
     pcb->next_task = first_pcb;
@@ -204,12 +195,12 @@ create_pcb( uint32_t pid, void *pd )
 /** @brief Initializes new tcb.
  *
  *  @arg pid    Id of owning task
- *  @arg tid    Id of new thread
+ *  @arg tid    Pointer to where id of new thread will be stored
  *
  *  @return 0 on success, negative value on failure
  * */
 int
-create_tcb( uint32_t pid, uint32_t tid )
+create_tcb( uint32_t pid, uint32_t *tid )
 {
     pcb_t *owning_task;
     if ((owning_task = find_pcb(pid)) == NULL)
@@ -220,7 +211,8 @@ create_tcb( uint32_t pid, uint32_t tid )
         return -1;
     }
 
-    tcb->tid = tid;
+    *tid = get_unique_tid();
+    tcb->tid = *tid;
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
     if (!tcb->kernel_stack_lo) {
         sfree(tcb, sizeof(tcb_t));
@@ -232,15 +224,15 @@ create_tcb( uint32_t pid, uint32_t tid )
     tcb->next_thread = tcb->owning_task->first_thread;
     tcb->owning_task->first_thread = tcb;
 
-    lprintf("Inserting thread with tid %lu", tid);
-	map_insert(tid, (void *)tcb);
+    lprintf("Inserting thread with tid %lu", tcb->tid);
+	map_insert(tcb->tid, (void *)tcb);
 
 	/* memset the whole thing, TODO delete this in future, only good for
 	 * debugging when printing the whole stack
 	 */
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-	lprintf("tid[%d]: tcb->stack_lo:%p",tcb->tid,
+	lprintf("tid[%lu]: tcb->stack_lo:%p",tcb->tid,
 	        tcb->kernel_stack_lo);
 
     tcb->kernel_esp = tcb->kernel_stack_lo;
@@ -248,14 +240,45 @@ create_tcb( uint32_t pid, uint32_t tid )
             PAGE_SIZE - sizeof(uint32_t));
 
 	// store tid at highest kernel stack address
-	*(tcb->kernel_esp) = tid;
+	*(tcb->kernel_esp) = tcb->tid;
 	tcb->kernel_stack_hi = tcb->kernel_esp;
 	// tcb->kernel_esp--; // I feel like this is not needed cuz u will decrement
 	// esp then store under all cases
 
 	/* add to run queue */
 	add_tcb_to_run_queue(tcb);
-	lprintf("tid[%d]: tcb->kernel_esp:%p",tcb->tid, tcb->kernel_esp);
+	lprintf("tid[%lu]: tcb->kernel_esp:%p",tcb->tid, tcb->kernel_esp);
 
     return 0;
+}
+
+/* ------ HELPER FUNCTIONS ------ */
+
+/** @brief Returns eflags with PL altered to 3 */
+static uint32_t
+get_user_eflags( void )
+{
+    uint32_t eflags = get_eflags();
+
+    /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
+    eflags |= EFL_IOPL_RING0; /* Set privilege level to user */
+    eflags |= EFL_RESV1;      /* Maitain reserved as 1 */
+    eflags &= ~(EFL_AC);      /* Disable alignment-checking */
+    eflags |= EFL_IF;         /* Enable hardware interrupts */
+
+    return eflags;
+}
+
+/** @brief Returns a unique pid. */
+static uint32_t
+get_unique_pid( void )
+{
+    return add_one_atomic(&next_pid);
+}
+
+/** @brief Returns a unique tid. */
+static uint32_t
+get_unique_tid( void )
+{
+    return add_one_atomic(&next_tid);
 }

@@ -20,7 +20,7 @@ struct pcb {
     tcb_t *first_thread; // First thread in linked list
     pcb_t *next_task; // Embedded list of tasks
 
-    int pid;
+    uint32_t pid;
 
     int prepared; // Whether this task's VM has been initialized
 };
@@ -30,7 +30,7 @@ struct tcb {
     pcb_t *owning_task;
     tcb_t *next_thread; // Embedded linked list of threads from same task
 
-    int tid;
+    uint32_t tid;
 
     /* Stack info. Needed for resuming execution.
      * General purpose registers, program counter
