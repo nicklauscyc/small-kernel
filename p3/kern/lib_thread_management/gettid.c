@@ -13,7 +13,7 @@
 void
 init_gettid( void )
 {
-	/* honestly not sure what to init */
+	/* Nothing to init */
 }
 
 int
@@ -22,8 +22,6 @@ gettid( void )
     /* Acknowledge interrupt and return */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-    /* TODO: Just return 0 for now. Later, get
-     * current thread from scheduler. */
     return get_running_tid();
 }
 
