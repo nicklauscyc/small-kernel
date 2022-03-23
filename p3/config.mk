@@ -162,19 +162,23 @@ AUTOSTACK_OBJS = autostack.o
 #
 # Kernel object files you provide in from kern/
 #
+
 KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  memory_manager.o task_manager.o iret_travel.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
 			  asm_interrupt_handler.o \
-			  lib_thread_management/gettid.o \
-			  lib_thread_management/asm_thread_management_handlers.o \
-			  lib_memory_management/physalloc.o\
-			  lib_life_cycle/asm_life_cycle_handlers.o \
-			  lib_life_cycle/fork.o \
 			  context_switch.o \
 			  scheduler.o \
-			  lib_life_cycle/save_child_regs.o\
-
+			  \
+			  lib_thread_management/gettid.o \
+			  lib_thread_management/asm_thread_management_handlers.o \
+			  lib_thread_management/hashmap.o \
+			  \
+			  lib_life_cycle/asm_life_cycle_handlers.o \
+			  lib_life_cycle/fork.o \
+			  lib_life_cycle/save_child_regs.o \
+			  \
+			  lib_memory_management/physalloc.o
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your

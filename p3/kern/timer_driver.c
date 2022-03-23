@@ -22,7 +22,7 @@
 #define MSB(x) (((long unsigned int)x >> 8) & 0xFF)
 
 /* 1 khz. */
-#define DESIRED_TIMER_RATE 50
+#define DESIRED_TIMER_RATE 1000
 
 /* Initialize tick to NULL */
 static void (*application_tickback) (unsigned int) = NULL;

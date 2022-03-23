@@ -13,7 +13,7 @@
 #include <common_kern.h> /* USER_MEM_START */
 #include <malloc.h> /* smemalign() */
 #include <string.h> /* memcpy() */
-#include <x86/page.h> /* PAGE_SIZE */
+#include <page.h> /* PAGE_SIZE */
 #include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
 #include <memory_manager.h> /* new_pd_from_parent */
 #include <simics.h>
@@ -41,15 +41,18 @@ fork( void )
     uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 
 	/* TODO hard code child pid, tid to 1 */
-    if (get_new_pcb(1, child_pd) < 0)
+    if (create_pcb(1, child_pd) < 0)
         return -1;
 
-    /* TODO: Deallocate pcb if this fails */
-	tcb_t *child_tcb = (tcb_t *) get_new_tcb(1, 1);
+    if (create_tcb(1, 1) < 0) {
+        // TODO: delete_pcb of parent
+        return -1;
+    }
+
+	tcb_t *child_tcb;
+    affirm((child_tcb = find_tcb(1)) != NULL);
 	// After this, we have 2 threads running
 
-    //if (get_new_tcb(1, 1) < 0)
-    //    return -1;
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
 	// TODO what is elf->e_fname for this guy?
@@ -58,7 +61,7 @@ fork( void )
 
 	// Duplicate parent kern stack in child kern stack
 	tcb_t *parent_tcb;
-	assert(find_tcb(0, &parent_tcb) == 0);
+	assert((parent_tcb = find_tcb(0)) != NULL);
 
 	/* Acknowledge interrupt and return */
 	// before any allocation functions TODO
@@ -74,9 +77,9 @@ fork( void )
 	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
 
 	//TODO hacky page directory
-	child_tcb->pd =  child_pd;
-	lprintf("child_pd:%p", child_pd);
-	parent_tcb->pd = parent_pd;
+	//child_tcb->pd =  child_pd;
+	//lprintf("child_pd:%p", child_pd);
+	//parent_tcb->pd = parent_pd;
 
 	//lprintf("print parent stack");
 	//for (int i = 0; i < 32; i++) {

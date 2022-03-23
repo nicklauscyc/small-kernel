@@ -80,9 +80,6 @@ init_physalloc( void )
 
 	max_free_address = USER_MEM_START;
 	physalloc_init = 1;
-
-    // TODO: REMOVE
-    test_physalloc();
 }
 
 /** @brief Allocates a physical frame by returning its address

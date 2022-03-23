@@ -1,11 +1,11 @@
 #include <task_manager.h> /* tcb_t */
 
 #include <variable_queue.h> /* Q_NEW_LINK() */
-#include <assert.h> /* affirm() */
-#include <malloc.h> /* malloc() */
-#include <stdint.h> /* uint32_t */
 #include <context_switch.h> /* context_switch() */
-#include <cr.h> /* get_esp0() */
+#include <assert.h>         /* affirm() */
+#include <malloc.h>         /* smalloc(), sfree() */
+#include <stdint.h>         /* uint32_t */
+#include <cr.h>             /* get_esp0() */
 
 /* Timer interrupts every ms, we want to swap every 2 ms. */
 #define WAIT_TICKS 2
@@ -107,7 +107,6 @@ run_next_tcb( void )
 	Q_REMOVE(&run_q, running, link);
 	Q_INSERT_TAIL(&run_q, running, link);
 
-	/* Get next tcb to run */
 	run_q_node_t *to_run = Q_GET_FRONT(&run_q);
 	assert(to_run);
 	assert(running);
@@ -117,11 +116,11 @@ run_next_tcb( void )
 	lprintf("context switching");
 	/* Context switch */
 	lprintf("to_run->tcb->kernel_esp:%p", to_run->tcb->kernel_esp);
-	lprintf("to_run->tcb->pd:%p", to_run->tcb->pd);
+	//lprintf("to_run->tcb->pd:%p", to_run->tcb->pd);
 	running_tid = to_run->tcb->tid;
 
 	context_switch((void **)&(running->tcb->kernel_esp),
-	               to_run->tcb->kernel_esp, to_run->tcb->pd);
+	               to_run->tcb->kernel_esp, to_run->tcb->owning_task->pd);
 	lprintf("after context switching");
 
 }

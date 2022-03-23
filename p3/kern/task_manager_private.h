@@ -18,6 +18,7 @@ typedef struct tcb tcb_t;
 struct pcb {
     void *pd; // page directory
     tcb_t *first_thread; // First thread in linked list
+    pcb_t *next_task; // Embedded list of tasks
 
     int pid;
 
@@ -27,8 +28,7 @@ struct pcb {
 /** @brief Thread control block */
 struct tcb {
     pcb_t *owning_task;
-	void *pd; //TODO change this once owning task is set
-    tcb_t *next_thread; // Embeded linked list of threads from same task
+    tcb_t *next_thread; // Embedded linked list of threads from same task
 
     int tid;
 
