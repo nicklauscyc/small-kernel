@@ -205,6 +205,7 @@ test_physalloc( void )
 	/* exhaust reuse list, check implicit stack ordering of reuse list */
 	while (i < 1024) {
 		uint32_t addr = physalloc();
+		(void) addr;
 		assert(all_phys[i] == addr);
 		assert(addr);
 		if (i == 0) assert(all_phys[i] == USER_MEM_START);

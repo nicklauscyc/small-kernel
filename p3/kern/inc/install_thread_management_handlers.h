@@ -1,6 +1,5 @@
 /** @file install_thread_management_handlers.h
  *  @brief Functions to install thread management syscall handlers
- *
  *  @author Nicklaus Choo (nchoo)
  *
  */

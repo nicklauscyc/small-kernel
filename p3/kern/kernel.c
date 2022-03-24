@@ -9,6 +9,7 @@
  *  @bug No known bugs.
  */
 
+#include <logger.h> /* log(), log_med(), log_hi() */
 #include <install_handler.h> /* handler_install() */
 #include <common_kern.h>
 
@@ -35,6 +36,15 @@
 #include <scheduler.h> /* run_next_tcb() */
 volatile static int __kernel_all_done = 0;
 
+
+/* Level of logging, set to 4 to turn logging off,
+ * 1 to print logs for log priorities lo, med, hi
+ * 2 to print logs for log priorities med, hi
+ * 3 to print logs for log priorities hi
+ *
+ * defining the NDEBUG flag will also turn logging off
+ */
+int log_level = 1;
 
 void tick(unsigned int numTicks) {
 	scheduler_on_tick(numTicks);
@@ -76,6 +86,10 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	printf("loader_test2\n");
 	printf("getpid_test1\n");
 	printf("fork_test1\n");
+
+	log("this is DEBUG");
+	log_info("this is INFO");
+	log_warn("this is WARN");
 
     while (!__kernel_all_done) {
 
