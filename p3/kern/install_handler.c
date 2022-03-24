@@ -23,7 +23,7 @@
 #include <install_life_cycle_handlers.h> /* install_fork_handler() */
 #include <asm_life_cycle_handlers.h> /* call_fork() */
 #include <install_memory_management_handlers.h> /* install_pf_handler() */
-#include <asm_memory_management_handlers.h> /* call_pagefault_handler() */
+//#include <asm_memory_management_handlers.h> /* call_pagefault_handler() */
 
 #include <syscall_int.h> /* GETTID_INT */
 
