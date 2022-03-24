@@ -22,8 +22,12 @@
 #include <asm_thread_management_handlers.h> /* call_gettid() */
 #include <install_life_cycle_handlers.h> /* install_fork_handler() */
 #include <asm_life_cycle_handlers.h> /* call_fork() */
+#include <install_memory_management_handlers.h> /* install_pf_handler() */
+#include <asm_memory_management_handlers.h> /* call_pagefault_handler() */
 
 #include <syscall_int.h> /* GETTID_INT */
+
+#include <x86/idt.h> /* IDT_PF for page fault handler */
 
 /*********************************************************************/
 /*                                                                   */
@@ -149,6 +153,11 @@ handler_install(void (*tick)(unsigned int))
 	if (install_fork_handler(FORK_INT, call_fork) < 0) {
 		return -1;
 	}
+	/* Initialize and install page fault handler() */
+	if (install_pf_handler(IDT_PF, call_pagefault_handler) < 0) {
+		return -1;
+	}
+
 	return 0;
 }
 
