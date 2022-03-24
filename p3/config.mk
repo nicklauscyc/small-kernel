@@ -178,7 +178,9 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_life_cycle/fork.o \
 			  lib_life_cycle/save_child_regs.o \
 			  \
-			  lib_memory_management/physalloc.o
+			  lib_memory_management/physalloc.o \
+			  lib_memory_management/asm_memory_management_handlers.o \
+			  lib_memory_management/pagefault_handler.o
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your

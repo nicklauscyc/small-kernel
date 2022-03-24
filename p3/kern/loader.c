@@ -194,12 +194,11 @@ execute_user_program( const char *fname, int argc, char **argv )
     uint32_t pid, tid;
     if (create_task(&pid, &tid, &se_hdr) < 0)
         return -1;
-	}
 
     /* Enable VM */
     if (activate_task_memory(pid) < 0)
         return -1;
-	}
+
     if (transplant_program_memory(&se_hdr) < 0)
         return -1;
 
