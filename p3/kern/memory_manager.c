@@ -55,8 +55,6 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
-/* True if address if paged align, false otherwise */
-#define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
 
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;

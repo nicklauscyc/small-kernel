@@ -5,6 +5,7 @@
  *
  */
 
+#include <logger.h> /* log() */
 #include <assert.h>
 #include <x86/asm.h> /* idt_base() */
 #include <install_handler.h> /* install_handler_in_idt() */
@@ -15,7 +16,7 @@
 #include <string.h> /* memcpy() */
 #include <page.h> /* PAGE_SIZE */
 #include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
-#include <memory_manager.h> /* new_pd_from_parent */
+#include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
 #include <scheduler.h>
 
@@ -45,6 +46,8 @@ fork( void )
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
     uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
+	assert(PAGE_ALIGNED(child_pd));
+	log("new child_pd at address:%p", child_pd);
 
     uint32_t child_pid, child_tid;
     if (create_pcb(&child_pid, child_pd) < 0) {
@@ -79,6 +82,24 @@ fork( void )
 	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_esp,
 	                                                 child_tcb->kernel_esp);
 	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
+
+	/* Debug stuff */
+	log("print parent stack");
+	for (int i = 0; i < 32; ++i) {
+		log("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
+		*(parent_tcb->kernel_stack_hi - i));
+	}
+
+	log("print child stack");
+	for (int i = 0; i < 32; ++i) {
+		log("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
+		*(child_tcb->kernel_stack_hi - i));
+	}
+	log("result from get_running_tid():%d", get_running_tid());
+	if (get_running_tid() == 1) {
+		MAGIC_BREAK;
+	}
+
 
     /* After setting up child stack and VM, register with scheduler */
     if (register_thread(child_tcb->tid) < 0)
