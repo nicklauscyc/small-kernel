@@ -23,6 +23,28 @@
 // saves regs and returns new esp
 void *save_child_regs(void *parent_kern_esp, void *child_kern_esp);
 
+/** @brief Prints the parent and child stacks on call to fork()
+ *
+ *  @parent_tcb Parent's thread control block
+ *  @child_tcb Child's thread control block
+ *  @return Void.
+ */
+void
+log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
+{
+	log("print parent stack");
+	for (int i = 0; i < 32; ++i) {
+		log("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
+		*(parent_tcb->kernel_stack_hi - i));
+	}
+	log("print child stack");
+	for (int i = 0; i < 32; ++i) {
+		log("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
+		*(child_tcb->kernel_stack_hi - i));
+	}
+	log("result from get_running_tid():%d", get_running_tid());
+}
+
 void
 init_fork( void )
 {
@@ -79,31 +101,12 @@ fork( void )
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	uint32_t *child_kernel_esp_on_ctx_switch;
-	log("parent_tcb->kernel_esp:0x%lx", parent_tcb->kernel_esp);
-	log("child_tcb->kernel_esp:0x%lx", child_tcb->kernel_esp);
-	//child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_esp,
-	                                                 //child_tcb->kernel_esp);
 	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_stack_hi,
 	                                                 child_tcb->kernel_stack_hi);
 	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
 
-	/* Debug stuff */
-	log("print parent stack");
-	for (int i = 0; i < 32; ++i) {
-		log("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
-		*(parent_tcb->kernel_stack_hi - i));
-	}
-
-	log("print child stack");
-	for (int i = 0; i < 32; ++i) {
-		log("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
-		*(child_tcb->kernel_stack_hi - i));
-	}
-	log("result from get_running_tid():%d", get_running_tid());
-	if (get_running_tid() == 1) {
-		MAGIC_BREAK;
-	}
-
+	/* If logging is set to debug, this will print stuff */
+	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
     /* After setting up child stack and VM, register with scheduler */
     if (register_thread(child_tcb->tid) < 0)
