@@ -79,8 +79,12 @@ fork( void )
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	uint32_t *child_kernel_esp_on_ctx_switch;
-	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_esp,
-	                                                 child_tcb->kernel_esp);
+	log("parent_tcb->kernel_esp:0x%lx", parent_tcb->kernel_esp);
+	log("child_tcb->kernel_esp:0x%lx", child_tcb->kernel_esp);
+	//child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_esp,
+	                                                 //child_tcb->kernel_esp);
+	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_stack_hi,
+	                                                 child_tcb->kernel_stack_hi);
 	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
 
 	/* Debug stuff */

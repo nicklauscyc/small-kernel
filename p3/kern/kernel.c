@@ -93,7 +93,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
     while (!__kernel_all_done) {
 
-        char* s = "fork_test1";
+        char* s = "context_switch_test";
         char *user_argv = (char *)s;
         execute_user_program(s, 1, &user_argv);
         break;
