@@ -1,13 +1,17 @@
 /** @file pagefault_handler.c
  *  @brief Functions for page fault handling
- *
+ *  TODO write a macro for syscall handler/install handler wrappers
  *  @author Nicklaus Choo (nchoo)
  */
 #include <assert.h> /* panic() */
 #include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/cr.h> /* get_cr2() */
 
-/** @brief Installs the fork() interrupt handler
+/** @brief Installs the pagefault_handler() interrupt handler
+ *
+ *  @param idt_entry Index in IDT to install to
+ *  @param asm_wrapper Assembly wrapper to call pagefault_handler
+ *  @return 0 on success, -1 on error.
  */
 int
 install_pf_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
@@ -19,6 +23,10 @@ install_pf_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 	return res;
 }
 
+/** @brief Prints out the offending address on and calls panic()
+ *
+ *  @return Void.
+ */
 void
 pagefault_handler( void )
 {
