@@ -184,6 +184,7 @@ CFLAGS_COMMON = -nostdinc \
 	-fno-strict-aliasing -fno-builtin -fno-stack-protector -fno-omit-frame-pointer \
 	-fno-delete-null-pointer-checks -fwrapv \
 	-fno-pic \
+	-fcf-protection=none \
 	--std=gnu99 \
 	-D__STDC_NO_ATOMICS__ \
 	-Wall -Werror

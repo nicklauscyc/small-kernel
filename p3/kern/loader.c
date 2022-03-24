@@ -192,13 +192,14 @@ execute_user_program( const char *fname, int argc, char **argv )
         return -1;
 
     /* FIXME: Hard coded pid and tid for now */
-    if (create_new_task(0, 0, &se_hdr) < 0)
+    if (create_new_task(0, 0, &se_hdr) < 0) {
         return -1;
+	}
 
     /* Enable VM */
-    if (activate_task_memory(0) < 0)
+    if (activate_task_memory(0) < 0) {
         return -1;
-
+	}
     if (transplant_program_memory(&se_hdr) < 0)
         return -1;
 

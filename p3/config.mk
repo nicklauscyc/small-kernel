@@ -169,6 +169,8 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_thread_management/gettid.o \
 			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_memory_management/physalloc.o\
+			  lib_memory_management/asm_memory_management_handlers.o \
+			  lib_memory_management/pagefault_handler.o \
 			  lib_life_cycle/asm_life_cycle_handlers.o \
 			  lib_life_cycle/fork.o \
 			  context_switch.o \
