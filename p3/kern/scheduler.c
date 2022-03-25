@@ -9,6 +9,8 @@
 #include <malloc.h>         /* smalloc(), sfree() */
 #include <stdint.h>         /* uint32_t */
 #include <cr.h>             /* get_esp0() */
+#include <logger.h>         /* log_warn() */
+#include <asm.h>            /* enable/disable_interrupts() */
 
 /* Timer interrupts every ms, we want to swap every 2 ms. */
 #define WAIT_TICKS 2
@@ -26,7 +28,7 @@ static queue_t dead_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
 
-static void run_next_tcb( void );
+static void run_next_tcb( queue_t *store_at, status_t store_status );
 
 
 // FIXME: Maybe crash if !scheduler_init???
@@ -39,6 +41,15 @@ get_running_tid( void )
     if (!running_thread)
         return -1;
     return running_thread->tid;
+}
+
+void
+add_to_runnable_queue( tcb_t *tcb )
+{
+    if (!scheduler_init)
+        log_warn("Trying to add to runnable queue with uninitialized \
+                scheduler. ");
+    Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
 }
 
 /** @brief Initializes scheduler and registers its first thread.
@@ -104,23 +115,33 @@ scheduler_on_tick( unsigned int num_ticks )
     if (!scheduler_init)
         return;
     if (num_ticks % WAIT_TICKS == 0) /* Context switch every 2 ms */
-        run_next_tcb();
+    {
+        disable_interrupts();
+        run_next_tcb(&runnable_q, RUNNABLE);
+    }
 }
 
 /* ------- HELPER FUNCTIONS -------- */
 
 
 /* TODO: Think of synchronization here*/
+/** PRECONDITION: Interrupts disabled when run_next_tcb called.
+ *  @arg store_at Queue in which to store old thread. */
 static void
-run_next_tcb( void )
+run_next_tcb( queue_t *store_at, status_t store_status )
 {
-    if (!scheduler_init)
+    if (!scheduler_init) {
+        enable_interrupts();
         return;
+    }
 
     tcb_t *to_run;
     /* Do nothing if there's no thread waiting to be run */
-    if (!(to_run = Q_GET_FRONT(&runnable_q)))
+    if (!(to_run = Q_GET_FRONT(&runnable_q))) {
+        affirm_msg(store_status == RUNNABLE, "DEADLOCK");
+        enable_interrupts();
         return;
+    }
     Q_REMOVE(&runnable_q, to_run, thr_queue);
 
     assert(to_run->tid != running_thread->tid);
@@ -132,9 +153,9 @@ run_next_tcb( void )
     to_run->status = RUNNING;
     running_thread = to_run;
 
-    /* Put currently running thread to back of runnable queue */
-    running->status = RUNNABLE;
-    Q_INSERT_TAIL(&runnable_q, running, thr_queue);
+    /* Add currently running thread to back of store_at queue */
+    running->status = store_status;
+    Q_INSERT_TAIL(store_at, running, thr_queue);
 
     /* Let thread know where to come back to on USER->KERN mode switch */
     set_esp0((uint32_t)to_run->kernel_stack_hi);
@@ -142,5 +163,6 @@ run_next_tcb( void )
     context_switch((void **)&(running->kernel_esp),
             to_run->kernel_esp, to_run->owning_task->pd);
 
+    enable_interrupts();
 }
 

@@ -117,6 +117,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         lprintf("Executing: %s", s);
 
         char *user_argv = (char *)s;
+
         execute_user_program(s, 1, &user_argv);
     }
 
