@@ -6,7 +6,7 @@
 
 #include <stdint.h> /* uint32_t */
 #include <elf_410.h> /* simple_elf_t */
-#include <task_manager_private.h> /* pcb_t tcb_t */
+#include <task_manager_internal.h> /* pcb_t tcb_t */
 
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;

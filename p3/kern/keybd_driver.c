@@ -62,10 +62,10 @@
 #include <ctype.h> /* isprint() */
 #include "./console_driver.h" /* _putebyte() */
 #include "./keybd_driver.h" /* uba */
-#include <generic_buffer.h> /* generic buffer macros */
+#include <variable_buffer.h> /* generic buffer macros */
 
 /* Keyboard buffer */
-NEW_BUF(keyboard_buffer_t, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
+new_buf(keyboard_buffer_t, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
 static keyboard_buffer_t key_buf;
 static keyboard_buffer_t *key_bufp = &key_buf;
 
@@ -82,7 +82,7 @@ void keybd_int_handler(void) {
 
   /* Read raw byte and put into raw character buffer */
   uint8_t raw_byte = inb(KEYBOARD_PORT);
-  BUF_INSERT(key_bufp, raw_byte);
+  buf_insert(key_bufp, raw_byte);
 
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
@@ -98,8 +98,8 @@ void keybd_int_handler(void) {
 void
 init_keybd( void )
 {
-	INIT_BUF(key_bufp, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
-	IS_BUF(key_bufp);
+	init_buf(key_bufp, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
+	is_buf(key_bufp);
 	return;
 }
 
@@ -145,13 +145,14 @@ readchar( void )
    * changes to the data structure at the start of and at the end of a call.
    */
 	disable_interrupts();
-	if (BUF_EMPTY(key_bufp)) {
+	if (buf_empty(key_bufp)) {
 		enable_interrupts();
 		return -1;
 	}
 	uint8_t next_byte;
 	uint8_t *next_bytep = &next_byte;
-	BUF_REMOVE(key_bufp, next_bytep);
+	buf_remove(key_bufp, next_bytep);
+	is_buf(key_bufp);
 	enable_interrupts();
 
 	/* Get augmented character */

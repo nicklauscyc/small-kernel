@@ -1,9 +1,15 @@
 /** @file variable_queue.h
  *
- *  @brief Generalized queue module for data collection
+ *  @brief Generalized queue module for data collection.
+ *
+ *  This header file is not placed in inc/ since it is private to the kernel's
+ *  own modules.
  *
  *  @author Nicklaus Choo (nchoo)
- **/
+ */
+
+#ifndef _VARIABLE_QUEUE_H_
+#define _VARIABLE_QUEUE_H_
 
 /** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
  *
@@ -300,35 +306,4 @@ struct {\
 	}\
 } while(0)
 
-/* TODO this has yet to be implemented */
-/** @def Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME)
- *
- *  @brief Constructs an iterator block (like a for block) that operates
- *         on each element in Q_HEAD, in order.
- *
- *  Q_FOREACH constructs the head of a block of code that will iterate through
- *  each element in the queue headed by Q_HEAD. Each time through the loop,
- *  the variable named by CURRENT_ELEM will be set to point to a subsequent
- *  element in the queue.
- *
- *  Usage:<br>
- *  Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME)<br>
- *  {<br>
- *  ... operate on the variable CURRENT_ELEM ... <br>
- *  }
- *
- *  If LINK_NAME is not used to organize the queue headed by Q_HEAD, then
- *  the behavior of this macro is undefined.
- *
- *  @param CURRENT_ELEM name of the variable to use for iteration. On each
- *         loop through the Q_FOREACH block, CURRENT_ELEM will point to the
- *         current element in the queue. CURRENT_ELEM should be an already-
- *         defined variable name, and its type should be a pointer to
- *         the type of data organized by Q_HEAD
- *  @param Q_HEAD Pointer to the head of the queue to iterate through
- *  @param LINK_NAME The name of the link used to organize the queue headed
- *         by Q_HEAD.
- **/
-
-#define Q_FOREACH(CURRENT_ELEM,Q_HEAD,LINK_NAME) { ((Q_ELEM)->LINK_NAME = 0;}
-
+#endif /* _VARIABLE_QUEUE_H_ */
