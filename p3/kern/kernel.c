@@ -105,7 +105,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         char s[n];
 
         /* Display prompt */
-        putbytes("pebbles>",8);
+        printf("pebbles>");
         int res = readline(s, n);
 
         if (res == n)

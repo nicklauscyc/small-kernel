@@ -18,9 +18,6 @@
 /* Whether scheduler has been initialized */
 static int scheduler_init = 0;
 
-/* Queue head definition */
-Q_NEW_HEAD(queue_t, tcb);
-
 /* Thread queues.*/
 static queue_t runnable_q;
 static queue_t descheduled_q;
@@ -30,6 +27,22 @@ static tcb_t *running_thread = NULL; // Currently running thread
 
 static void run_next_tcb( queue_t *store_at, status_t store_status );
 
+
+/** @brief Yield execution of current thread, storing it at
+ *         the designated queue.
+ *
+ *  @arg store_at       Queue in which to store thread
+ *  @arg store_status   Status with which to store thread
+ *
+ *  @return Void. */
+void
+yield_execution( queue_t *store_at, status_t store_status )
+{
+    /* Do not want others to be able to directly call run_next_tcb.
+     * TODO: Should any checks go here? */
+
+    run_next_tcb(store_at, store_status);
+}
 
 // FIXME: Maybe crash if !scheduler_init???
 /** @brief Gets tid of currently active thread.
@@ -124,7 +137,6 @@ scheduler_on_tick( unsigned int num_ticks )
 /* ------- HELPER FUNCTIONS -------- */
 
 
-/* TODO: Think of synchronization here*/
 /** PRECONDITION: Interrupts disabled when run_next_tcb called.
  *  @arg store_at Queue in which to store old thread. */
 static void

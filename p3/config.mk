@@ -145,7 +145,7 @@ THREAD_OBJS = malloc.o panic.o
 ###########################################################################
 # Object files for your syscall wrappers
 ###########################################################################
-SYSCALL_OBJS = syscall.o gettid.o fork.o
+SYSCALL_OBJS = syscall.o gettid.o fork.o test.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -173,6 +173,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/hashmap.o \
 			  lib_thread_management/add_one_atomic.o \
+			  lib_thread_management/mutex.o \
 			  \
 			  lib_life_cycle/asm_life_cycle_handlers.o \
 			  lib_life_cycle/fork.o \

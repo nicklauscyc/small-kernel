@@ -5,28 +5,32 @@
  *  @bug No known bugs.
  */
 
-#include <x86/asm.h> /* idt_base() */
-#include <assert.h> /* assert() */
-#include <x86/interrupt_defines.h>
-#include <x86/timer_defines.h> /* TIMER_IDT_ENTRY */
-#include <x86/seg.h> /* SEGSEL_KERNEL_CS */
-#include <x86/keyhelp.h>
-#include <stddef.h> /* NULL */
-#include "./asm_interrupt_handler.h" /* call_timer_int_handler(),
-                                        call_keybd_int_handler() */
-#include <timer_driver.h> /* init_timer() */
-#include <keybd_driver.h> /* init_keybd() */
 #include <install_handler.h>
 
-#include <install_thread_management_handlers.h> /* install_gettid_handler() */
-#include <asm_thread_management_handlers.h> /* call_gettid() */
-#include <install_life_cycle_handlers.h> /* install_fork_handler() */
-#include <asm_life_cycle_handlers.h> /* call_fork() */
-#include <install_memory_management_handlers.h> /* install_pf_handler() */
+#include <asm.h>    /* idt_base() */
+#include <assert.h> /* assert() */
+#include <interrupt_defines.h>
+#include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <seg.h>            /* SEGSEL_KERNEL_CS */
+#include <keyhelp.h>
+#include <stddef.h>         /* NULL */
+#include "./asm_interrupt_handler.h" /* call_timer_int_handler(),
+                                        call_keybd_int_handler() */
+#include <timer_driver.h>           /* init_timer() */
+#include <keybd_driver.h>           /* init_keybd() */
 
-#include <syscall_int.h> /* GETTID_INT */
+#include <install_thread_management_handlers.h> /* install_gettid_handler() */
+#include <asm_thread_management_handlers.h>     /* call_gettid() */
+#include <install_life_cycle_handlers.h>        /* install_fork_handler() */
+#include <asm_life_cycle_handlers.h>            /* call_fork() */
+#include <install_memory_management_handlers.h> /* install_pf_handler() */
+#include <tests.h>                              /* install_test_handler() */
+
+#include <syscall_int.h> /* *_INT */
 
 #include <x86/idt.h> /* IDT_PF for page fault handler */
+
+#define TEST_INT SYSCALL_RESERVED_0
 
 /*********************************************************************/
 /*                                                                   */
@@ -135,24 +139,24 @@ install_keyboard_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 int
 handler_install(void (*tick)(unsigned int))
 {
-	/* Initialize and install timer handler */
+    /* Install test syscall for tests spanning user and kernel mode. */
+    if (install_test_handler(TEST_INT, call_test_int_handler) < 0) {
+        return -1;
+    }
+
 	if (install_timer_handler(TIMER_IDT_ENTRY, call_timer_int_handler,
 	                          tick) < 0) {
 		return -1;
 	}
-	/* Initialize and install keyboard handler */
 	if (install_keyboard_handler(KEY_IDT_ENTRY, call_keybd_int_handler) < 0) {
 		return -1;
 	}
-	/* Initialize and install gettid() */
 	if (install_gettid_handler(GETTID_INT, call_gettid) < 0) {
 		return -1;
 	}
-	/* Initialize and install gettid() */
 	if (install_fork_handler(FORK_INT, call_fork) < 0) {
 		return -1;
 	}
-	/* Initialize and install page fault handler() */
 	if (install_pf_handler(IDT_PF, call_pagefault_handler) < 0) {
 		return -1;
 	}

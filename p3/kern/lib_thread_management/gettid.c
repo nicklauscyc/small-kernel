@@ -10,6 +10,10 @@
 #include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
+/* For quick and dirty testing */
+#include <lib_thread_management/mutex.h>
+#include <simics.h>
+
 void
 init_gettid( void )
 {
