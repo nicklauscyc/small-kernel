@@ -5,8 +5,6 @@
  *  @author Nicklaus Choo (nchoo)
  **/
 
-
-
 /** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
  *
  *  @brief Generates a new structure of type Q_HEAD_TYPE representing the head
