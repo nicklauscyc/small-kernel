@@ -165,8 +165,8 @@ readchar( void )
 
 	/* Get simplified character */
 	aug_char next_char;
-	while (get_next_aug_char(&next_char) == 0 && KH_HASDATA(next_char)) {
-		if (KH_ISMAKE(next_char)) {
+	while (get_next_aug_char(&next_char) == 0) {
+		if (KH_HASDATA(next_char) && KH_ISMAKE(next_char)) {
 			unsigned char next_char_value = KH_GETCHAR(next_char);
 			return (int) (unsigned int) next_char_value;
 		}
