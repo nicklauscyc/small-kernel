@@ -9,7 +9,8 @@
 #include "mutex.h"
 #include <assert.h>     /* affirm_msg() */
 #include <scheduler.h>  /* queue_t, add_to_runnable_queue, run_next_tcb */
-#include <asm.h>            /* enable/disable_interrupts() */
+#include <asm.h>        /* enable/disable_interrupts() */
+#include <logger.h>     /* log */
 
 /* TODO: Create function to give up execution rights as opposed to run_next_tcb*/
 
@@ -67,8 +68,7 @@ mutex_lock( mutex_t *mp )
         enable_interrupts(); /* } */
         return;
     }
-#include <simics.h>
-    lprintf("[tid %d] Waiting on lock.", get_running_tid());
+    log("[tid %d] Waiting on lock.", get_running_tid());
 
     yield_execution(&mp->waiters_queue, BLOCKED);
 }

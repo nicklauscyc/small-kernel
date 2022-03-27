@@ -111,7 +111,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory.
 #
-STUDENTTESTS = context_switch_test
+STUDENTTESTS = test_suite
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk
@@ -167,7 +167,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  memory_manager.o task_manager.o iret_travel.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
 			  asm_interrupt_handler.o context_switch.o \
-			  scheduler.o logger.o \
+			  scheduler.o logger.o tests.o \
 			  \
 			  lib_thread_management/gettid.o \
 			  lib_thread_management/asm_thread_management_handlers.o \

@@ -15,6 +15,7 @@
 #include <string.h>     /* memset */
 #include <assert.h>     /* affirm, assert */
 #include <simics.h>     /* sim_reg_process */
+#include <logger.h>     /* log */
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 #include <lib_thread_management/hashmap.h> /* map_* functions */
@@ -231,7 +232,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
     tcb->next_thread = tcb->owning_task->first_thread;
     tcb->owning_task->first_thread = tcb;
 
-    lprintf("Inserting thread with tid %lu", tcb->tid);
+    log("Inserting thread with tid %lu", tcb->tid);
 	map_insert(tcb->tid, (void *)tcb);
 
 	/* memset the whole thing, TODO delete this in future, only good for
@@ -239,7 +240,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	 */
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-	lprintf("tid[%lu]: tcb->stack_lo:%p",tcb->tid,
+	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid,
 	        tcb->kernel_stack_lo);
 
     tcb->kernel_esp = tcb->kernel_stack_lo;

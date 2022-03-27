@@ -22,6 +22,7 @@
 #include <x86/cr.h>     /* {get,set}_{cr0,cr3} */
 #include <string.h>     /* memset, memcpy */
 #include <common_kern.h>/* USER_MEM_START */
+#include <logger.h>     /* log */
 
 #include <simics.h>     /* lprintf */
 
@@ -171,7 +172,7 @@ new_pd_from_parent( void *v_parent_pd )
             }
 			memset(child_pt, 0, PAGE_SIZE);
 			assert(PAGE_ALIGNED(child_pt));
-			lprintf("child_pt:%p", child_pt);
+			log("child_pt:%p", child_pt);
 
 			// update child_pd[i]
 			child_pd[i] = (uint32_t) child_pt;
@@ -211,7 +212,7 @@ new_pd_from_parent( void *v_parent_pd )
                     /* Set child_pt flags, then memcpy */
                     child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
 
-					lprintf("vm_address:%lx, i:0x%x, j:0x%x, "
+					log("vm_address:%lx, i:0x%x, j:0x%x, "
 					"parent_pd[i]:0x%lx, child_pd[i]:0x%lx, "
 					"parent_pt[j]:0x%lx, child_pt[j]:0x%lx",
 					vm_address, i, j,
@@ -223,11 +224,8 @@ new_pd_from_parent( void *v_parent_pd )
 					// this memcpy will not work since it's using physical
 					// memory
                     memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
-					//lprintf("memcpy from parent done");
                     vm_set_pd(child_pd);
-					//lprintf("after vm_set_pd");
                     memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
-					//lprintf("memcpy to child done");
                     vm_set_pd(parent_pd);
 
                 } else {

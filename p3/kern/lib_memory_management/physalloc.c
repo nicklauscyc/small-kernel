@@ -22,6 +22,7 @@
 #include <malloc.h>         /* malloc() */
 #include <common_kern.h>    /* USER_MEM_START */
 #include <page.h>           /* PAGE_SIZE */
+#include <logger.h>         /* log */
 
 #define PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)\
 	((phys_address & (PAGE_SIZE - 1)) == 0)
@@ -152,7 +153,7 @@ physfree(uint32_t phys_address)
 void
 test_physalloc( void )
 {
-	lprintf("Testing physalloc(), physfree()");
+	log("Testing physalloc(), physfree()");
 	uint32_t a, b, c;
 	/* Quick test for alignment, we allocate in consecutive order */
 	a = physalloc();
@@ -182,14 +183,14 @@ test_physalloc( void )
 	int total = TOTAL_USER_FRAMES;
 	int i = 0;
 	uint32_t all_phys[1024];
-	lprintf("after all_phys");
+	log("after all_phys");
 	while (i < 1024) {
 		all_phys[i] = physalloc();
 		assert(all_phys[i]);
 		i++;
 		total--;
 	}
-	lprintf("total frames supported:%08x",
+	log("total frames supported:%08x",
 		    (unsigned int) TOTAL_USER_FRAMES);
 	assert(total == TOTAL_USER_FRAMES - 1024);
 	/* all phys frames, populate reuse list */
@@ -227,16 +228,16 @@ test_physalloc( void )
 		total--;
 		x = physalloc();
 	}
-	lprintf("last frame start address:%lx", x);
+	log("last frame start address:%lx", x);
 	assert(!physalloc());
 
 	/* put them all back */
-	lprintf("put all into linked list");
+	log("put all into linked list");
 	while (total < TOTAL_USER_FRAMES) {
 		total++;
 		physfree(x);
 		x -= PAGE_SIZE;
 	}
-	lprintf("Tests passed!");
+	log("Tests passed!");
 }
 
