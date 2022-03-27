@@ -67,7 +67,6 @@
 /* Keyboard buffer */
 new_buf(keyboard_buffer_t, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
 static keyboard_buffer_t key_buf;
-static keyboard_buffer_t *key_bufp = &key_buf;
 
 int readchar(void);
 
@@ -82,7 +81,7 @@ void keybd_int_handler(void) {
 
   /* Read raw byte and put into raw character buffer */
   uint8_t raw_byte = inb(KEYBOARD_PORT);
-  buf_insert(key_bufp, raw_byte);
+  buf_insert(&key_buf, raw_byte);
 
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
@@ -98,8 +97,8 @@ void keybd_int_handler(void) {
 void
 init_keybd( void )
 {
-	init_buf(key_bufp, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
-	is_buf(key_bufp);
+	init_buf(&key_buf, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
+	is_buf(&key_buf);
 	return;
 }
 
@@ -145,14 +144,14 @@ readchar( void )
    * changes to the data structure at the start of and at the end of a call.
    */
 	disable_interrupts();
-	if (buf_empty(key_bufp)) {
+	if (buf_empty(&key_buf)) {
 		enable_interrupts();
 		return -1;
 	}
 	uint8_t next_byte;
-	uint8_t *next_bytep = &next_byte;
-	buf_remove(key_bufp, next_bytep);
-	is_buf(key_bufp);
+	//uint8_t *next_bytep = &next_byte;
+	buf_remove(&key_buf, &next_byte);
+	is_buf(&key_buf);
 	enable_interrupts();
 
 	/* Get augmented character */

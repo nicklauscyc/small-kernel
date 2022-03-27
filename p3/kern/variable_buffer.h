@@ -10,16 +10,15 @@
  *  type with new_buf() and then initialize that particular buffer via a pointer
  *  to it supplied to init_buf().
  *
- *  If init_buf() does not throw an affirm_msg() error then we know
- *  that the instance of our variable buffer type is legitimate and a pointer
- *  to it is non-NULL since init_buf() only works if the supplied buffer pointer
- *  is non-NULL.
+ *  For variable buffer functions that take in pointers as arguments, due to
+ *  macros being expanded inline, to avoid compiler complaints of
+ *  &variable_name always evaluating to 'true', the affirm() statements will
+ *  affirm(ptr_name != NULL)
  *
- *  It is _illegal_ to call variable buffer functions on an uninitialized
- *  buffer and will lead to undefined behavior. In particular the buf_empty()
- *  macro does not check if the supplied pointer is NULL or not, since a
- *  precondition for buf_empty() is that the supplied variable buffer pointer
- *  was first passed to init_buf().
+ *  a pointer to variable_name, or else the compiler will complain that the
+ *  NULL-pointer check is unecessary. On the contrary these checks are indeed
+ *  necessary because variable functions to do not know if pointers passed to
+ *  them are valid or not.
  *
  *  @author Nicklaus Choo (nchoo)
  */
@@ -29,6 +28,7 @@
 
 #include <string.h> /* memset() */
 #include <stdint.h> /* uint32_t */
+#include <stddef.h> /* NULL */
 
 /** @def new_buf
  *  @brief Generates a new structure of type BUF_TYPE, with an array of
@@ -63,7 +63,7 @@ typedef struct {\
 #define init_buf(BUF_NAME, BUF_ELEM_TYPE, BUF_LIMIT) do\
 {\
 	/* Pointer argument checks */\
-	affirm_msg(BUF_NAME, "Variable buffer pointer cannot be NULL!");\
+	affirm_msg((BUF_NAME) != NULL, "Variable buffer pointer cannot be NULL!");\
 \
 	/* Set all fields to correct values */\
 	((BUF_NAME)->limit) = BUF_LIMIT;\
@@ -87,13 +87,13 @@ typedef struct {\
 #define buf_insert(BUF_NAME, BUF_ELEM) do\
 {\
 	/* Pointer argument checks */\
-	affirm_msg(BUF_NAME, "Variable buffer pointer cannot be NULL!");\
+	affirm_msg((BUF_NAME) != NULL, "Variable buffer pointer cannot be NULL!");\
 \
 	/* Only insert into buffer if there is space to insert it */\
 	if (((BUF_NAME)->size) < ((BUF_NAME)->limit)) {\
 \
 		/* Insert at index one after last element in array */\
-		((BUF_NAME)->buffer[(BUF_NAME)->last]) = BUF_ELEM;\
+		((BUF_NAME)->buffer[(BUF_NAME)->last]) = (BUF_ELEM);\
 \
 		/* Update last index and increment size */\
 		((BUF_NAME)->last) = (((BUF_NAME)->last) + 1) % ((BUF_NAME)->limit);\
@@ -106,16 +106,25 @@ typedef struct {\
  *
  *  Usage: buf_empty(BUF_NAME);
  *
- *  Requires that BUF_NAME is a pointer to a variable buffer that has been
- *  passed to init_buf() for initialization, thus guaranteeing that
- *  BUF_NAME is non-NULL and points to an actual variable buffer instance.
+ *  Since we are trying to do the equivalent of an affirm() statement to check
+ *  for invalid NULL pointer arguments in a C macro that "returns" a value,
+ *  we use the comma operator, which allows us to have multiple expressions
+ *  that evaluate to the last expression.
  *
- *  If all else fails a page fault will immediately be invoked if an invalid
- *  variable buffer pointer is dereferenced.
+ *  In our case, the comma separated expressions have type (void, bool) and
+ *  since both expression sequences need matching types, we add dummy
+ *  expressions '(void) (BUF_NAME)', and simply '0' to our ternary operator
+ *  'return' expressions.
  *
  *  @param BUF_NAME Pointer to the variable buffer
  */
-#define buf_empty(BUF_NAME) ((BUF_NAME)->size == 0)
+#define buf_empty(BUF_NAME)\
+(\
+	/* BUF_NAME non-NULL check */\
+	((BUF_NAME) != NULL) ?\
+		((void) (BUF_NAME), (BUF_NAME)->size == 0) :\
+		(panic("Variable buffer pointer cannot be NULL"), 0)\
+)
 
 /** @def buf_remove(BUF_NAME, ELEM_PTR)
  *  @brief Removes the first element (element added earliest compared to all
@@ -129,8 +138,8 @@ typedef struct {\
 #define buf_remove(BUF_NAME, ELEM_PTR) do\
 {\
 	/* Pointer argument checks */\
-	affirm_msg(BUF_NAME, "Variable buffer pointer cannot be NULL");\
-	affirm_msg(ELEM_PTR, "Element pointer cannot be NULL");\
+	affirm_msg((BUF_NAME) != NULL, "Variable buffer pointer cannot be NULL");\
+	affirm_msg((ELEM_PTR) != NULL, "Element pointer cannot be NULL");\
 \
 	/* Only remove if size is non-zero */\
 	if (((BUF_NAME)->size > 0)) {\
@@ -151,7 +160,7 @@ typedef struct {\
 #define is_buf(BUF_NAME) do\
 {\
 	/* non NULL */\
-	assert(BUF_NAME);\
+	affirm_msg((BUF_NAME) != NULL, "Variable buffer pointer cannot be NULL!");\
 \
 	/* size check */\
 	assert(0 <= ((BUF_NAME)->size) && ((BUF_NAME)->size) <\
