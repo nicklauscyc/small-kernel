@@ -125,6 +125,24 @@ char get_next_char(void) {
 /*                                                                   */
 /*********************************************************************/
 
+static int
+get_next_aug_char( aug_char *next_char )
+{
+	disable_interrupts();
+	if (buf_empty(&key_buf)) {
+		enable_interrupts();
+		return -1;
+	}
+	uint8_t next_byte;
+	//uint8_t *next_bytep = &next_byte;
+	buf_remove(&key_buf, &next_byte);
+	is_buf(&key_buf);
+	enable_interrupts();
+
+	*next_char = process_scancode(next_byte);
+	return 0;
+}
+
 /** @brief Returns the next character in the keyboard buffer
  *
  *  This function does not block if there are no characters in the keyboard
@@ -143,22 +161,11 @@ readchar( void )
    * interrupts are disabled during the entire call in order to prevent
    * changes to the data structure at the start of and at the end of a call.
    */
-	disable_interrupts();
-	if (buf_empty(&key_buf)) {
-		enable_interrupts();
-		return -1;
-	}
-	uint8_t next_byte;
-	//uint8_t *next_bytep = &next_byte;
-	buf_remove(&key_buf, &next_byte);
-	is_buf(&key_buf);
-	enable_interrupts();
 
-	/* Get augmented character */
-	aug_char next_char = process_scancode(next_byte);
 
 	/* Get simplified character */
-	if (KH_HASDATA(next_char)) {
+	aug_char next_char;
+	while (get_next_aug_char(&next_char) == 0 && KH_HASDATA(next_char)) {
 		if (KH_ISMAKE(next_char)) {
 			unsigned char next_char_value = KH_GETCHAR(next_char);
 			return (int) (unsigned int) next_char_value;
