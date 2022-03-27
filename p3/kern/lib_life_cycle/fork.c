@@ -15,7 +15,7 @@
 #include <malloc.h> /* smemalign() */
 #include <string.h> /* memcpy() */
 #include <page.h> /* PAGE_SIZE */
-#include <task_manager.h> /* TODO this must be deleted after demo, breaks interface */
+#include <task_manager.h> /* FIXME: remove me */
 #include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
 #include <scheduler.h>
@@ -60,7 +60,9 @@ init_fork( void )
 int
 fork( void )
 {
-	/* TODO This thing needs to defer execution of copy till later? */
+	/* Acknowledge interrupt immediately */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
 	uint32_t cr3 = get_cr3();
 	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
 
@@ -96,13 +98,10 @@ fork( void )
 	tcb_t *parent_tcb;
 	assert((parent_tcb = find_tcb(get_running_tid())) != NULL);
 
-	/* Acknowledge interrupt and return */
-	/* TODO: Acknowledge interrupt quickly! Before any allocation is made */
-    outb(INT_CTL_PORT, INT_ACK_CURRENT);
-
 	uint32_t *child_kernel_esp_on_ctx_switch;
-	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_stack_hi,
-	                                                 child_tcb->kernel_stack_hi);
+	child_kernel_esp_on_ctx_switch =
+        save_child_regs(parent_tcb->kernel_stack_hi,
+                        child_tcb->kernel_stack_hi);
 	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
 
 	/* If logging is set to debug, this will print stuff */

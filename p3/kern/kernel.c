@@ -15,7 +15,6 @@
 
 /* libc includes. */
 #include <stdio.h>
-#include <simics.h>                 /* lprintf() */
 
 /* multiboot header file */
 #include <multiboot.h>              /* boot_info */
@@ -30,10 +29,12 @@
 #include <loader.h>     /* execute_user_program() */
 #include <console.h>    /* clear_console(), putbytes() */
 #include <keybd_driver.h> /* readline() */
-#include <malloc.h> /*malloc() */
+#include <malloc.h>     /*malloc() */
+#include <physalloc.h>  /* test_physalloc() */
+#include <scheduler.h>  /* run_next_tcb() */
+#include <logger.h>     /* log_info */
 
-#include <physalloc.h> /* test_physalloc() */
-#include <scheduler.h> /* run_next_tcb() */
+
 volatile static int __kernel_all_done = 0;
 
 
@@ -79,7 +80,6 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
 	//test_physalloc();
 
-    lprintf( "Hello from a brand new kernel!" );
     //TODO: Print programs using elf->e_name
 	printf("executable user programs:\n");
 	printf("loader_test1\n");
@@ -114,7 +114,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         /* Swap \n returned by readline for null-terminator */
         s[res - 1] = '\0';
 
-        lprintf("Executing: %s", s);
+        log_info("Executing: %s", s);
 
         char *user_argv = (char *)s;
 

@@ -26,8 +26,8 @@
 #include <stdint.h>     /* UINT32_MAX */
 #include <task_manager.h>   /* task_new, task_prepare, task_set */
 #include <memory_manager.h> /* {disable,enable}_write_protection */
+#include <logger.h>     /* log_warn() */
 
-#include <simics.h> /* lprintf */
 #include <assert.h> /* assert() */
 
 /* --- Local function prototypes --- */
@@ -51,8 +51,11 @@
 int
 getbytes( const char *filename, int offset, int size, char *buf )
 {
+    if (size == 0)
+        return 0; /* Nothing to copy*/
+
     if (!filename || !buf || offset < 0 || size < 0) {
-        lprintf("Loader [getbytes]: Invalid arguments");
+        log_warn("Loader [getbytes]: Invalid arguments.");
         return -1;
     }
 
@@ -65,7 +68,7 @@ getbytes( const char *filename, int offset, int size, char *buf )
     }
 
     if (i == exec2obj_userapp_count) {
-        lprintf("Loader [getbytes]: Executable not found");
+        log_warn("Loader [getbytes]: Executable not found");
         return -1;
     }
 
