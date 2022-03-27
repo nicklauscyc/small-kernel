@@ -89,9 +89,9 @@ call_ ## HANDLER_NAME ## :;\
 	movl %ax, %fs;\
 	movl %ax, %gs;\
     \
-    pushl %esi;         /* push argument onto stack */\
+	pushl %esi;         /* push argument onto stack */\
 	call HANDLER_NAME;  /* calls syscall handler */\
-    addl $4, %esp;      /* ignore argument */\
+	addl $4, %esp;      /* ignore argument */\
     \
 	/* Restore all callee save registers */\
 	popl %gs;\

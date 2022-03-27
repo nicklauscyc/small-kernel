@@ -23,6 +23,7 @@
 #include <common_kern.h>    /* USER_MEM_START */
 #include <page.h>           /* PAGE_SIZE */
 #include <logger.h>         /* log */
+#include <lib_thread_management/mutex.h> /* mutex_t */
 
 #define PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)\
 	((phys_address & (PAGE_SIZE - 1)) == 0)
@@ -48,6 +49,8 @@ typedef struct {
 } stack_t;
 
 static stack_t reuse_stack;
+
+static mutex_t mux;
 
 /** @brief Returns number of free physical frames with physical address at
  *         least USER_MEM_START
@@ -80,6 +83,7 @@ init_physalloc( void )
     affirm(reuse_stack.data);
 
 	max_free_address = USER_MEM_START;
+	mutex_init(&mux);
 	physalloc_init = 1;
 }
 
@@ -96,16 +100,20 @@ physalloc( void )
 	if (!physalloc_init)
 		init_physalloc();
 
-    if (reuse_stack.top > 0)
-        return reuse_stack.data[--reuse_stack.top];
+	mutex_lock(&mux);
 
-    if (UNCLAIMED_PAGES == 0)
-        return 0; /* No more pages to allocate */
+	if (reuse_stack.top > 0)
+		return reuse_stack.data[--reuse_stack.top];
 
-    uint32_t frame = max_free_address;
-    max_free_address += PAGE_SIZE;
+	if (UNCLAIMED_PAGES == 0)
+		return 0; /* No more pages to allocate */
 
-    return frame;
+	uint32_t frame = max_free_address;
+	max_free_address += PAGE_SIZE;
+
+	mutex_unlock(&mux);
+
+	return frame;
 }
 
 /** @brief Frees a physical frame address
@@ -122,6 +130,7 @@ physalloc( void )
 void
 physfree(uint32_t phys_address)
 {
+	mutex_lock(&mux);
 	affirm(PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address));
 	affirm(USER_MEM_START <= phys_address && phys_address <= max_free_address);
 
@@ -144,6 +153,7 @@ physfree(uint32_t phys_address)
     }
 
     reuse_stack.data[reuse_stack.top++] = phys_address;
+	mutex_unlock(&mux);
 }
 
 /** @brief Tests physalloc and physfree
