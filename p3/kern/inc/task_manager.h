@@ -4,11 +4,11 @@
 #ifndef TASK_MANAGER_H_
 #define TASK_MANAGER_H_
 
-#include <stdint.h>         /* uint32_t */
-#include <elf_410.h>        /* simple_elf_t */
-#include <variable_queue.h> /* Q_NEW_LINK */
+#include <stdint.h>                /* uint32_t */
+#include <elf_410.h>               /* simple_elf_t */
+#include <variable_queue.h>        /* Q_NEW_LINK */
+#include <task_manager_internal.h> /* pcb_t tcb_t */
 
-/* FIXME: Which of these do we really need? */
 enum status { RUNNING, RUNNABLE, DESCHEDULED, BLOCKED, DEAD, UNINITIALIZED };
 typedef enum status status_t;
 
