@@ -59,9 +59,8 @@ get_running_tid( void )
 void
 add_to_runnable_queue( tcb_t *tcb )
 {
-    if (!scheduler_init)
-        log_warn("Trying to add to runnable queue with uninitialized \
-                scheduler. ");
+    affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
+	           "runnable queue!");
     Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
 }
 
