@@ -29,106 +29,76 @@ hash( uint32_t x )
 }
 
 /** @brief Insert status into hashmap.
+ *
  *  @param map Hashmap in which to insert status
  *  @param tcb Pointer to tcb to insert
- *
  *  @return Void.
  *  */
 void
-map_insert( uint32_t key, void *val )
+map_insert( tcb_t *tcb )
 {
-    uint32_t index = hash(key) % NUM_BUCKETS;
-    map_node_t *curr = map.buckets[index];
-    if (!curr) {
-        curr = smalloc(sizeof(map_node_t));
-        // FIXME: Cannot crash here, return -1 instead
-        affirm(curr);
-        curr->val = val;
-        curr->key = key;
-        curr->next = NULL;
-        map.buckets[index] = curr;
-        return;
-    }
+    uint32_t index = hash(tcb->tid) % NUM_BUCKETS;
+    hashmap_queue_t *headp = &map.buckets[index];
 
-    while (curr->next != NULL)
-        curr = curr->next;
-
-    curr->next = smalloc(sizeof(map_node_t));
-    affirm(curr->next);
-    curr->next->val = val;
-    curr->next->key = key;
-    curr->next->next = NULL;
+	Q_INSERT_TAIL(headp, tcb, tid2tcb_queue);
 }
 
 /** @brief Get status in hashmap.
+ *
  *  @param map Map from which to get status
  *  @param tid Id of thread status to look for
- *
  *  @return Status, NULL if not found. */
-void *
-map_get(uint32_t key)
+tcb_t *
+map_get(uint32_t tid)
 {
-    uint32_t index = hash(key) % NUM_BUCKETS;
-    map_node_t *curr = map.buckets[index];
+    uint32_t index = hash(tid) % NUM_BUCKETS;
+    hashmap_queue_t *headp = &map.buckets[index];
 
-    while (curr && curr->key != key)
-        curr = curr->next;
+	tcb_t *curr = Q_GET_FRONT(headp);
+    while (curr && curr->tid != tid)
+        curr = Q_GET_NEXT(curr, tid2tcb_queue);
 
-    if (curr)
-        return curr->val;
-
-    return NULL;
+    return curr;
 }
 
 /** @brief Remove status from hashmap.
  *
  *  @param map Map from which to remove value of key
- *  @param key Key of value to remove
- *
+ *  @param tid Id of thread to remove
  *  @return Pointer to removed value on exit,
  *          NULL on failure.
  * */
-void *
-map_remove(uint32_t key)
+tcb_t *
+map_remove(uint32_t tid)
 {
-    uint32_t index = hash(key) % NUM_BUCKETS;
-    map_node_t *curr = map.buckets[index];
-    if (!curr)
-        return NULL;
+    uint32_t index = hash(tid) % NUM_BUCKETS;
+    hashmap_queue_t *headp = &map.buckets[index];
 
-    if (curr->key == key) {
-        map_node_t *to_remove = map.buckets[index];
-        map.buckets[index] = to_remove->next;
-        void *val = to_remove->val;
-        sfree(to_remove, sizeof(map_node_t));
-        return val;
-    }
+	tcb_t *curr = Q_GET_FRONT(headp);
 
-    while (1) {
-        if (!curr->next)
-            return NULL;
-        if (curr->next->key == key) {
-            map_node_t *to_remove = curr->next;
-            curr->next = curr->next->next;
-            void *val = to_remove->val;
-            free(to_remove);
-            return val;
-        }
-        curr = curr->next;
-    }
-    return NULL;
+	while (curr) {
+		if (curr->tid == tid) {
+			Q_REMOVE(headp, curr, tid2tcb_queue);
+			return curr;
+		}
+		curr = Q_GET_NEXT(curr, tid2tcb_queue);
+	}
+
+	return NULL;
 }
 
 /** @brief Initialize new hashmap
+ *
  *  @param map Memory location in which to initialize
  *  @param num_buckets Number of buckets for this map
- *
  *  @return 0 on success, -1 on failure
  *  */
 void
 map_init( void )
 {
-    memset(map.buckets, 0, sizeof(map_node_t *) * NUM_BUCKETS);
+    memset(map.buckets, 0, sizeof(hashmap_queue_t) * NUM_BUCKETS);
+	for (int i=0; i < NUM_BUCKETS; ++i)
+		Q_INIT_HEAD(&map.buckets[i]);
     return;
 }
 

@@ -233,7 +233,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
     tcb->owning_task->first_thread = tcb;
 
     log("Inserting thread with tid %lu", tcb->tid);
-	map_insert(tcb->tid, (void *)tcb);
+	map_insert(tcb);
 
 	/* memset the whole thing, TODO delete this in future, only good for
 	 * debugging when printing the whole stack

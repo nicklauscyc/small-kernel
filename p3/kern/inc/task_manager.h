@@ -28,7 +28,9 @@ struct pcb {
 
 /** @brief Thread control block */
 struct tcb {
-	Q_NEW_LINK(tcb) thr_queue;
+	Q_NEW_LINK(tcb) scheduler_queue;
+	Q_NEW_LINK(tcb) tid2tcb_queue;
+
     status_t status;
 
     pcb_t *owning_task;

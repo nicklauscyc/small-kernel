@@ -62,7 +62,7 @@ add_to_runnable_queue( tcb_t *tcb )
     if (!scheduler_init)
         log_warn("Trying to add to runnable queue with uninitialized \
                 scheduler. ");
-    Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
+    Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
 }
 
 /** @brief Initializes scheduler and registers its first thread.
@@ -116,7 +116,7 @@ register_thread(uint32_t tid)
         running_thread = tcb;
     } else {
         tcb->status = RUNNABLE;
-        Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
+        Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
     }
 
     return 0;
@@ -154,7 +154,7 @@ run_next_tcb( queue_t *store_at, status_t store_status )
         enable_interrupts();
         return;
     }
-    Q_REMOVE(&runnable_q, to_run, thr_queue);
+    Q_REMOVE(&runnable_q, to_run, scheduler_queue);
 
     assert(to_run->tid != running_thread->tid);
 
@@ -167,7 +167,7 @@ run_next_tcb( queue_t *store_at, status_t store_status )
 
     /* Add currently running thread to back of store_at queue */
     running->status = store_status;
-    Q_INSERT_TAIL(store_at, running, thr_queue);
+    Q_INSERT_TAIL(store_at, running, scheduler_queue);
 
     /* Let thread know where to come back to on USER->KERN mode switch */
     set_esp0((uint32_t)to_run->kernel_stack_hi);

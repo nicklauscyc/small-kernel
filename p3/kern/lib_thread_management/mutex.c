@@ -91,7 +91,7 @@ mutex_unlock( mutex_t *mp )
     disable_interrupts();
     tcb_t *to_run;
     if ((to_run = Q_GET_FRONT(&mp->waiters_queue))) {
-        Q_REMOVE(&mp->waiters_queue, to_run, thr_queue);
+        Q_REMOVE(&mp->waiters_queue, to_run, scheduler_queue);
         mp->owner_tid = to_run->tid;
         add_to_runnable_queue(to_run);
     } else {
