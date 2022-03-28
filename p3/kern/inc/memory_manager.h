@@ -15,4 +15,7 @@ void enable_write_protection( void );
 void disable_write_protection( void );
 int vm_new_pages ( void *ptd, void *base, int len );
 
+/* True if address if paged align, false otherwise */
+#define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
+
 #endif /* _MEMORY_MANAGER_H */

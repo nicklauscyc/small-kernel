@@ -36,10 +36,6 @@
 #include <scheduler.h> /* run_next_tcb() */
 volatile static int __kernel_all_done = 0;
 
-/* Think about where this declaration
- * should be... probably not here!
- */
-extern int scheduler_init;
 
 /* Level of logging, set to 4 to turn logging off,
  * 1 to print logs for log priorities lo, med, hi
@@ -48,15 +44,11 @@ extern int scheduler_init;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 1;
+int log_level = 2;
 
 void tick(unsigned int numTicks) {
-	if (scheduler_init) {
-		run_next_tcb();
-	}
+	scheduler_on_tick(numTicks);
 }
-
-
 
 /** @brief Kernel entrypoint.
  *
@@ -85,15 +77,15 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
      * when you are ready.
      */
 
-	//test_physalloc();
+	test_physalloc();
 
     lprintf( "Hello from a brand new kernel!" );
     //TODO: Print programs using elf->e_name
-	putbytes("executable user programs:\n", 26);
-	putbytes("loader_test1\n", 13);
-	putbytes("loader_test2\n", 13);
-	putbytes("getpid_test1\n", 13);
-	putbytes("fork_test1\n", 13);
+	printf("executable user programs:\n");
+	printf("loader_test1\n");
+	printf("loader_test2\n");
+	printf("getpid_test1\n");
+	printf("fork_test1\n");
 
 	log("this is DEBUG");
 	log_info("this is INFO");
@@ -101,7 +93,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
     while (!__kernel_all_done) {
 
-        //char* s = "fork_test1";
+        //char* s = "context_switch_test";
         //char *user_argv = (char *)s;
         //execute_user_program(s, 1, &user_argv);
         //break;
@@ -113,7 +105,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         char s[n];
 
         /* Display prompt */
-        putbytes("pebbles>",8);
+        printf("pebbles>");
         int res = readline(s, n);
 
         if (res == n)
@@ -125,6 +117,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         lprintf("Executing: %s", s);
 
         char *user_argv = (char *)s;
+
         execute_user_program(s, 1, &user_argv);
     }
 

@@ -111,7 +111,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory.
 #
-STUDENTTESTS =
+STUDENTTESTS = test_suite
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk
@@ -145,7 +145,7 @@ THREAD_OBJS = malloc.o panic.o
 ###########################################################################
 # Object files for your syscall wrappers
 ###########################################################################
-SYSCALL_OBJS = syscall.o gettid.o fork.o
+SYSCALL_OBJS = syscall.o gettid.o fork.o test.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -162,22 +162,26 @@ AUTOSTACK_OBJS = autostack.o
 #
 # Kernel object files you provide in from kern/
 #
+
 KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  memory_manager.o task_manager.o iret_travel.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
-			  asm_interrupt_handler.o \
+			  asm_interrupt_handler.o context_switch.o \
+			  scheduler.o logger.o tests.o \
+			  \
 			  lib_thread_management/gettid.o \
 			  lib_thread_management/asm_thread_management_handlers.o \
-			  lib_memory_management/physalloc.o\
-			  lib_memory_management/asm_memory_management_handlers.o \
-			  lib_memory_management/pagefault_handler.o \
+			  lib_thread_management/hashmap.o \
+			  lib_thread_management/add_one_atomic.o \
+			  lib_thread_management/mutex.o \
+			  \
 			  lib_life_cycle/asm_life_cycle_handlers.o \
 			  lib_life_cycle/fork.o \
-			  context_switch.o \
-			  scheduler.o \
-			  lib_life_cycle/save_child_regs.o\
-			  logger.o
-
+			  lib_life_cycle/save_child_regs.o \
+			  \
+			  lib_memory_management/physalloc.o \
+			  lib_memory_management/asm_memory_management_handlers.o \
+			  lib_memory_management/pagefault_handler.o
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your

@@ -9,15 +9,20 @@
  *  @author Nicklaus Choo (nchoo)
  */
 
-#include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
-#include <x86/asm.h> /* outb() */
+#include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
+#include <asm.h> /* outb() */
 #include <assert.h> /* assert() */
-#include "stddef.h" /* NULL */
-#include <x86/timer_defines.h> /* TIMER_SQUARE_WAVE */
+#include <stddef.h> /* NULL */
+#include <timer_defines.h> /* TIMER_SQUARE_WAVE */
 
-#define INTERRUPT 100
-#define SHORT_LSB_MASK 0x00FF
-#define SHORT_MSB_MASK 0xFF00
+/** @brief Get 8 least significant bits in x. */
+#define LSB(x) ((long unsigned int)x & 0xFF)
+
+/** @brief Get 8 most significant bits in x. */
+#define MSB(x) (((long unsigned int)x >> 8) & 0xFF)
+
+/* 1 khz. */
+#define DESIRED_TIMER_RATE 1000
 
 /* Initialize tick to NULL */
 static void (*application_tickback) (unsigned int) = NULL;
@@ -42,12 +47,8 @@ static unsigned int total_ticks = 0;
  *  @return Void.
  */
 void timer_int_handler(void) {
-
-  /* Update total ticks */
-  total_ticks += 1;
-
   /* Pass total ticks to application callback which should run quickly */
-  application_tickback(total_ticks);
+  application_tickback(total_ticks++);
 
   /* Acknowledge interrupt and return */
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
@@ -70,31 +71,15 @@ void timer_int_handler(void) {
  */
 void init_timer(void (*tickback)(unsigned int)) {
 
+  /* Set application provided tickback function */
   assert(tickback != NULL);
+  application_tickback = tickback;
 
   outb(TIMER_MODE_IO_PORT, TIMER_SQUARE_WAVE);
-  short cycles_between_interrupts = (short)(TIMER_RATE / INTERRUPT);
+  uint16_t cycles_between_interrupts = (uint16_t)(TIMER_RATE / DESIRED_TIMER_RATE);
 
-  /* Round off */
-  if ((TIMER_RATE % INTERRUPT) > (INTERRUPT / 2)) {
-    cycles_between_interrupts += 1;
-
-    assert(((cycles_between_interrupts - 1) * INTERRUPT) +
-        (TIMER_RATE % INTERRUPT) == TIMER_RATE);
-  } else {
-    assert((cycles_between_interrupts * INTERRUPT) +
-        (TIMER_RATE % INTERRUPT) == TIMER_RATE);
-  }
-  /* Send the least significant byte */
-  short lsb =  cycles_between_interrupts & SHORT_LSB_MASK;
-  outb(TIMER_PERIOD_IO_PORT, lsb);
-
-  /* Send the most significant byte */
-  short msb = (cycles_between_interrupts & SHORT_MSB_MASK) >> 8;
-  outb(TIMER_PERIOD_IO_PORT, msb);
-
-  /* Set application provided tickback function */
-  application_tickback = tickback;
+  outb(TIMER_PERIOD_IO_PORT, LSB(cycles_between_interrupts)); // Send lsb first
+  outb(TIMER_PERIOD_IO_PORT, MSB(cycles_between_interrupts)); // then msb.
 
   return;
 }

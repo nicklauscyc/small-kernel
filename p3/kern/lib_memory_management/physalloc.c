@@ -13,40 +13,41 @@
  *  @bug No known bugs.
  */
 
-#include <simics.h> /* MAGIC_BREAK */
-#include <assert.h> /* affirm() */
 #include <physalloc.h>
+
+#include <simics.h>         /* MAGIC_BREAK, lprintf */
+#include <string.h>         /* memcpy() */
+#include <assert.h>         /* affirm() */
 #include <variable_queue.h> /* Q_NEW_LINK() */
-#include <malloc.h> /* malloc() */
-#include <common_kern.h>/* USER_MEM_START */
-#include <x86/page.h> /* PAGE_SIZE */
+#include <malloc.h>         /* malloc() */
+#include <common_kern.h>    /* USER_MEM_START */
+#include <page.h>           /* PAGE_SIZE */
+#include <logger.h>         /* log */
 
 #define PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)\
 	((phys_address & (PAGE_SIZE - 1)) == 0)
 
+/** Number of pages as of yet unclaimed from system.
+ *  Equals to machine_phys_frames() - (max_free_address / PAGE_SIZE) */
 #define TOTAL_USER_FRAMES (machine_phys_frames() - (USER_MEM_START / PAGE_SIZE))
 
-/* Boolean for whether initialization has taken place */
+/** Number of pages as of yet unclaimed from system.
+ *  Equals to machine_phys_frames() - (max_free_address / PAGE_SIZE) */
+#define UNCLAIMED_PAGES (machine_phys_frames() - (max_free_address / PAGE_SIZE))
+
+/* Whether physical frame allocater is initialized */
 static int physalloc_init = 0;
-
-/* List node to store a free physical frame address */
-typedef struct free_frame_node {
-	Q_NEW_LINK(free_frame_node) link;
-	uint32_t phys_address;
-} free_frame_node_t;
-
-/* List head definition */
-Q_NEW_HEAD(list_t, free_frame_node);
 
 /* Address of the highest free physical frame currently in list */
 static uint32_t max_free_address;
 
-/* Number of allocated free physical frames >= USER_MEM_START */
-/* # calls to physalloc() - # calls to physfree() */
-static int num_alloc;
+typedef struct {
+    uint32_t top; /* Index of next empty address in array */
+    uint32_t len;
+    uint32_t *data;
+} stack_t;
 
-/* Linked list of free physical frames */
-static list_t reuse_list;
+static stack_t reuse_stack;
 
 /** @brief Returns number of free physical frames with physical address at
  *         least USER_MEM_START
@@ -56,7 +57,7 @@ static list_t reuse_list;
 uint32_t
 num_free_phys_frames( void )
 {
-	return TOTAL_USER_FRAMES - num_alloc;
+	return UNCLAIMED_PAGES + reuse_stack.top; //TODO why do we add this guy
 }
 
 /** @brief Initializes physical allocator family of functions
@@ -71,13 +72,12 @@ init_physalloc( void )
 	/* Initialize once and only once */
 	affirm(!physalloc_init);
 
-	/* Initialize queue head and add the first node into queue */
-	Q_INIT_HEAD(&reuse_list);
-	num_alloc = 0;
+    reuse_stack.top = 0;
+    reuse_stack.len = PAGE_SIZE / sizeof(uint32_t);
+    reuse_stack.data = smalloc(PAGE_SIZE);
 
-	/* Some essential checks that should never fail */
-    assert(!Q_GET_TAIL(&reuse_list));
-	assert(!Q_GET_FRONT(&reuse_list));
+    /* Crash kernel if we can't initialize phys frame allocator */
+    affirm(reuse_stack.data);
 
 	max_free_address = USER_MEM_START;
 	physalloc_init = 1;
@@ -93,47 +93,19 @@ uint32_t
 physalloc( void )
 {
 	/* First time running, initialize */
-	if (!physalloc_init) {
+	if (!physalloc_init)
 		init_physalloc();
-	}
-	/* Check if there are still available physical frames >= USER_MEM_START */
-    int remaining = TOTAL_USER_FRAMES - num_alloc;
-	if (remaining <= 0) {
 
-		/* Never have -ve remaining frames */
-		assert(remaining == 0);
+    if (reuse_stack.top > 0)
+        return reuse_stack.data[--reuse_stack.top];
 
-		/* Reuse list must be empty */
-	    assert(!Q_GET_TAIL(&reuse_list));
-		assert(!Q_GET_FRONT(&reuse_list));
+    if (UNCLAIMED_PAGES == 0)
+        return 0; /* No more pages to allocate */
 
-		return 0;
-	}
-	/* Exist available physical frames, so check for reusable free frames */
-	uint32_t next_free_address = 0;
+    uint32_t frame = max_free_address;
+    max_free_address += PAGE_SIZE;
 
-	/* Reusable free frames are unallocated and thus not counted in num_alloc */
-	if (Q_GET_FRONT(&reuse_list)) {
-		free_frame_node_t *frontp = Q_GET_FRONT(&reuse_list);
-		next_free_address = frontp->phys_address;
-		assert(next_free_address <= max_free_address);
-
-		/* Remove from list and free */
-		Q_REMOVE(&reuse_list, frontp, link);
-		free(frontp);
-
-	/* Nothing to reuse, so return a new address */
-	} else {
-		next_free_address = max_free_address;
-		max_free_address += PAGE_SIZE;
-	}
-	num_alloc++;
-
-	/* Check alignment and return */
-	assert(next_free_address);
-	assert(PHYS_FRAME_ADDRESS_ALIGNMENT(next_free_address));
-	lprintf("physalloc() returns:%lx", next_free_address);
-	return next_free_address;
+    return frame;
 }
 
 /** @brief Frees a physical frame address
@@ -153,15 +125,25 @@ physfree(uint32_t phys_address)
 	affirm(PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address));
 	affirm(USER_MEM_START <= phys_address && phys_address <= max_free_address);
 
-	/* Allocate and initialize new list node */
-	free_frame_node_t *newp = malloc(sizeof(free_frame_node_t));
-	Q_INIT_ELEM(newp, link);
-	newp->phys_address = phys_address;
+	/* Add phys_address to stack, growing it if necessary. */
+    if (reuse_stack.top >= reuse_stack.len) {
+        assert(reuse_stack.top == reuse_stack.len);
 
-	/* Add to reuse list */
-	Q_INSERT_FRONT(&reuse_list, newp, link);
-	assert(Q_GET_FRONT(&reuse_list) == newp);
-	num_alloc--;
+        uint32_t *new_data = smalloc(reuse_stack.len * 2 * sizeof(uint32_t));
+        if (!new_data) {
+            lprintf("[ERROR] Losing free physical frames \
+                    - no more kernel space.");
+            return;
+        }
+
+        memcpy(new_data, reuse_stack.data, reuse_stack.len * sizeof(uint32_t));
+
+        sfree(reuse_stack.data, reuse_stack.len * sizeof(uint32_t));
+        reuse_stack.data = new_data;
+        reuse_stack.len *= 2;
+    }
+
+    reuse_stack.data[reuse_stack.top++] = phys_address;
 }
 
 /** @brief Tests physalloc and physfree
@@ -171,7 +153,7 @@ physfree(uint32_t phys_address)
 void
 test_physalloc( void )
 {
-	lprintf("Testing physalloc(), physfree()");
+	log("Testing physalloc(), physfree()");
 	uint32_t a, b, c;
 	/* Quick test for alignment, we allocate in consecutive order */
 	a = physalloc();
@@ -201,14 +183,14 @@ test_physalloc( void )
 	int total = TOTAL_USER_FRAMES;
 	int i = 0;
 	uint32_t all_phys[1024];
-	lprintf("after all_phys");
+	log("after all_phys");
 	while (i < 1024) {
 		all_phys[i] = physalloc();
 		assert(all_phys[i]);
 		i++;
 		total--;
 	}
-	lprintf("total frames supported:%08x",
+	log("total frames supported:%08x",
 		    (unsigned int) TOTAL_USER_FRAMES);
 	assert(total == TOTAL_USER_FRAMES - 1024);
 	/* all phys frames, populate reuse list */
@@ -246,16 +228,16 @@ test_physalloc( void )
 		total--;
 		x = physalloc();
 	}
-	lprintf("last frame start address:%lx", x);
+	log("last frame start address:%lx", x);
 	assert(!physalloc());
 
 	/* put them all back */
-	lprintf("put all into linked list");
+	log("put all into linked list");
 	while (total < TOTAL_USER_FRAMES) {
 		total++;
 		physfree(x);
 		x -= PAGE_SIZE;
 	}
-	lprintf("Tests passed!");
+	log("Tests passed!");
 }
 
