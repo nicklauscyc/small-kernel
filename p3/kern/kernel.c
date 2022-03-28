@@ -44,7 +44,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 2;
+int log_level = 1;
 
 void tick(unsigned int numTicks) {
 	scheduler_on_tick(numTicks);
@@ -77,7 +77,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
      * when you are ready.
      */
 
-	//test_physalloc();
+	test_physalloc();
 
     lprintf( "Hello from a brand new kernel!" );
     //TODO: Print programs using elf->e_name

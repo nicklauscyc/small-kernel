@@ -57,7 +57,7 @@ static stack_t reuse_stack;
 uint32_t
 num_free_phys_frames( void )
 {
-	return UNCLAIMED_PAGES + reuse_stack.top;
+	return UNCLAIMED_PAGES + reuse_stack.top; //TODO why do we add this guy
 }
 
 /** @brief Initializes physical allocator family of functions
@@ -136,9 +136,9 @@ physfree(uint32_t phys_address)
             return;
         }
 
-        memcpy(new_data, reuse_stack.data, reuse_stack.len);
+        memcpy(new_data, reuse_stack.data, reuse_stack.len * sizeof(uint32_t));
 
-        sfree(reuse_stack.data, reuse_stack.len);
+        sfree(reuse_stack.data, reuse_stack.len * sizeof(uint32_t));
         reuse_stack.data = new_data;
         reuse_stack.len *= 2;
     }
