@@ -44,7 +44,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 1;
+int log_level = 2;
 
 void tick(unsigned int numTicks) {
 	scheduler_on_tick(numTicks);

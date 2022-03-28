@@ -103,19 +103,19 @@ register_thread(uint32_t tid)
         init_scheduler(tid);
     }
 
-    tcb_t *tcb = find_tcb(tid);
-    if (!tcb)
+    tcb_t *tcbp = find_tcb(tid);
+    if (!tcbp)
         return -1;
 
-    assert(tcb->status == UNINITIALIZED);
+    assert(tcbp->status == UNINITIALIZED);
 
     /* Add tcb to runnable queue, as any thread starts as runnable */
     if (first_thread) {
-        tcb->status = RUNNING;
-        running_thread = tcb;
+        tcbp->status = RUNNING;
+        running_thread = tcbp;
     } else {
-        tcb->status = RUNNABLE;
-        Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
+        tcbp->status = RUNNABLE;
+        Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
     }
 
     return 0;
