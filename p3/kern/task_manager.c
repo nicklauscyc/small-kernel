@@ -70,9 +70,6 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
         return -1;
     }
 
-    /* Let scheduler know it can now run this thread */
-    register_thread(*tid);
-
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
     sim_reg_process(pcb->pd, elf->e_fname);
@@ -128,6 +125,9 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
     if (!pcb->prepared) {
         activate_task_memory(pcb->pid);
     }
+
+    /* Let scheduler know it can now run this thread */
+    register_thread(tid);
 
     /* Before going to user mode, update esp0, so we know where to go back to */
     set_esp0((uint32_t)tcb->kernel_esp);

@@ -7,6 +7,7 @@
 /* Queue head definition */
 Q_NEW_HEAD(queue_t, tcb);
 
+int is_scheduler_init( void );
 int get_running_tid( void );
 int init_scheduler( uint32_t tid );
 void scheduler_on_tick( unsigned int num_ticks );

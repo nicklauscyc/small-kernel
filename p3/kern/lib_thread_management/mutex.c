@@ -56,6 +56,16 @@ mutex_lock( mutex_t *mp )
      * thread the false impression that lock was acquired. */
     assert(mp && mp->initialized);
 
+	/* To simplify the mutex interface, we let a thread run mutex
+	 * guarded code even if the scheduler is not initialized. This
+	 * is fine because, as soon as we have 2 or more threads, the
+	 * scheduler must have been initialized. */
+	if (!is_scheduler_init()) {
+		mp->owned = 1;
+		mp->owner_tid = get_running_tid();
+		return;
+	}
+
 	/* If calling thread already owns mutex, no-op */
 	if (mp->owned && get_running_tid() == mp->owner_tid) return;
 
@@ -85,6 +95,13 @@ mutex_unlock( mutex_t *mp )
     /* Ensure lock is valid, locked and owned by this thread*/
     assert(mp && mp->initialized);
     assert(mp->owned && mp->owner_tid == get_running_tid());
+
+	/* If scheduler is not initialized we must have a single
+	 * thread, so no one to make runnable. */
+	if (!is_scheduler_init()) {
+		mp->owned = 0;
+		return;
+	}
 
     /* Atomically check if someone is in waiters queue, if so,
      * add them to run queue. */

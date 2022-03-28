@@ -24,9 +24,16 @@ static queue_t descheduled_q;
 static queue_t dead_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
-
 static void run_next_tcb( queue_t *store_at, status_t store_status );
 
+/** @brief Whether the scheduler is initialized
+ *
+ *  @return 1 if initialized, 0 if not */
+int
+is_scheduler_init( void )
+{
+	return scheduler_init;
+}
 
 /** @brief Yield execution of current thread, storing it at
  *         the designated queue.

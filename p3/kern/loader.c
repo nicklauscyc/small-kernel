@@ -179,11 +179,13 @@ configure_stack( int argc, char **argv )
 /** @brief Run a user program indicated by filename.
  *         Assumes virtual memory module has been initialized.
  *
- *  @arg fname Name of program to run.
+ *  This function requires no synchronization as it is only
+ *  meant to be used to load the starter program (when we have
+ *  a single thread).
  *
+ *  @arg fname Name of program to run.
  *  @return 0 on success, negative value on error.
  */
-// TODO: SYNCHRONIZATION HERE
 int
 execute_user_program( const char *fname, int argc, char **argv )
 {
