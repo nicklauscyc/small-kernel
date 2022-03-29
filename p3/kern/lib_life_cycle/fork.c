@@ -64,7 +64,7 @@ fork( void )
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
 
 	/* Acknowledge interrupt */
-    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	/* Only fork if task has 1 thread */
 	log("Forking task with number of threads:%ld", num_threads);
@@ -79,7 +79,7 @@ fork( void )
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
 	/* Create child_pd as a deep copy */
-    uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
+	uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 	assert(PAGE_ALIGNED(child_pd));
 	log("new child_pd at address:%p", child_pd);
 
@@ -95,7 +95,7 @@ fork( void )
         return -1;
     }
 	tcb_t *child_tcb;
-    assert(child_tcb = find_tcb(child_tid));
+	assert(child_tcb = find_tcb(child_tid));
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
@@ -108,7 +108,7 @@ fork( void )
 	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
 
 	child_kernel_esp_on_ctx_switch = save_child_regs(parent_kern_stack_hi,
-												     child_kern_stack_hi);
+	                                                 child_kern_stack_hi);
 	/* Set child's kernel esp */
 	affirm(child_kernel_esp_on_ctx_switch);
 	set_kern_esp(child_tcb, child_kernel_esp_on_ctx_switch);

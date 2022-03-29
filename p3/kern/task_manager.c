@@ -20,10 +20,13 @@
 #include <logger.h>     /* log */
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
+#include <variable_queue.h> /* Q_INSERT_TAIL */
 #include <lib_thread_management/hashmap.h> /* map_* functions */
 #include <lib_thread_management/add_one_atomic.h>
-#include <variable_queue.h> /* Q_INSERT_TAIL */
+
 #define ELF_IF (1 << 9);
+
+#define STACK_ALIGNED(address) ((uint32_t) address % 4 == 0)
 
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
@@ -175,8 +178,8 @@ find_tcb( uint32_t tid )
  *
  *  @arg pid Pointer to where pid should be stored
  *  @arg pd  Pointer to page directory for new task
- * *  @return 0 on success, negative value on error
- * */
+ *  @return 0 on success, negative value on error
+ */
 int
 create_pcb( uint32_t *pid, void *pd )
 {
@@ -203,9 +206,8 @@ create_pcb( uint32_t *pid, void *pd )
 /** @brief Initializes new tcb. Does not add thread to scheduler.
  *         This should be done by whoever creates this thread.
  *
- *  @arg pid    Id of owning task
- *  @arg tid    Pointer to where id of new thread will be stored
- *
+ *  @param pid Id of owning task
+ *  @param tid Pointer to where id of new thread will be stored
  *  @return 0 on success, negative value on failure
  * */
 int
@@ -280,27 +282,48 @@ get_num_threads_in_owning_task( tcb_t *tcbp )
 	return num_threads;
 }
 
+/** @brief Gets the highest writable address of the kernel stack for thread
+ *         that corresponds to supplied TCB
+ *
+ * 	Requires that tcbp is non-NULL, and that its kernel_stack_hi field is
+ * 	stack aligned.
+ *
+ *  @param tcbp Pointer to TCB
+ *  @return Kernel stack highest writable address
+ */
 void *
 get_kern_stack_hi( tcb_t *tcbp )
 {
 	/* Argument checks */
 	affirm_msg(tcbp, "tcbp cannot be NULL!");
 
+	/* Invariant checks to ensure returned value is legal */
 	affirm_msg(tcbp->kernel_stack_hi, "tcbp->kernel_stack_hi cannot be NULL!");
+	affirm_msg(STACK_ALIGNED(tcbp->kernel_stack_hi), "tcbp->kernel_stack_hi "
+	           "must be stack aligned!");
 	return tcbp->kernel_stack_hi;
 }
 
+/** @brief Sets the kernel_esp field in supplied TCB
+ *
+ *  Requires that tcbp is non-NULL and that kernel_esp is stack aligned and also
+ *  non-NULL
+ *
+ *  @param tcbp Pointer to TCB
+ *  @param kernel_esp Kernel esp the next time this thread goes into kernel
+ *         mode either through a context switch or mode switch
+ *  @return Void.
+ */
 void
 set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 {
 	/* Argument checks */
 	affirm_msg(tcbp, "tcbp cannot be NULL!");
 	affirm_msg(kernel_esp, "kernel_esp cannot be NULL!");
-	affirm_msg((uint32_t) kernel_esp % 4 == 0, "kernel_esp must be 4 byte aligned!");
+	affirm_msg(STACK_ALIGNED(kernel_esp), "kernel_esp must be stack aligned!");
 
 	tcbp->kernel_esp = kernel_esp;
 }
-
 
 /* ------ HELPER FUNCTIONS ------ */
 
