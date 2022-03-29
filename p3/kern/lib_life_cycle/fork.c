@@ -84,16 +84,16 @@ fork( void )
 	log("new child_pd at address:%p", child_pd);
 
 	/* Create child pcb and tcb */
-    uint32_t child_pid, child_tid;
-    if (create_pcb(&child_pid, child_pd) < 0) {
-        // TODO: delete page directory
-        return -1;
-    }
-    if (create_tcb(child_pid, &child_tid) < 0) {
-        // TODO: delete page directory
-        // TODO: delete_pcb of parent
-        return -1;
-    }
+	uint32_t child_pid, child_tid;
+	if (create_pcb(&child_pid, child_pd) < 0) {
+		// TODO: delete page directory
+		return -1;
+	}
+	if (create_tcb(child_pid, &child_tid) < 0) {
+		// TODO: delete page directory
+		// TODO: delete_pcb of parent
+		return -1;
+	}
 	tcb_t *child_tcb;
 	assert(child_tcb = find_tcb(child_tid));
 
