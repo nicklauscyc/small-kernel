@@ -233,7 +233,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
     tcb->status = UNINITIALIZED;
 
-    /* Add to owning task's list of threads */
+    /* Add to owning task's list of threads, increment num_threads not DEAD */
 	Q_INIT_ELEM(tcb, owning_task_thread_list);
     Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
 	++(owning_task->num_threads);
