@@ -1,6 +1,8 @@
 /** @brief Module for management of tasks.
  *  Includes context switch facilities. */
 
+// TODO maybe a function such as is_legal_pcb, is_legal_tcb for invariant checks?
+//
 #include <task_manager.h>
 
 #include <scheduler.h>  /* add_tcb_to_run_queue() */
@@ -20,7 +22,7 @@
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 #include <lib_thread_management/hashmap.h> /* map_* functions */
 #include <lib_thread_management/add_one_atomic.h>
-
+#include <variable_queue.h> /* Q_INSERT_TAIL */
 #define ELF_IF (1 << 9);
 
 static uint32_t get_unique_tid( void );
@@ -173,8 +175,7 @@ find_tcb( uint32_t tid )
  *
  *  @arg pid Pointer to where pid should be stored
  *  @arg pd  Pointer to page directory for new task
- *
- *  @return 0 on success, negative value on error
+ * *  @return 0 on success, negative value on error
  * */
 int
 create_pcb( uint32_t *pid, void *pd )
@@ -187,7 +188,10 @@ create_pcb( uint32_t *pid, void *pd )
     pcb->pid = *pid;
     pcb->pd = pd;
     pcb->prepared = 0;
-    pcb->first_thread = NULL;
+
+	/* Initialize thread queue */
+	Q_INIT_HEAD(&(pcb->owned_threads));
+	pcb->num_threads = 0;
 
     /* Add to pcb linked list*/
     pcb->next_task = first_pcb;
@@ -228,9 +232,10 @@ create_tcb( uint32_t pid, uint32_t *tid )
     tcb->status = UNINITIALIZED;
 
     /* Add to owning task's list of threads */
+	Q_INIT_ELEM(tcb, owning_task_thread_list);
+    Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
+	++(owning_task->num_threads);
     tcb->owning_task = owning_task;
-    tcb->next_thread = tcb->owning_task->first_thread;
-    tcb->owning_task->first_thread = tcb;
 
     log("Inserting thread with tid %lu", tcb->tid);
 	map_insert(tcb);
@@ -255,6 +260,47 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
     return 0;
 }
+
+/** @brief Returns number of threads in the owning task
+ *
+ *  The return value cannot be zero. The moment a tcb_t is initialize it
+ *  is immediately added to its owning_task's owned_threads field, which is
+ *  a list of threads owned by that task.
+ *
+ *  @param tcbp Pointer to tcb
+ *  @return Number of threads in owning task
+ */
+int
+get_num_threads_in_owning_task( tcb_t *tcbp )
+{
+	affirm_msg(tcbp, "Given tcb pointer cannot be NULL!");
+	affirm_msg(tcbp->owning_task, "Tcb pointer to owning task cannot be NULL!");
+	uint32_t num_threads = tcbp->owning_task->num_threads;
+	affirm_msg(num_threads > 0, "Owning task must have at least 1 thread!");
+	return num_threads;
+}
+
+void *
+get_kern_stack_hi( tcb_t *tcbp )
+{
+	/* Argument checks */
+	affirm_msg(tcbp, "tcbp cannot be NULL!");
+
+	affirm_msg(tcbp->kernel_stack_hi, "tcbp->kernel_stack_hi cannot be NULL!");
+	return tcbp->kernel_stack_hi;
+}
+
+void
+set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
+{
+	/* Argument checks */
+	affirm_msg(tcbp, "tcbp cannot be NULL!");
+	affirm_msg(kernel_esp, "kernel_esp cannot be NULL!");
+	affirm_msg((uint32_t) kernel_esp % 4 == 0, "kernel_esp must be 4 byte aligned!");
+
+	tcbp->kernel_esp = kernel_esp;
+}
+
 
 /* ------ HELPER FUNCTIONS ------ */
 

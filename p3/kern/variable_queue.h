@@ -31,7 +31,6 @@
 typedef struct {\
 	struct Q_ELEM_TYPE *front;\
 	struct Q_ELEM_TYPE *tail;\
-	struct Q_ELEM_TYPE *iter;\
 } Q_HEAD_TYPE;
 
 /** @def Q_NEW_LINK(Q_ELEM_TYPE)

@@ -15,11 +15,16 @@ typedef enum status status_t;
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
+/* pcb_queue definition */
+Q_NEW_HEAD(owned_threads_queue_t, tcb);
+
 /** @brief Task control block */
 struct pcb {
     void *pd; // page directory
-    tcb_t *first_thread; // First thread in linked list
-    pcb_t *next_task; // Embedded list of tasks
+	owned_threads_queue_t owned_threads; // list of owned threads
+	uint32_t num_threads;
+
+    pcb_t *next_task; // Embedded list of tasks TODO change to macro
 
     uint32_t pid;
 
@@ -30,6 +35,8 @@ struct pcb {
 struct tcb {
 	Q_NEW_LINK(tcb) scheduler_queue;
 	Q_NEW_LINK(tcb) tid2tcb_queue;
+	Q_NEW_LINK(tcb) owning_task_thread_list;
+
 
     status_t status;
 
@@ -56,5 +63,10 @@ int create_tcb( uint32_t pid , uint32_t *tid );
 int create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf );
 int activate_task_memory( uint32_t pid );
 void task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point );
+int get_num_threads_in_owning_task( tcb_t *tcbp );
+
+void *get_kern_stack_hi( tcb_t *tcbp );
+void set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp );
+
 
 #endif /* TASK_MANAGER_H_ */

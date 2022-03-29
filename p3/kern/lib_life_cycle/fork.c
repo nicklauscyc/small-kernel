@@ -53,38 +53,49 @@ init_fork( void )
 
 /** @brief Fork task into two.
  *
- *  This can be called on a task with multiple threads, however, only
- *  the calling thread will be duplicated to the child task
- *
- *  @return 0 for child thread, pid for parent thread */
+ *  @return 0 for child thread, child tid for parent thread, -1 on error  */
 int
 fork( void )
 {
-	/* TODO This thing needs to defer execution of copy till later? */
+	/* Only allow forking of task that has 1 thread */
+	int tid = get_running_tid();
+	tcb_t *parent_tcb = find_tcb(tid);
+	assert(parent_tcb);
+	int num_threads = get_num_threads_in_owning_task(parent_tcb);
+
+	/* Acknowledge interrupt */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	/* Only fork if task has 1 thread */
+	log("Forking task with number of threads:%ld", num_threads);
+	if (num_threads > 1) {
+		return -1;
+	}
+	assert(num_threads == 1);
+
+	/* Get parent_pd in kernel memory, unaffected by paging */
 	uint32_t cr3 = get_cr3();
 	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
-
-	/* parent_pd in kernel memory, unaffected by paging */
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
+	/* Create child_pd as a deep copy */
     uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 	assert(PAGE_ALIGNED(child_pd));
 	log("new child_pd at address:%p", child_pd);
 
+	/* Create child pcb and tcb */
     uint32_t child_pid, child_tid;
     if (create_pcb(&child_pid, child_pd) < 0) {
         // TODO: delete page directory
         return -1;
     }
-
     if (create_tcb(child_pid, &child_tid) < 0) {
         // TODO: delete page directory
         // TODO: delete_pcb of parent
         return -1;
     }
-
 	tcb_t *child_tcb;
-    affirm((child_tcb = find_tcb(child_tid)) != NULL);
+    assert(child_tcb = find_tcb(child_tid));
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
@@ -92,18 +103,15 @@ fork( void )
     //sim_reg_process(pd, elf->e_fname);
 #endif
 
-	// Duplicate parent kern stack in child kern stack
-	tcb_t *parent_tcb;
-	assert((parent_tcb = find_tcb(get_running_tid())) != NULL);
-
-	/* Acknowledge interrupt and return */
-	/* TODO: Acknowledge interrupt quickly! Before any allocation is made */
-    outb(INT_CTL_PORT, INT_ACK_CURRENT);
-
 	uint32_t *child_kernel_esp_on_ctx_switch;
-	child_kernel_esp_on_ctx_switch = save_child_regs(parent_tcb->kernel_stack_hi,
-	                                                 child_tcb->kernel_stack_hi);
-	child_tcb->kernel_esp = child_kernel_esp_on_ctx_switch;
+	uint32_t *parent_kern_stack_hi = get_kern_stack_hi(parent_tcb);
+	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
+
+	child_kernel_esp_on_ctx_switch = save_child_regs(parent_kern_stack_hi,
+												     child_kern_stack_hi);
+	/* Set child's kernel esp */
+	affirm(child_kernel_esp_on_ctx_switch);
+	set_kern_esp(child_tcb, child_kernel_esp_on_ctx_switch);
 
 	/* If logging is set to debug, this will print stuff */
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
