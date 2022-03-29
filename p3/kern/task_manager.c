@@ -183,24 +183,24 @@ find_tcb( uint32_t tid )
 int
 create_pcb( uint32_t *pid, void *pd )
 {
-    pcb_t *pcb = smalloc(sizeof(pcb_t));
-    if (!pcb)
-        return -1;
+	pcb_t *pcb = smalloc(sizeof(pcb_t));
+	if (!pcb)
+		return -1;
 
-    *pid = get_unique_pid();
-    pcb->pid = *pid;
-    pcb->pd = pd;
-    pcb->prepared = 0;
+	*pid = get_unique_pid();
+	pcb->pid = *pid;
+	pcb->pd = pd;
+	pcb->prepared = 0;
 
 	/* Initialize thread queue */
 	Q_INIT_HEAD(&(pcb->owned_threads));
 	pcb->num_threads = 0;
 
-    /* Add to pcb linked list*/
-    pcb->next_task = first_pcb;
-    first_pcb = pcb;
+	/* Add to pcb linked list*/
+	pcb->next_task = first_pcb;
+	first_pcb = pcb;
 
-    return 0;
+	return 0;
 }
 
 /** @brief Initializes new tcb. Does not add thread to scheduler.
@@ -213,33 +213,33 @@ create_pcb( uint32_t *pid, void *pd )
 int
 create_tcb( uint32_t pid, uint32_t *tid )
 {
-    pcb_t *owning_task;
-    if ((owning_task = find_pcb(pid)) == NULL)
-        return -1;
+	pcb_t *owning_task;
+	if ((owning_task = find_pcb(pid)) == NULL)
+		return -1;
 
-    tcb_t *tcb = smalloc(sizeof(tcb_t));
-    if (!tcb) {
-        return -1;
-    }
+	tcb_t *tcb = smalloc(sizeof(tcb_t));
+	if (!tcb) {
+		return -1;
+	}
 
-    *tid = get_unique_tid();
-    tcb->tid = *tid;
+	*tid = get_unique_tid();
+	tcb->tid = *tid;
 	// TODO when do we use smalloc and when do we use smemalign
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
-    if (!tcb->kernel_stack_lo) {
-        sfree(tcb, sizeof(tcb_t));
-        return -1;
-    }
+	if (!tcb->kernel_stack_lo) {
+		sfree(tcb, sizeof(tcb_t));
+		return -1;
+	}
 
-    tcb->status = UNINITIALIZED;
+	tcb->status = UNINITIALIZED;
 
-    /* Add to owning task's list of threads, increment num_threads not DEAD */
+	/* Add to owning task's list of threads, increment num_threads not DEAD */
 	Q_INIT_ELEM(tcb, owning_task_thread_list);
-    Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
+	Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
 	++(owning_task->num_threads);
-    tcb->owning_task = owning_task;
+	tcb->owning_task = owning_task;
 
-    log("Inserting thread with tid %lu", tcb->tid);
+	log("Inserting thread with tid %lu", tcb->tid);
 	map_insert(tcb);
 
 	/* memset the whole thing, TODO delete this in future, only good for
@@ -247,20 +247,14 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	 */
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid,
-	        tcb->kernel_stack_lo);
+	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid, tcb->kernel_stack_lo);
 
-    tcb->kernel_esp = tcb->kernel_stack_lo;
-    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
-            PAGE_SIZE - sizeof(uint32_t));
-
-	// store tid at highest kernel stack address
-	*(tcb->kernel_esp) = tcb->tid;
+	tcb->kernel_esp = tcb->kernel_stack_lo;
+	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
+	                  PAGE_SIZE - sizeof(uint32_t));
 	tcb->kernel_stack_hi = tcb->kernel_esp;
-	// tcb->kernel_esp--; // I feel like this is not needed cuz u will decrement
-	// esp then store under all cases
 
-    return 0;
+	return 0;
 }
 
 /** @brief Returns number of threads in the owning task
@@ -275,8 +269,11 @@ create_tcb( uint32_t pid, uint32_t *tid )
 int
 get_num_threads_in_owning_task( tcb_t *tcbp )
 {
+	/* Argument checks */
 	affirm_msg(tcbp, "Given tcb pointer cannot be NULL!");
 	affirm_msg(tcbp->owning_task, "Tcb pointer to owning task cannot be NULL!");
+
+	/* Check that we have a legal number of threads and return */
 	uint32_t num_threads = tcbp->owning_task->num_threads;
 	affirm_msg(num_threads > 0, "Owning task must have at least 1 thread!");
 	return num_threads;
@@ -285,8 +282,8 @@ get_num_threads_in_owning_task( tcb_t *tcbp )
 /** @brief Gets the highest writable address of the kernel stack for thread
  *         that corresponds to supplied TCB
  *
- * 	Requires that tcbp is non-NULL, and that its kernel_stack_hi field is
- * 	stack aligned.
+ *  Requires that tcbp is non-NULL, and that its kernel_stack_hi field is
+ *  stack aligned.
  *
  *  @param tcbp Pointer to TCB
  *  @return Kernel stack highest writable address
