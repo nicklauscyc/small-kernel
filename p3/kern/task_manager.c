@@ -18,7 +18,8 @@
 #include <logger.h>     /* log */
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
-#include <lib_thread_management/hashmap.h> /* map_* functions */
+#include <lib_thread_management/hashmap.h>	/* map_* functions */
+#include <lib_thread_management/mutex.h>	/* mutex_t */
 #include <lib_thread_management/add_one_atomic.h>
 
 #define ELF_IF (1 << 9);
@@ -27,14 +28,32 @@ static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
 static uint32_t get_user_eflags( void );
 
-static pcb_t *first_pcb = NULL;
+Q_NEW_HEAD(pcb_list_t, pcb);
+static pcb_list_t pcb_list;
+
+
+static mutex_t pcb_list_mux; /* TODO: Initialize */ /* Use in find/create pcb/tcb*/ /* Should we have both or just one? */
+static mutex_t tcb_map_mux;	/* TODO: Initialize */
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
 static uint32_t next_pid = 0;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
 static uint32_t next_tid = 0;
 
-/*  Creates a task
+/** @brief Initializes task manager's resources
+ *
+ *	@return Void
+ *	*/
+void
+task_manager_init ( void )
+{
+	map_init();
+	mutex_init(&pcb_list_mux);
+	mutex_init(&tcb_map_mux);
+	Q_INIT_HEAD(&pcb_list);
+}
+
+/** @brief Creates a task
  *
  *  @arg pid Pointer where task id for new task is stored
  *  @arg tid Pointer where thread id for new thread is stored
@@ -151,11 +170,12 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 pcb_t *
 find_pcb( uint32_t pid )
 {
-    /* TODO: Might want to create a pcb hashmap. Is it worth it? */
-    pcb_t *res = first_pcb;
-    while (res && res->pid != pid)
-        res = res->next_task;
-    return res;
+	mutex_lock(&pcb_list_mux);
+	pcb_t *res = Q_GET_FRONT(&pcb_list);
+	while (res && res->pid != pid)
+		res = Q_GET_NEXT(res, task_link);
+	mutex_unlock(&pcb_list_mux);
+	return res;
 }
 
 /** Looks for tcb with given tid.
@@ -166,7 +186,10 @@ find_pcb( uint32_t pid )
 tcb_t *
 find_tcb( uint32_t tid )
 {
-    return (tcb_t *)map_get(tid);
+	mutex_lock(&tcb_map_mux);
+    tcb_t *res = (tcb_t *)map_get(tid);
+	mutex_unlock(&tcb_map_mux);
+	return res;
 }
 
 /** @brief Initializes new pcb, and corresponding tcb.
@@ -187,11 +210,13 @@ create_pcb( uint32_t *pid, void *pd )
     pcb->pid = *pid;
     pcb->pd = pd;
     pcb->prepared = 0;
-    pcb->first_thread = NULL;
+    Q_INIT_HEAD(&pcb->thread_list);
+	//mutex_init(&thread_list_mux); TODO: Enable this
 
     /* Add to pcb linked list*/
-    pcb->next_task = first_pcb;
-    first_pcb = pcb;
+	mutex_lock(&pcb_list_mux);
+	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
+	mutex_unlock(&pcb_list_mux);
 
     return 0;
 }
@@ -218,7 +243,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
     *tid = get_unique_tid();
     tcb->tid = *tid;
-	// TODO when do we use smalloc and when do we use smemalign
+
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
     if (!tcb->kernel_stack_lo) {
         sfree(tcb, sizeof(tcb_t));
@@ -229,11 +254,19 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
     /* Add to owning task's list of threads */
     tcb->owning_task = owning_task;
-    tcb->next_thread = tcb->owning_task->first_thread;
-    tcb->owning_task->first_thread = tcb;
+
+	/* TODO: Add mutex to pcb struct and lock it here.
+	 *		 For now, this just checks that we're not
+	 *		 adding a second thread to an existing task. */
+	affirm(!Q_GET_FRONT(&owning_task->thread_list));
+	//mutex_lock(&owning_task->thread_list_mux);
+	Q_INSERT_TAIL(&owning_task->thread_list, tcb, thread_link);
+	//mutex_unlock(&owning_task->thread_list_mux);
 
     log("Inserting thread with tid %lu", tcb->tid);
+	mutex_lock(&tcb_map_mux);
 	map_insert(tcb->tid, (void *)tcb);
+	mutex_unlock(&tcb_map_mux);
 
 	/* memset the whole thing, TODO delete this in future, only good for
 	 * debugging when printing the whole stack
@@ -250,8 +283,6 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	// store tid at highest kernel stack address
 	*(tcb->kernel_esp) = tcb->tid;
 	tcb->kernel_stack_hi = tcb->kernel_esp;
-	// tcb->kernel_esp--; // I feel like this is not needed cuz u will decrement
-	// esp then store under all cases
 
     return 0;
 }

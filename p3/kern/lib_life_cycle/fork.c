@@ -48,7 +48,7 @@ log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 void
 init_fork( void )
 {
-	/* honestly not sure what to init */
+	/* Nothing to init */
 }
 
 /** @brief Fork task into two.

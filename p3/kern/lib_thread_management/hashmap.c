@@ -123,7 +123,7 @@ map_remove(uint32_t key)
  *  @param map Memory location in which to initialize
  *  @param num_buckets Number of buckets for this map
  *
- *  @return 0 on success, -1 on failure
+ *  @return Void
  *  */
 void
 map_init( void )

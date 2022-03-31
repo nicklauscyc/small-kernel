@@ -115,7 +115,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
 
-	// TODO
+	// TODO: implement valid_memory_regions
     if (!valid_memory_regions(elf)) {
         sfree(pd, PAGE_SIZE);
         return NULL;
@@ -221,8 +221,6 @@ new_pd_from_parent( void *v_parent_pd )
 
                     /* Copy parent to temp, change page-directory,
                      * copy child to parent, restore parent page-directory */
-					// this memcpy will not work since it's using physical
-					// memory
                     memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
                     vm_set_pd(child_pd);
                     memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);

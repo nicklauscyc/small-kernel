@@ -1,5 +1,10 @@
 /** @file scheduler.c
- *  @brief A round-robin scheduler. */
+ *  @brief A round-robin scheduler.
+ *
+ *  Note: As mutexes are implemented by manipulating the schedulers
+ *  so that threads waiting on a lock are not executed, the scheduler
+ *  itself uses disable/enable interrupts to protect critical sections.
+ *  All critical sections protected this way must be short. */
 
 #include <scheduler.h>
 #include <task_manager.h>   /* tcb_t */
@@ -66,10 +71,12 @@ get_running_tid( void )
 void
 add_to_runnable_queue( tcb_t *tcb )
 {
-    if (!scheduler_init)
-        log_warn("Trying to add to runnable queue with uninitialized \
+	if (!scheduler_init)
+		log_warn("Trying to add to runnable queue with uninitialized \
                 scheduler. ");
-    Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
+	disable_interrupts();
+	Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
+	enable_interrupts();
 }
 
 /** @brief Initializes scheduler and registers its first thread.
@@ -118,6 +125,7 @@ register_thread(uint32_t tid)
     assert(tcb->status == UNINITIALIZED);
 
     /* Add tcb to runnable queue, as any thread starts as runnable */
+	disable_interrupts();
     if (first_thread) {
         tcb->status = RUNNING;
         running_thread = tcb;
@@ -125,6 +133,7 @@ register_thread(uint32_t tid)
         tcb->status = RUNNABLE;
         Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
     }
+	enable_interrupts();
 
     return 0;
 }
