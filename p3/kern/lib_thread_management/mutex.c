@@ -80,7 +80,7 @@ mutex_lock( mutex_t *mp )
     }
     log("[tid %d] Waiting on lock.", get_running_tid());
 
-    yield_execution(&mp->waiters_queue, BLOCKED);
+    affirm(yield_execution(&mp->waiters_queue, BLOCKED, -1) == 0);
 }
 
 /** @brief Unlock mutex.

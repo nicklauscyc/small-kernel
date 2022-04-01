@@ -11,6 +11,7 @@
 
 #define MULT_FORK_TEST 0
 #define MUTEX_TEST 1
+#define YIELD_TEST 2
 
 static volatile int total_sum = 0;
 static mutex_t mux;
@@ -55,6 +56,15 @@ mutex_test()
 }
 
 int
+yield_test()
+{
+    log_info("Running yield_test");
+
+    log_info("SUCCESS, yield_test");
+	return 0;
+}
+
+int
 test_int_handler( int test_num )
 {
     /* Acknowledge interrupt and return */
@@ -67,6 +77,9 @@ test_int_handler( int test_num )
         case MUTEX_TEST:
             return mutex_test();
             break;
+		case YIELD_TEST:
+			return yield_test();
+			break;
     }
 
     return 0;

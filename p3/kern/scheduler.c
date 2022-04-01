@@ -45,15 +45,39 @@ is_scheduler_init( void )
  *
  *  @arg store_at       Queue in which to store thread
  *  @arg store_status   Status with which to store thread
- *
- *  @return Void. */
-void
-yield_execution( queue_t *store_at, status_t store_status )
+ *  @arg tid			Id of thread to yield to, -1 if any
+ *  @return 0 on success, negative value on error */
+int
+yield_execution( queue_t *store_at, status_t store_status, int tid )
 {
-    /* Do not want others to be able to directly call run_next_tcb.
-     * TODO: Should any checks go here? */
+	if (!scheduler_init) {
+		log_warn("Attempting to call yield but scheduler is not initialized");
+		return -1;
+	}
 
+	if (tid == get_running_tid())
+		return 0; // yielding to self
+
+	tcb_t *tcb;
+	if (tid != -1) {
+		tcb = find_tcb(tid);
+		disable_interrupts(); // No need to disable interrupts for find_tcb
+	} else {
+		disable_interrupts();
+		tcb = Q_GET_FRONT(&runnable_q);
+	}
+
+	/* If no one to swap to or can't swap to given tid, just return */
+	if (!tcb || tcb->status != RUNNABLE) {
+		enable_interrupts();
+		return -1;
+	}
+
+	/* Add to front of queue and swap to next runnable thread.
+	 * run_next_tcb requires interrupts to be disabled when called. */
+	Q_INSERT_FRONT(&runnable_q, tcb, thr_queue);
     run_next_tcb(store_at, store_status);
+	return 0;
 }
 
 // FIXME: Maybe crash if !scheduler_init???
@@ -146,15 +170,22 @@ scheduler_on_tick( unsigned int num_ticks )
     if (num_ticks % WAIT_TICKS == 0) /* Context switch every 2 ms */
     {
         disable_interrupts();
-        run_next_tcb(&runnable_q, RUNNABLE);
+        run_next_tcb(NULL, RUNNABLE);
     }
 }
 
 /* ------- HELPER FUNCTIONS -------- */
 
 
-/** PRECONDITION: Interrupts disabled when run_next_tcb called.
- *  @arg store_at Queue in which to store old thread. */
+/** @brief Context switch to next thread, as determined by runnable queue.
+ *	PRECONDITION: Interrupts disabled when run_next_tcb called.
+ *
+ *  @arg store_at Queue in which to store old thread in case store_status
+ *				  is blocked. For any other store status scheduler determines
+ *				  queue to store thread into.
+ *  @arg store_status Status with which to store old thread.
+ *  @return Void
+ *  */
 static void
 run_next_tcb( queue_t *store_at, status_t store_status )
 {
@@ -162,6 +193,34 @@ run_next_tcb( queue_t *store_at, status_t store_status )
         enable_interrupts();
         return;
     }
+
+	/* Pick appropriate queue in which to store currently running thread */
+	switch (store_status) {
+		case RUNNING:
+			panic("Trying to store thread with status RUNNING!");
+			break;
+		case RUNNABLE:
+			affirm(store_at == NULL);
+			store_at = &runnable_q;
+			break;
+		case DESCHEDULED:
+			affirm(store_at == NULL);
+			store_at = &descheduled_q;
+			break;
+		case BLOCKED:
+			affirm(store_at != NULL);
+			break;
+		case DEAD:
+			affirm(store_at == NULL);
+			store_at = &dead_q;
+			break;
+		case UNINITIALIZED:
+			panic("Trying to store thread with status UNINITIALIZED!");
+			break;
+		default:
+			panic("Trying to store thread with unknown status!");
+			break;
+	}
 
     tcb_t *to_run;
     /* Do nothing if there's no thread waiting to be run */
