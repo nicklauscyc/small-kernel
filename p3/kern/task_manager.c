@@ -1,6 +1,8 @@
 /** @brief Module for management of tasks.
  *  Includes context switch facilities. */
 
+// TODO maybe a function such as is_legal_pcb, is_legal_tcb for invariant checks?
+//
 #include <task_manager.h>
 
 #include <scheduler.h>  /* add_tcb_to_run_queue() */
@@ -18,11 +20,14 @@
 #include <logger.h>     /* log */
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
+#include <variable_queue.h> /* Q_INSERT_TAIL */
 #include <lib_thread_management/hashmap.h>	/* map_* functions */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
 #include <lib_thread_management/add_one_atomic.h>
 
 #define ELF_IF (1 << 9);
+
+#define STACK_ALIGNED(address) ((uint32_t) address % 4 == 0)
 
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
@@ -32,8 +37,8 @@ Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
 
 
-static mutex_t pcb_list_mux; /* TODO: Initialize */ /* Use in find/create pcb/tcb*/ /* Should we have both or just one? */
-static mutex_t tcb_map_mux;	/* TODO: Initialize */
+static mutex_t pcb_list_mux;
+static mutex_t tcb_map_mux;
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
 static uint32_t next_pid = 0;
@@ -196,76 +201,80 @@ find_tcb( uint32_t tid )
  *
  *  @arg pid Pointer to where pid should be stored
  *  @arg pd  Pointer to page directory for new task
- *
  *  @return 0 on success, negative value on error
- * */
+ */
 int
 create_pcb( uint32_t *pid, void *pd )
 {
-    pcb_t *pcb = smalloc(sizeof(pcb_t));
-    if (!pcb)
-        return -1;
+	pcb_t *pcb = smalloc(sizeof(pcb_t));
+	if (!pcb)
+		return -1;
 
-    *pid = get_unique_pid();
-    pcb->pid = *pid;
-    pcb->pd = pd;
-    pcb->prepared = 0;
-    Q_INIT_HEAD(&pcb->thread_list);
 	//mutex_init(&thread_list_mux); TODO: Enable this
+	*pid = get_unique_pid();
+	pcb->pid = *pid;
+	pcb->pd = pd;
+	pcb->prepared = 0;
+
+	/* Initialize thread queue */
+	Q_INIT_HEAD(&(pcb->owned_threads));
+	pcb->num_threads = 0;
 
     /* Add to pcb linked list*/
 	mutex_lock(&pcb_list_mux);
 	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
 	mutex_unlock(&pcb_list_mux);
 
-    return 0;
+	return 0;
 }
 
 /** @brief Initializes new tcb. Does not add thread to scheduler.
  *         This should be done by whoever creates this thread.
  *
- *  @arg pid    Id of owning task
- *  @arg tid    Pointer to where id of new thread will be stored
- *
+ *  @param pid Id of owning task
+ *  @param tid Pointer to where id of new thread will be stored
  *  @return 0 on success, negative value on failure
  * */
 int
 create_tcb( uint32_t pid, uint32_t *tid )
 {
-    pcb_t *owning_task;
-    if ((owning_task = find_pcb(pid)) == NULL)
-        return -1;
+	pcb_t *owning_task;
+	if ((owning_task = find_pcb(pid)) == NULL)
+		return -1;
 
-    tcb_t *tcb = smalloc(sizeof(tcb_t));
-    if (!tcb) {
-        return -1;
-    }
+	tcb_t *tcb = smalloc(sizeof(tcb_t));
+	if (!tcb) {
+		return -1;
+	}
 
-    *tid = get_unique_tid();
-    tcb->tid = *tid;
-
+	*tid = get_unique_tid();
+	tcb->tid = *tid;
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
-    if (!tcb->kernel_stack_lo) {
-        sfree(tcb, sizeof(tcb_t));
-        return -1;
-    }
+	if (!tcb->kernel_stack_lo) {
+		sfree(tcb, sizeof(tcb_t));
+		return -1;
+	}
 
-    tcb->status = UNINITIALIZED;
+	tcb->status = UNINITIALIZED;
 
-    /* Add to owning task's list of threads */
-    tcb->owning_task = owning_task;
+	/* Add to owning task's list of threads */
+	tcb->owning_task = owning_task;
 
 	/* TODO: Add mutex to pcb struct and lock it here.
 	 *		 For now, this just checks that we're not
 	 *		 adding a second thread to an existing task. */
-	affirm(!Q_GET_FRONT(&owning_task->thread_list));
+	affirm(!Q_GET_FRONT(&owning_task->owned_threads));
+
+	/* Add to owning task's list of threads, increment num_threads not DEAD */
 	//mutex_lock(&owning_task->thread_list_mux);
-	Q_INSERT_TAIL(&owning_task->thread_list, tcb, thread_link);
+	Q_INIT_ELEM(tcb, owning_task_thread_list);
+	Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
+	++(owning_task->num_threads);
 	//mutex_unlock(&owning_task->thread_list_mux);
 
-    log("Inserting thread with tid %lu", tcb->tid);
+	log("Inserting thread with tid %lu", tcb->tid);
 	mutex_lock(&tcb_map_mux);
-	map_insert(tcb->tid, (void *)tcb);
+	map_insert(tcb);
 	mutex_unlock(&tcb_map_mux);
 
 	/* memset the whole thing, TODO delete this in future, only good for
@@ -273,18 +282,79 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	 */
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid,
-	        tcb->kernel_stack_lo);
+	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid, tcb->kernel_stack_lo);
 
-    tcb->kernel_esp = tcb->kernel_stack_lo;
-    tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
-            PAGE_SIZE - sizeof(uint32_t));
-
-	// store tid at highest kernel stack address
-	*(tcb->kernel_esp) = tcb->tid;
+	tcb->kernel_esp = tcb->kernel_stack_lo;
+	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
+	                  PAGE_SIZE - sizeof(uint32_t));
 	tcb->kernel_stack_hi = tcb->kernel_esp;
 
-    return 0;
+	return 0;
+}
+
+/** @brief Returns number of threads in the owning task
+ *
+ *  The return value cannot be zero. The moment a tcb_t is initialize it
+ *  is immediately added to its owning_task's owned_threads field, which is
+ *  a list of threads owned by that task.
+ *
+ *  @param tcbp Pointer to tcb
+ *  @return Number of threads in owning task
+ */
+int
+get_num_threads_in_owning_task( tcb_t *tcbp )
+{
+	/* Argument checks */
+	affirm_msg(tcbp, "Given tcb pointer cannot be NULL!");
+	affirm_msg(tcbp->owning_task, "Tcb pointer to owning task cannot be NULL!");
+
+	/* Check that we have a legal number of threads and return */
+	uint32_t num_threads = tcbp->owning_task->num_threads;
+	affirm_msg(num_threads > 0, "Owning task must have at least 1 thread!");
+	return num_threads;
+}
+
+/** @brief Gets the highest writable address of the kernel stack for thread
+ *         that corresponds to supplied TCB
+ *
+ *  Requires that tcbp is non-NULL, and that its kernel_stack_hi field is
+ *  stack aligned.
+ *
+ *  @param tcbp Pointer to TCB
+ *  @return Kernel stack highest writable address
+ */
+void *
+get_kern_stack_hi( tcb_t *tcbp )
+{
+	/* Argument checks */
+	affirm_msg(tcbp, "tcbp cannot be NULL!");
+
+	/* Invariant checks to ensure returned value is legal */
+	affirm_msg(tcbp->kernel_stack_hi, "tcbp->kernel_stack_hi cannot be NULL!");
+	affirm_msg(STACK_ALIGNED(tcbp->kernel_stack_hi), "tcbp->kernel_stack_hi "
+	           "must be stack aligned!");
+	return tcbp->kernel_stack_hi;
+}
+
+/** @brief Sets the kernel_esp field in supplied TCB
+ *
+ *  Requires that tcbp is non-NULL and that kernel_esp is stack aligned and also
+ *  non-NULL
+ *
+ *  @param tcbp Pointer to TCB
+ *  @param kernel_esp Kernel esp the next time this thread goes into kernel
+ *         mode either through a context switch or mode switch
+ *  @return Void.
+ */
+void
+set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
+{
+	/* Argument checks */
+	affirm_msg(tcbp, "tcbp cannot be NULL!");
+	affirm_msg(kernel_esp, "kernel_esp cannot be NULL!");
+	affirm_msg(STACK_ALIGNED(kernel_esp), "kernel_esp must be stack aligned!");
+
+	tcbp->kernel_esp = kernel_esp;
 }
 
 /* ------ HELPER FUNCTIONS ------ */

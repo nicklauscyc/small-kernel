@@ -95,11 +95,10 @@ get_running_tid( void )
 void
 add_to_runnable_queue( tcb_t *tcb )
 {
-	if (!scheduler_init)
-		log_warn("Trying to add to runnable queue with uninitialized \
-                scheduler. ");
+    affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
+	           "runnable queue!");
 	disable_interrupts();
-	Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
+    Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
 	enable_interrupts();
 }
 
@@ -142,20 +141,20 @@ register_thread(uint32_t tid)
         init_scheduler(tid);
     }
 
-    tcb_t *tcb = find_tcb(tid);
-    if (!tcb)
+    tcb_t *tcbp = find_tcb(tid);
+    if (!tcbp)
         return -1;
 
-    assert(tcb->status == UNINITIALIZED);
+    assert(tcbp->status == UNINITIALIZED);
 
     /* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
     if (first_thread) {
-        tcb->status = RUNNING;
-        running_thread = tcb;
+        tcbp->status = RUNNING;
+        running_thread = tcbp;
     } else {
-        tcb->status = RUNNABLE;
-        Q_INSERT_TAIL(&runnable_q, tcb, thr_queue);
+        tcbp->status = RUNNABLE;
+        Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
     }
 	enable_interrupts();
 
@@ -229,7 +228,7 @@ run_next_tcb( queue_t *store_at, status_t store_status )
         enable_interrupts();
         return;
     }
-    Q_REMOVE(&runnable_q, to_run, thr_queue);
+    Q_REMOVE(&runnable_q, to_run, scheduler_queue);
 
     assert(to_run->tid != running_thread->tid);
 
@@ -242,7 +241,7 @@ run_next_tcb( queue_t *store_at, status_t store_status )
 
     /* Add currently running thread to back of store_at queue */
     running->status = store_status;
-    Q_INSERT_TAIL(store_at, running, thr_queue);
+    Q_INSERT_TAIL(store_at, running, scheduler_queue);
 
     /* Let thread know where to come back to on USER->KERN mode switch */
     set_esp0((uint32_t)to_run->kernel_stack_hi);

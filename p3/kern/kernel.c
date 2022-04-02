@@ -74,6 +74,8 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	clear_console();
 
 	task_manager_init();
+	test_physalloc(); // TODO put in test suite
+
 
     //TODO: Run shell once exec and fork are working
 
