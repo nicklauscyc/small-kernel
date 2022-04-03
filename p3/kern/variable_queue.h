@@ -11,8 +11,6 @@
 #ifndef _VARIABLE_QUEUE_H_
 #define _VARIABLE_QUEUE_H_
 
-#include <stddef.h> /* NULL */
-
 /** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
  *
  *  @brief Generates a new structure of type Q_HEAD_TYPE representing the head
@@ -67,10 +65,8 @@ struct {\
  **/
 #define Q_INIT_HEAD(Q_HEAD) do\
 {\
-	affirm_msg((Q_HEAD) != NULL,\
-	           "Variable queue head pointer cannot be NULL!");\
-	(Q_HEAD)->front = NULL;\
-	(Q_HEAD)->tail = NULL;\
+	(Q_HEAD)->front = 0;\
+	(Q_HEAD)->tail = 0;\
 } while(0)
 
 /** @def Q_INIT_ELEM(Q_ELEM, LINK_NAME)
@@ -85,10 +81,8 @@ struct {\
  **/
 #define Q_INIT_ELEM(Q_ELEM, LINK_NAME) do\
 {\
-	affirm_msg((Q_ELEM) != NULL,\
-	           "Variable queue element pointer cannot be NULL!");\
-	((Q_ELEM)->LINK_NAME).prev = NULL;\
-	((Q_ELEM)->LINK_NAME).next = NULL;\
+	((Q_ELEM)->LINK_NAME).prev = 0;\
+	((Q_ELEM)->LINK_NAME).next = 0;\
 } while(0)
 
 /** @def Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME)
@@ -109,24 +103,15 @@ struct {\
  **/
 #define Q_INSERT_FRONT(Q_HEAD, Q_ELEM, LINK_NAME) do\
 {\
-	/* Pointer argument checks */\
-	affirm_msg((Q_HEAD) != NULL,\
-	           "Variable queue head pointer cannot be NULL!");\
-	affirm_msg((Q_ELEM) != NULL,\
-	           "Variable queue element pointer cannot be NULL!")\
-\
 	/* Q is currently empty, insert tail as well */\
-	if ((Q_HEAD)->front == NULL) {\
-		affirm_msg((Q_HEAD)->tail == NULL,\
-		           "Empty variable queue head and tail must be both NULL");\
-		(Q_HEAD)->front = (Q_ELEM);\
-		(Q_HEAD)->tail = (Q_ELEM);\
-\
+	if ((Q_HEAD)->front == 0) {\
+		(Q_HEAD)->front = Q_ELEM;\
+		(Q_HEAD)->tail = Q_ELEM;\
 	/* Q not empty, update front */\
 	} else {\
-		(((Q_HEAD)->front)->LINK_NAME).prev = (Q_ELEM);\
+		(((Q_HEAD)->front)->LINK_NAME).prev = Q_ELEM;\
 		((Q_ELEM)->LINK_NAME).next = (Q_HEAD)->front;\
-		(Q_HEAD)->front = (Q_ELEM);\
+		(Q_HEAD)->front = Q_ELEM;\
 	}\
 } while(0)
 
@@ -147,24 +132,15 @@ struct {\
  **/
 #define Q_INSERT_TAIL(Q_HEAD, Q_ELEM, LINK_NAME) do\
 {\
-	/* Pointer argument checks */\
-	affirm_msg((Q_HEAD) != NULL,\
-	           "Variable queue head pointer cannot be NULL!");\
-	affirm_msg((Q_ELEM) != NULL,\
-	           "Variable queue element pointer cannot be NULL!");\
-\
-	/* Q is currently empty, insert front as well */\
-	if ((Q_HEAD)->tail == NULL) {\
-		affirm_msg((Q_HEAD)->front == NULL,\
-		           "Empty variable queue head and tail must be both NULL");\
-		(Q_HEAD)->front = (Q_ELEM);\
-		(Q_HEAD)->tail = (Q_ELEM);\
-\
-	/* Q not empty, update tail */\
+	/* Q is currently empty, insert tail as well */\
+	if ((Q_HEAD)->front == 0) {\
+		(Q_HEAD)->front = Q_ELEM;\
+		(Q_HEAD)->tail = Q_ELEM;\
+	/* Q not empty, update front */\
 	} else {\
-		(((Q_HEAD)->tail)->LINK_NAME).next = (Q_ELEM);\
+		(((Q_HEAD)->tail)->LINK_NAME).next = Q_ELEM;\
 		((Q_ELEM)->LINK_NAME).prev = (Q_HEAD)->tail;\
-		(Q_HEAD)->tail = (Q_ELEM);\
+		(Q_HEAD)->tail = Q_ELEM;\
 	}\
 } while(0)
 
@@ -178,13 +154,8 @@ struct {\
  *  @return Pointer to the first element in the queue, or NULL if the queue
  *          is empty
  **/
-#define Q_GET_FRONT(Q_HEAD)\
-(\
-	/* Q_HEAD non-NULL check */\
-	((Q_HEAD) != NULL) ?\
-		((void) (Q_HEAD), (Q_HEAD)->front) :\
-		(panic("Variable queue head pointer cannot be NULL"), NULL)\
-)
+#define Q_GET_FRONT(Q_HEAD) \
+((Q_HEAD)->front)
 
 /** @def Q_GET_TAIL(Q_HEAD)
  *
@@ -195,13 +166,9 @@ struct {\
  *  @return Pointer to the last element in the queue, or NULL if the queue
  *          is empty
  **/
-#define Q_GET_TAIL(Q_HEAD)\
-(\
-	/* Q_HEAD non-NULL check */\
-	((Q_HEAD) != NULL) ?\
-		((void) (Q_HEAD), (Q_HEAD)->tail) :\
-		(panic("Variable queue head pointer cannot be NULL"), NULL)\
-)
+#define Q_GET_TAIL(Q_HEAD) \
+((Q_HEAD)->tail)
+
 
 /** @def Q_GET_NEXT(Q_ELEM, LINK_NAME)
  *
@@ -216,13 +183,8 @@ struct {\
  *
  *  @return The element after Q_ELEM, or NULL if there is no next element
  **/
-#define Q_GET_NEXT(Q_ELEM, LINK_NAME)\
-(\
-	/* Q_ELEM non-NULL check */\
-	((Q_ELEM) != NULL) ?\
-		((void) (Q_ELEM), ((Q_ELEM)->LINK_NAME).next) :\
-		(panic("Variable queue element pointer cannot be NULL"), NULL)\
-)
+#define Q_GET_NEXT(Q_ELEM, LINK_NAME) \
+(((Q_ELEM)->LINK_NAME).next)
 
 /** @def Q_GET_PREV(Q_ELEM, LINK_NAME)
  *
@@ -238,12 +200,8 @@ struct {\
  *  @return The element before Q_ELEM, or NULL if there is no next element
  **/
 #define Q_GET_PREV(Q_ELEM, LINK_NAME) \
-(\
-	/* Q_ELEM non-NULL check */\
-	((Q_ELEM) != NULL) ?\
-		((void) (Q_ELEM), ((Q_ELEM)->LINK_NAME).prev) :\
-		(panic("Variable queue element pointer cannot be NULL"), NULL)\
-)
+(((Q_ELEM)->LINK_NAME).prev)
+
 
 /** @def Q_INSERT_AFTER(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME)
  *
@@ -262,29 +220,18 @@ struct {\
 
 #define Q_INSERT_AFTER(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME) do\
 {\
-	/* Pointer argument checks */\
-	affirm_msg((Q_HEAD) != NULL,\
-	           "Variable queue head pointer cannot be NULL!");\
-	affirm_msg((Q_INQ) != NULL,\
-	           "Variable queue element pointer in queue cannot be NULL!")\
-	affirm_msg((Q_TOINSERT) != NULL,\
-	           "Variable queue element pointer to insert cannot be NULL!")\
-\
 	((Q_TOINSERT)->LINK_NAME).prev = Q_INQ;\
 	((Q_TOINSERT)->LINK_NAME).next = ((Q_INQ)->LINK_NAME).next;\
 	((Q_INQ)->LINK_NAME).next = Q_TOINSERT;\
-\
 	/* Insert at tail of queue */\
 	if ((Q_INQ) == (Q_HEAD)->tail) {\
 		(Q_HEAD)->tail = Q_TOINSERT;\
-\
-	/* Not at tail of queue, update child's prev */\
+	/* Not at tail of queue, update child's next */\
 	} else {\
-		affirm_msg((Q_TOINSERT)->(LINK_NAME).next != NULL,\
-				   "Variable queue element pointer's next cannot be NULL!")\
 		((((Q_TOINSERT)->LINK_NAME).next)->LINK_NAME).prev = Q_TOINSERT;\
 	}\
 } while(0)
+
 
 
 /** @def Q_INSERT_BEFORE(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME)
@@ -304,26 +251,14 @@ struct {\
 
 #define Q_INSERT_BEFORE(Q_HEAD,Q_INQ,Q_TOINSERT,LINK_NAME) do\
 {\
-	/* Pointer argument checks */\
-	affirm_msg((Q_HEAD) != NULL,\
-	           "Variable queue head pointer cannot be NULL!");\
-	affirm_msg((Q_INQ) != NULL,\
-	           "Variable queue element pointer in queue cannot be NULL!")\
-	affirm_msg((Q_TOINSERT) != NULL,\
-	           "Variable queue element pointer to insert cannot be NULL!")\
-\
 	((Q_TOINSERT)->LINK_NAME).next = Q_INQ;\
 	((Q_TOINSERT)->LINK_NAME).prev = ((Q_INQ)->LINK_NAME).prev;\
 	((Q_INQ)->LINK_NAME).prev = Q_TOINSERT;\
-\
 	/* Insert at front of queue */\
 	if ((Q_INQ) == (Q_HEAD)->front) {\
 		(Q_HEAD)->front = Q_TOINSERT;\
-\
 	/* Not at front of queue, update ancestor's next */\
 	} else {\
-		affirm_msg((Q_TOINSERT)->(LINK_NAME).prev != NULL,\
-				   "Variable queue element pointer's prev cannot be NULL!")\
 		((((Q_TOINSERT)->LINK_NAME).prev)->LINK_NAME).next = Q_TOINSERT;\
 	}\
 } while(0)
@@ -349,42 +284,24 @@ struct {\
  **/
 #define Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME) do\
 {\
-	/* Pointer argument checks */\
-	affirm_msg((Q_HEAD) != NULL,\
-	           "Variable queue head pointer cannot be NULL!");\
-	affirm_msg((Q_ELEM) != NULL,\
-	           "Variable queue element pointer cannot be NULL!");\
-\
 	/* If Q_ELEM is only element */\
 	if (((Q_ELEM) == (Q_HEAD)->front) && ((Q_ELEM) == (Q_HEAD)->tail)) {\
 		(Q_HEAD)->front = 0;\
 		(Q_HEAD)->tail = 0;\
-\
 	/* If Q_ELEM is at the front */\
 	} else if ((Q_ELEM) == (Q_HEAD)->front) {\
 		(Q_HEAD)->front = ((Q_ELEM)->LINK_NAME).next;\
-		affirm_msg((Q_HEAD)->front != NULL,\
-	               "Variable queue front pointer cannot be NULL!");\
 		(((Q_HEAD)->front)->LINK_NAME).prev = 0;\
-\
 	/* If Q_ELEM is at the tail */\
 	} else if ((Q_ELEM) == (Q_HEAD)->tail) {\
 		(Q_HEAD)->tail = ((Q_ELEM)->LINK_NAME).prev;\
-		affirm_msg((Q_HEAD)->tail != NULL,\
-	               "Variable queue tail pointer cannot be NULL!");\
 		(((Q_HEAD)->tail)->LINK_NAME).next = 0;\
-\
 	/* Q_ELEM is somewhere in the middle */\
 	} else {\
-		affirm_msg((((Q_ELEM)->LINK_NAME).next) != NULL,\
-		           "Variable queue element pointer next cannot be NULL");\
 		((((Q_ELEM)->LINK_NAME).next)->LINK_NAME).prev = \
-			(((Q_ELEM)->LINK_NAME).prev);\
-\
-		affirm_msg((((Q_ELEM)->LINK_NAME).prev) != NULL,\
-		           "Variable queue element pointer prev cannot be NULL");\
+		(((Q_ELEM)->LINK_NAME).prev);\
 		((((Q_ELEM)->LINK_NAME).prev)->LINK_NAME).next = \
-			(((Q_ELEM)->LINK_NAME).next);\
+			 (((Q_ELEM)->LINK_NAME).next);\
 	}\
 } while(0)
 
