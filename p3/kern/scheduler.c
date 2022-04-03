@@ -61,21 +61,32 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 	tcb_t *tcb;
 	if (tid != -1) {
 		tcb = find_tcb(tid);
+		if (!tcb) {
+			log_warn("Trying to yield_execution to non-existent"
+					 "thread with tid %d", tid);
+			return -1; /* Thread not found */
+		}
 		disable_interrupts(); // No need to disable interrupts for find_tcb
 	} else {
 		disable_interrupts();
 		tcb = Q_GET_FRONT(&runnable_q);
+		if (!tcb) {
+			enable_interrupts();
+			return 0; /* Yield to self*/
+		}
 	}
 
 	/* If no one to swap to or can't swap to given tid, just return */
-	if (!tcb || tcb->status != RUNNABLE) {
+	if (tcb->status != RUNNABLE) {
+		log_warn("Trying to yield_execution to non-runnable"
+				 "thread with tid %d", tid);
 		enable_interrupts();
 		return -1;
 	}
 
 	/* Add to front of queue and swap to next runnable thread.
 	 * run_next_tcb requires interrupts to be disabled when called. */
-	Q_INSERT_FRONT(&runnable_q, tcb, thr_queue);
+	Q_INSERT_FRONT(&runnable_q, tcb, scheduler_queue);
     run_next_tcb(store_at, store_status);
 	return 0;
 }
