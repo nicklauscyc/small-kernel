@@ -67,7 +67,8 @@ map_get(uint32_t tid)
  *  @param tid Id of thread to remove
  *  @return Pointer to removed value on exit,
  *          NULL on failure.
- * */
+ *
+ */
 tcb_t *
 map_remove(uint32_t tid)
 {
@@ -91,8 +92,8 @@ map_remove(uint32_t tid)
  *
  *  @param map Memory location in which to initialize
  *  @param num_buckets Number of buckets for this map
- *  @return 0 on success, -1 on failure
- *  */
+ *  @return Void
+ */
 void
 map_init( void )
 {

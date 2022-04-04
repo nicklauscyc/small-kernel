@@ -83,6 +83,7 @@ call_ ## HANDLER_NAME ## :;\
 	pushl %fs;\
 	pushl %gs;\
 	/* set the new values for ds, es, fs, gs */\
+	/* TODO fix so clang does not complaine */\
 	movl %ss, %ax;\
 	movl %ax, %ds;\
 	movl %ax, %es;\

@@ -56,6 +56,16 @@ mutex_lock( mutex_t *mp )
      * thread the false impression that lock was acquired. */
     assert(mp && mp->initialized);
 
+	/* To simplify the mutex interface, we let a thread run mutex
+	 * guarded code even if the scheduler is not initialized. This
+	 * is fine because, as soon as we have 2 or more threads, the
+	 * scheduler must have been initialized. */
+	if (!is_scheduler_init()) {
+		mp->owned = 1;
+		mp->owner_tid = get_running_tid();
+		return;
+	}
+
 	/* If calling thread already owns mutex, no-op */
 	if (mp->owned && get_running_tid() == mp->owner_tid) return;
 
@@ -68,9 +78,12 @@ mutex_lock( mutex_t *mp )
         enable_interrupts(); /* } */
         return;
     }
-    log("[tid %d] Waiting on lock.", get_running_tid());
+    log("Waiting on lock. mp->owned %d, mp->owner_tid %d",
+			mp->owned, mp->owner_tid);
 
-    yield_execution(&mp->waiters_queue, BLOCKED);
+	enable_interrupts();
+
+    affirm(yield_execution(&mp->waiters_queue, BLOCKED, -1) == 0);
 }
 
 /** @brief Unlock mutex.
@@ -86,15 +99,25 @@ mutex_unlock( mutex_t *mp )
     assert(mp && mp->initialized);
     assert(mp->owned && mp->owner_tid == get_running_tid());
 
+	/* If scheduler is not initialized we must have a single
+	 * thread, so no one to make runnable. */
+	if (!is_scheduler_init()) {
+		mp->owned = 0;
+		return;
+	}
+
     /* Atomically check if someone is in waiters queue, if so,
      * add them to run queue. */
     disable_interrupts();
     tcb_t *to_run;
     if ((to_run = Q_GET_FRONT(&mp->waiters_queue))) {
         Q_REMOVE(&mp->waiters_queue, to_run, scheduler_queue);
+		log("Unlocking. Giving lock to %d",
+			to_run->tid);
         mp->owner_tid = to_run->tid;
         add_to_runnable_queue(to_run);
     } else {
+		log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
         mp->owned = 0;
     }
 

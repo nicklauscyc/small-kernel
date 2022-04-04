@@ -15,7 +15,6 @@
 
 /* libc includes. */
 #include <stdio.h>
-#include <simics.h>                 /* lprintf() */
 
 /* multiboot header file */
 #include <multiboot.h>              /* boot_info */
@@ -29,11 +28,14 @@
 
 #include <loader.h>     /* execute_user_program() */
 #include <console.h>    /* clear_console(), putbytes() */
-#include <keybd_driver.h> /* readline() */
-#include <malloc.h> /*malloc() */
+#include <malloc.h>     /*malloc() */
+#include <physalloc.h>  /* test_physalloc() */
+#include <scheduler.h>  /* scheduler_on_tick() */
+#include <logger.h>		/* log_info() */
+#include <task_manager.h>	/* task_manager_init() */
+#include <keybd_driver.h>	/* readline() */
 
-#include <physalloc.h> /* test_physalloc() */
-#include <scheduler.h> /* run_next_tcb() */
+
 volatile static int __kernel_all_done = 0;
 
 
@@ -71,36 +73,17 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
 	clear_console();
 
-    /* TODO
-     * When kernel_main() begins, interrupts are DISABLED.
-     * You should delete this comment, and enable them --
-     * when you are ready.
-     */
+	task_manager_init();
+	test_physalloc(); // TODO put in test suite
 
-	test_physalloc();
 
-    lprintf( "Hello from a brand new kernel!" );
-    //TODO: Print programs using elf->e_name
-	printf("executable user programs:\n");
-	printf("loader_test1\n");
-	printf("loader_test2\n");
-	printf("getpid_test1\n");
-	printf("fork_test1\n");
+    //TODO: Run shell once exec and fork are working
 
 	log("this is DEBUG");
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
     while (!__kernel_all_done) {
-
-        //char* s = "context_switch_test";
-        //char *user_argv = (char *)s;
-        //execute_user_program(s, 1, &user_argv);
-        //break;
-
-        //TODO original code is below. code above this is for running
-        //getpid_test1 pronto with no user input (for testing)
-
         int n = MAX_EXECNAME_LEN;
         char s[n];
 
@@ -114,7 +97,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         /* Swap \n returned by readline for null-terminator */
         s[res - 1] = '\0';
 
-        lprintf("Executing: %s", s);
+        log_info("Executing: %s", s);
 
         char *user_argv = (char *)s;
 

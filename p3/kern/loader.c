@@ -26,8 +26,8 @@
 #include <stdint.h>     /* UINT32_MAX */
 #include <task_manager.h>   /* task_new, task_prepare, task_set */
 #include <memory_manager.h> /* {disable,enable}_write_protection */
+#include <logger.h>     /* log_warn() */
 
-#include <simics.h> /* lprintf */
 #include <assert.h> /* assert() */
 
 /* --- Local function prototypes --- */
@@ -51,8 +51,11 @@
 int
 getbytes( const char *filename, int offset, int size, char *buf )
 {
+    if (size == 0)
+        return 0; /* Nothing to copy*/
+
     if (!filename || !buf || offset < 0 || size < 0) {
-        lprintf("Loader [getbytes]: Invalid arguments");
+        log_warn("Loader [getbytes]: Invalid arguments.");
         return -1;
     }
 
@@ -65,7 +68,7 @@ getbytes( const char *filename, int offset, int size, char *buf )
     }
 
     if (i == exec2obj_userapp_count) {
-        lprintf("Loader [getbytes]: Executable not found");
+        log_warn("Loader [getbytes]: Executable not found");
         return -1;
     }
 
@@ -85,7 +88,7 @@ getbytes( const char *filename, int offset, int size, char *buf )
  *  Assumes paging is enabled and that virtual memory
  *  has been setup.
  *
- *  @arg se_hdr Elf header
+ *  @param se_hdr Elf header
  *
  *  @return 0 on sucess, negative value on failure.
  *  */
@@ -176,8 +179,11 @@ configure_stack( int argc, char **argv )
 /** @brief Run a user program indicated by filename.
  *         Assumes virtual memory module has been initialized.
  *
- *  @arg fname Name of program to run.
+ *  This function requires no synchronization as it is only
+ *  meant to be used to load the starter program (when we have
+ *  a single thread).
  *
+ *  @param fname Name of program to run.
  *  @return 0 on success, negative value on error.
  */
 int

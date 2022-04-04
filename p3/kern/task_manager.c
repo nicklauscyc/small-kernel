@@ -21,7 +21,8 @@
 #include <iret_travel.h>    /* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 #include <variable_queue.h> /* Q_INSERT_TAIL */
-#include <lib_thread_management/hashmap.h> /* map_* functions */
+#include <lib_thread_management/hashmap.h>	/* map_* functions */
+#include <lib_thread_management/mutex.h>	/* mutex_t */
 #include <lib_thread_management/add_one_atomic.h>
 
 #define ELF_IF (1 << 9);
@@ -32,18 +33,36 @@ static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
 static uint32_t get_user_eflags( void );
 
-static pcb_t *first_pcb = NULL;
+Q_NEW_HEAD(pcb_list_t, pcb);
+static pcb_list_t pcb_list;
+
+
+static mutex_t pcb_list_mux;
+static mutex_t tcb_map_mux;
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
 static uint32_t next_pid = 0;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
 static uint32_t next_tid = 0;
 
-/*  Creates a task
+/** @brief Initializes task manager's resources
  *
- *  @arg pid Pointer where task id for new task is stored
- *  @arg tid Pointer where thread id for new thread is stored
- *  @arg elf Elf header for use in allocating new task's memory
+ *	@return Void
+ *	*/
+void
+task_manager_init ( void )
+{
+	map_init();
+	mutex_init(&pcb_list_mux);
+	mutex_init(&tcb_map_mux);
+	Q_INIT_HEAD(&pcb_list);
+}
+
+/** @brief Creates a task
+ *
+ *  @param pid Pointer where task id for new task is stored
+ *  @param tid Pointer where thread id for new thread is stored
+ *  @param elf Elf header for use in allocating new task's memory
  *
  *  @return 0 on success, negative value on failure.
  * */
@@ -74,9 +93,6 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
         sfree(pd, PAGE_SIZE);
         return -1;
     }
-
-    /* Let scheduler know it can now run this thread */
-    register_thread(*tid);
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
@@ -116,9 +132,9 @@ activate_task_memory( uint32_t pid )
  *  calling this function. Stack pointer should be appropriately set
  *  if any arguments have been loaded on stack.
  *
- *  @arg tid Id of thread to run
- *  @arg esp Stack pointer
- *  @arg entry_point First program instruction
+ *  @param tid Id of thread to run
+ *  @param esp Stack pointer
+ *  @param entry_point First program instruction
  *
  *  @return Never returns.
  *  */
@@ -133,6 +149,9 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
     if (!pcb->prepared) {
         activate_task_memory(pcb->pid);
     }
+
+    /* Let scheduler know it can now run this thread */
+    register_thread(tid);
 
     /* Before going to user mode, update esp0, so we know where to go back to */
     set_esp0((uint32_t)tcb->kernel_esp);
@@ -150,34 +169,38 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 
 /** Looks for pcb with given pid.
  *
- *  @arg pid Task id to look for
+ *  @param pid Task id to look for
  *
  *  @return Pointer to pcb on success, NULL on failure */
 pcb_t *
 find_pcb( uint32_t pid )
 {
-    /* TODO: Might want to create a pcb hashmap. Is it worth it? */
-    pcb_t *res = first_pcb;
-    while (res && res->pid != pid)
-        res = res->next_task;
-    return res;
+	mutex_lock(&pcb_list_mux);
+	pcb_t *res = Q_GET_FRONT(&pcb_list);
+	while (res && res->pid != pid)
+		res = Q_GET_NEXT(res, task_link);
+	mutex_unlock(&pcb_list_mux);
+	return res;
 }
 
 /** Looks for tcb with given tid.
  *
- *  @arg tid Thread id to look for
+ *  @param tid Thread id to look for
  *
  *  @return Pointer to tcb on success, NULL on failure */
 tcb_t *
 find_tcb( uint32_t tid )
 {
-    return (tcb_t *)map_get(tid);
+	mutex_lock(&tcb_map_mux);
+    tcb_t *res = (tcb_t *)map_get(tid);
+	mutex_unlock(&tcb_map_mux);
+	return res;
 }
 
 /** @brief Initializes new pcb, and corresponding tcb.
  *
- *  @arg pid Pointer to where pid should be stored
- *  @arg pd  Pointer to page directory for new task
+ *  @param pid Pointer to where pid should be stored
+ *  @param pd  Pointer to page directory for new task
  *  @return 0 on success, negative value on error
  */
 int
@@ -187,6 +210,7 @@ create_pcb( uint32_t *pid, void *pd )
 	if (!pcb)
 		return -1;
 
+	//mutex_init(&thread_list_mux); TODO: Enable this
 	*pid = get_unique_pid();
 	pcb->pid = *pid;
 	pcb->pd = pd;
@@ -196,9 +220,12 @@ create_pcb( uint32_t *pid, void *pd )
 	Q_INIT_HEAD(&(pcb->owned_threads));
 	pcb->num_threads = 0;
 
-	/* Add to pcb linked list*/
-	pcb->next_task = first_pcb;
-	first_pcb = pcb;
+
+    /* Add to pcb linked list*/
+	mutex_lock(&pcb_list_mux);
+	Q_INIT_ELEM(pcb, task_link);
+	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
+	mutex_unlock(&pcb_list_mux);
 
 	return 0;
 }
@@ -224,7 +251,6 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	*tid = get_unique_tid();
 	tcb->tid = *tid;
-	// TODO when do we use smalloc and when do we use smemalign
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
@@ -233,14 +259,27 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	tcb->status = UNINITIALIZED;
 
+	/* Add to owning task's list of threads */
+	tcb->owning_task = owning_task;
+
+	/* TODO: Add mutex to pcb struct and lock it here.
+	 *		 For now, this just checks that we're not
+	 *		 adding a second thread to an existing task. */
+	affirm(!Q_GET_FRONT(&owning_task->owned_threads));
+
 	/* Add to owning task's list of threads, increment num_threads not DEAD */
+	//mutex_lock(&owning_task->thread_list_mux);
+	Q_INIT_ELEM(tcb, scheduler_queue);
+	Q_INIT_ELEM(tcb, tid2tcb_queue);
 	Q_INIT_ELEM(tcb, owning_task_thread_list);
 	Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
 	++(owning_task->num_threads);
-	tcb->owning_task = owning_task;
+	//mutex_unlock(&owning_task->thread_list_mux);
 
 	log("Inserting thread with tid %lu", tcb->tid);
+	mutex_lock(&tcb_map_mux);
 	map_insert(tcb);
+	mutex_unlock(&tcb_map_mux);
 
 	/* memset the whole thing, TODO delete this in future, only good for
 	 * debugging when printing the whole stack

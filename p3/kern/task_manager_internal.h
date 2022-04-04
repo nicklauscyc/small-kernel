@@ -11,7 +11,6 @@
 
 #include <variable_queue.h> /* Q_NEW_LINK */
 
-/* Possible status of threads */
 enum status { RUNNING, RUNNABLE, DESCHEDULED, BLOCKED, DEAD, UNINITIALIZED };
 typedef enum status status_t;
 
@@ -23,10 +22,11 @@ typedef struct tcb tcb_t;
 
 /** @brief Task control block */
 struct pcb {
+	//mutex_t thread_list_mux; // TODO enable mutex
 	void *pd; /* page directory */
 	owned_threads_queue_t owned_threads; /* list of owned threads */
 	uint32_t num_threads; /* number of threads not DEAD */
-	pcb_t *next_task; // Embedded list of tasks TODO change to macro
+	Q_NEW_LINK(pcb) task_link; // Embedded list of tasks
 	uint32_t pid; /* Task/process ID */
 	int prepared; /* Whether this task's VM has been initialized */
 };

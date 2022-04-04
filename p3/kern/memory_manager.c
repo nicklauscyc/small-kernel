@@ -24,8 +24,6 @@
 #include <common_kern.h>/* USER_MEM_START */
 #include <logger.h>     /* log */
 
-#include <simics.h>     /* lprintf */
-
 #define PAGING_FLAG (1 << 31)
 #define WRITE_PROTECT_FLAG (1 << 16)
 
@@ -115,7 +113,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
 
-	// TODO
+	// TODO: implement valid_memory_regions
     if (!valid_memory_regions(elf)) {
         sfree(pd, PAGE_SIZE);
         return NULL;
@@ -221,8 +219,6 @@ new_pd_from_parent( void *v_parent_pd )
 
                     /* Copy parent to temp, change page-directory,
                      * copy child to parent, restore parent page-directory */
-					// this memcpy will not work since it's using physical
-					// memory
                     memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
                     vm_set_pd(child_pd);
                     memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
@@ -394,10 +390,10 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
  *  request, region is not allocated and function returns a negative
  *  value.
  *
- *  @arg pd    Pointer to page directory
- *  @arg start  Virtual memory addess for start of region to be allocated
- *  @arg len    Length of region to be allocated
- *  @arg write_mode 0 if read-only region, non-zero value if writable
+ *  @param pd    Pointer to page directory
+ *  @param start  Virtual memory addess for start of region to be allocated
+ *  @param len    Length of region to be allocated
+ *  @param write_mode 0 if read-only region, non-zero value if writable
  *
  *  @return 0 on success, negative value on failure.
  *  */

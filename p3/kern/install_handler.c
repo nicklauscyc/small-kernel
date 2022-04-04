@@ -151,9 +151,17 @@ handler_install(void (*tick)(unsigned int))
 	if (install_keyboard_handler(KEY_IDT_ENTRY, call_keybd_int_handler) < 0) {
 		return -1;
 	}
+
+	/* Lib thread management */
 	if (install_gettid_handler(GETTID_INT, call_gettid) < 0) {
 		return -1;
 	}
+
+	if (install_yield_handler(YIELD_INT, call_yield) < 0) {
+		return -1;
+	}
+
+	/* Lib lifecycle*/
 	if (install_fork_handler(FORK_INT, call_fork) < 0) {
 		return -1;
 	}
