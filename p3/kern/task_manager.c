@@ -60,9 +60,9 @@ task_manager_init ( void )
 
 /** @brief Creates a task
  *
- *  @arg pid Pointer where task id for new task is stored
- *  @arg tid Pointer where thread id for new thread is stored
- *  @arg elf Elf header for use in allocating new task's memory
+ *  @param pid Pointer where task id for new task is stored
+ *  @param tid Pointer where thread id for new thread is stored
+ *  @param elf Elf header for use in allocating new task's memory
  *
  *  @return 0 on success, negative value on failure.
  * */
@@ -132,9 +132,9 @@ activate_task_memory( uint32_t pid )
  *  calling this function. Stack pointer should be appropriately set
  *  if any arguments have been loaded on stack.
  *
- *  @arg tid Id of thread to run
- *  @arg esp Stack pointer
- *  @arg entry_point First program instruction
+ *  @param tid Id of thread to run
+ *  @param esp Stack pointer
+ *  @param entry_point First program instruction
  *
  *  @return Never returns.
  *  */
@@ -169,7 +169,7 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 
 /** Looks for pcb with given pid.
  *
- *  @arg pid Task id to look for
+ *  @param pid Task id to look for
  *
  *  @return Pointer to pcb on success, NULL on failure */
 pcb_t *
@@ -185,7 +185,7 @@ find_pcb( uint32_t pid )
 
 /** Looks for tcb with given tid.
  *
- *  @arg tid Thread id to look for
+ *  @param tid Thread id to look for
  *
  *  @return Pointer to tcb on success, NULL on failure */
 tcb_t *
@@ -199,8 +199,8 @@ find_tcb( uint32_t tid )
 
 /** @brief Initializes new pcb, and corresponding tcb.
  *
- *  @arg pid Pointer to where pid should be stored
- *  @arg pd  Pointer to page directory for new task
+ *  @param pid Pointer to where pid should be stored
+ *  @param pd  Pointer to page directory for new task
  *  @return 0 on success, negative value on error
  */
 int

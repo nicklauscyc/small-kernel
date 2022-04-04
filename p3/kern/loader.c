@@ -88,7 +88,7 @@ getbytes( const char *filename, int offset, int size, char *buf )
  *  Assumes paging is enabled and that virtual memory
  *  has been setup.
  *
- *  @arg se_hdr Elf header
+ *  @param se_hdr Elf header
  *
  *  @return 0 on sucess, negative value on failure.
  *  */
@@ -183,7 +183,7 @@ configure_stack( int argc, char **argv )
  *  meant to be used to load the starter program (when we have
  *  a single thread).
  *
- *  @arg fname Name of program to run.
+ *  @param fname Name of program to run.
  *  @return 0 on success, negative value on error.
  */
 int

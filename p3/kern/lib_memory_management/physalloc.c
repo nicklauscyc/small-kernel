@@ -15,7 +15,6 @@
 
 #include <physalloc.h>
 
-#include <simics.h>         /* MAGIC_BREAK, lprintf */
 #include <string.h>         /* memcpy() */
 #include <assert.h>         /* affirm() */
 #include <variable_queue.h> /* Q_NEW_LINK() */
@@ -144,7 +143,7 @@ physfree(uint32_t phys_address)
 
         uint32_t *new_data = smalloc(reuse_stack.len * 2 * sizeof(uint32_t));
         if (!new_data) {
-            lprintf("[ERROR] Losing free physical frames \
+            log_warn("[ERROR] Losing free physical frames \
                     - no more kernel space.");
 			mutex_unlock(&mux);
             return;

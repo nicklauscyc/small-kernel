@@ -75,9 +75,9 @@ print_status(status_t status)
 /** @brief Yield execution of current thread, storing it at
  *         the designated queue.
  *
- *  @arg store_at       Queue in which to store thread
- *  @arg store_status   Status with which to store thread
- *  @arg tid			Id of thread to yield to, -1 if any
+ *  @param store_at       Queue in which to store thread
+ *  @param store_status   Status with which to store thread
+ *  @param tid			Id of thread to yield to, -1 if any
  *  @return 0 on success, negative value on error */
 int
 yield_execution( queue_t *store_at, status_t store_status, int tid )
@@ -175,7 +175,7 @@ init_scheduler( void )
 /** @brief Registers thread with scheduler. After this call,
  *         the thread may be executed by the scheduler.
  *
- *  @arg tid Id of thread to register
+ *  @param tid Id of thread to register
  *
  *  @return 0 on success, negative value on error */
 /* TODO: Think of synchronization here*/

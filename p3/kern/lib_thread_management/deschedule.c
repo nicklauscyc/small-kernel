@@ -14,7 +14,7 @@
 /** @brief Deschedules currently running thread if *reject == 0
  *		   Atomic w.r.t make_runnable
  *
- *	@arg reject Pointer to integer describing whether to deschedule
+ *	@param reject Pointer to integer describing whether to deschedule
  *	@return 0 on success, negative value on failure */
 int
 deschedule( int *reject )

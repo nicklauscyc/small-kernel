@@ -24,8 +24,6 @@
 #include <common_kern.h>/* USER_MEM_START */
 #include <logger.h>     /* log */
 
-#include <simics.h>     /* lprintf */
-
 #define PAGING_FLAG (1 << 31)
 #define WRITE_PROTECT_FLAG (1 << 16)
 
@@ -392,10 +390,10 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
  *  request, region is not allocated and function returns a negative
  *  value.
  *
- *  @arg pd    Pointer to page directory
- *  @arg start  Virtual memory addess for start of region to be allocated
- *  @arg len    Length of region to be allocated
- *  @arg write_mode 0 if read-only region, non-zero value if writable
+ *  @param pd    Pointer to page directory
+ *  @param start  Virtual memory addess for start of region to be allocated
+ *  @param len    Length of region to be allocated
+ *  @param write_mode 0 if read-only region, non-zero value if writable
  *
  *  @return 0 on success, negative value on failure.
  *  */

@@ -7,7 +7,7 @@
  *	Valid means the pointer is non-NULL, belongs to
  *	user memory and is in an allocated memory region.
  *
- *	@arg ptr Pointer to check
+ *	@param ptr Pointer to check
  *	@return 1 if valid, 0 if not */
 int
 is_user_pointer_valid(void *ptr)
