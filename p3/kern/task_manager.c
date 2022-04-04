@@ -220,8 +220,10 @@ create_pcb( uint32_t *pid, void *pd )
 	Q_INIT_HEAD(&(pcb->owned_threads));
 	pcb->num_threads = 0;
 
+
     /* Add to pcb linked list*/
 	mutex_lock(&pcb_list_mux);
+	Q_INIT_ELEM(pcb, task_link);
 	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
 	mutex_unlock(&pcb_list_mux);
 
