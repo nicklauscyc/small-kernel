@@ -142,7 +142,7 @@ init_scheduler( void )
 int
 register_thread(uint32_t tid)
 {
-	log_info("Registering thread %d", tid);
+	log("Registering thread %d", tid);
 
     int first_thread = !scheduler_init;
     if (!scheduler_init) {
@@ -158,15 +158,17 @@ register_thread(uint32_t tid)
     /* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
     if (first_thread) {
+		log("%d is first thread", tid);
         tcbp->status = RUNNING;
         running_thread = tcbp;
     } else {
+		log("%d added to runnable queue", tid);
         tcbp->status = RUNNABLE;
         Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
     }
 	enable_interrupts();
 
-	log_info("Succesfully registered thread %d", tid);
+	log("Succesfully registered thread %d", tid);
 
     return 0;
 }
@@ -176,8 +178,7 @@ scheduler_on_tick( unsigned int num_ticks )
 {
     if (!scheduler_init)
         return;
-    if (num_ticks % WAIT_TICKS == 0) /* Context switch every 2 ms */
-    {
+    if (num_ticks % WAIT_TICKS == 0) {
         disable_interrupts();
         run_next_tcb(NULL, RUNNABLE);
     }
@@ -187,8 +188,8 @@ scheduler_on_tick( unsigned int num_ticks )
 
 
 /** @brief Context switch to next thread, as determined by runnable queue.
- *	PRECONDITION: Interrupts disabled when run_next_tcb called.
  *
+ *	@pre Interrupts disabled when run_next_tcb called.
  *  @arg store_at Queue in which to store old thread in case store_status
  *				  is blocked. For any other store status scheduler determines
  *				  queue to store thread into.
@@ -198,6 +199,16 @@ scheduler_on_tick( unsigned int num_ticks )
 static void
 run_next_tcb( queue_t *store_at, status_t store_status )
 {
+	/* DEBUG: */
+	log_info("run_next_tcb: Examining runnable_q");
+	tcb_t *curr = Q_GET_FRONT(&runnable_q);
+	log_info("{");
+    while (curr) {
+		log_info("\t%d,", curr->tid);
+		curr = Q_GET_NEXT(curr, scheduler_queue);
+    }
+	log_info("}");
+
     if (!scheduler_init) {
         enable_interrupts();
         return;
@@ -234,7 +245,7 @@ run_next_tcb( queue_t *store_at, status_t store_status )
     tcb_t *to_run;
     /* Do nothing if there's no thread waiting to be run */
     if (!(to_run = Q_GET_FRONT(&runnable_q))) {
-        affirm_msg(store_status == RUNNABLE, "DEADLOCK");
+        affirm_msg(store_status == RUNNABLE, "DEADLOCK, no thread to run in scheduler");
         enable_interrupts();
         return;
     }
