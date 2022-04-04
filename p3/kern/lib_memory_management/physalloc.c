@@ -102,11 +102,15 @@ physalloc( void )
 
 	mutex_lock(&mux);
 
-	if (reuse_stack.top > 0)
+	if (reuse_stack.top > 0) {
+		mutex_unlock(&mux);
 		return reuse_stack.data[--reuse_stack.top];
+	}
 
-	if (UNCLAIMED_PAGES == 0)
+	if (UNCLAIMED_PAGES == 0) {
+		mutex_unlock(&mux);
 		return 0; /* No more pages to allocate */
+	}
 
 	uint32_t frame = max_free_address;
 	max_free_address += PAGE_SIZE;
@@ -142,6 +146,7 @@ physfree(uint32_t phys_address)
         if (!new_data) {
             lprintf("[ERROR] Losing free physical frames \
                     - no more kernel space.");
+			mutex_unlock(&mux);
             return;
         }
 

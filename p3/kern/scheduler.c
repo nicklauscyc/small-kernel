@@ -32,7 +32,8 @@ static queue_t dead_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
 static void swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status );
-static void switch_threads(tcb_t *to_run);
+//static void switch_threads(tcb_t *to_run);
+static void switch_threads(tcb_t *running, tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
  *
@@ -41,6 +42,34 @@ int
 is_scheduler_init( void )
 {
 	return scheduler_init;
+}
+
+void
+print_status(status_t status)
+{
+	switch (status) {
+		case RUNNING:
+			log_info("Status is RUNNING");
+			break;
+		case RUNNABLE:
+			log_info("Status is RUNNABLE");
+			break;
+		case DESCHEDULED:
+			log_info("Status is DESCHEDULED");
+			break;
+		case BLOCKED:
+			log_info("Status is BLOCKED");
+			break;
+		case DEAD:
+			log_info("Status is DEAD");
+			break;
+		case UNINITIALIZED:
+			log_info("Status is UNINITIALIZED");
+			break;
+		default:
+			log_info("Status is UNKNOWN");
+			break;
+	}
 }
 
 /** @brief Yield execution of current thread, storing it at
@@ -59,8 +88,11 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		return -1;
 	}
 
-	if (tid == get_running_tid())
+	if (tid == get_running_tid()) {
+		affirm_msg(store_status == RUNNABLE, "Trying to yield to self"
+				" but with non-RUNNABLE status");
 		return 0; // yielding to self
+	}
 
 	tcb_t *tcb;
 	if (tid == -1) {
@@ -71,6 +103,7 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 				enable_interrupts();
 				return 0; /* Yield to self*/
 			} else {
+				print_status(store_status);
 				panic("DEADLOCK, scheduler has no one to run!");
 			}
 		}
@@ -86,7 +119,6 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		if (tcb->status != RUNNABLE) {
 			log_warn("Trying to yield_execution to non-runnable"
 					 " thread with tid %d", tid);
-			enable_interrupts();
 			return -1;
 		}
 		disable_interrupts(); // No need to disable interrupts for find_tcb
@@ -99,12 +131,14 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 // FIXME: Maybe crash if !scheduler_init???
 /** @brief Gets tid of currently active thread.
  *
- *  @return Id of running thread on success, negative value on error */
+ *  @return Id of running thread */
 int
 get_running_tid( void )
 {
-    if (!running_thread)
-        return -1;
+	/* If running_thread is NULL, we have a single thread with tid 0. */
+    if (!running_thread) {
+        return 0;
+	}
     return running_thread->tid;
 }
 
@@ -164,11 +198,9 @@ register_thread(uint32_t tid)
     /* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
     if (first_thread) {
-		log("%d is first thread", tid);
         tcbp->status = RUNNING;
         running_thread = tcbp;
     } else {
-		log("%d added to runnable queue", tid);
         tcbp->status = RUNNABLE;
         Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
     }
@@ -218,9 +250,17 @@ scheduler_on_tick( unsigned int num_ticks )
 static void
 swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 {
-	affirm(to_run);
+	assert(to_run);
 
     if (!scheduler_init) {
+        enable_interrupts();
+        return;
+    }
+
+	/* yield_execution will not remove the thread it yields to from
+	 * the runnable queue. Therefore, we give it more CPU cycles without
+	 * an explicit context switch by just returning.*/
+	if (to_run->tid == running_thread->tid) {
         enable_interrupts();
         return;
     }
@@ -254,34 +294,25 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 	}
 
 	tcb_t *running = running_thread;
+	running->status = store_status;
+	Q_INSERT_TAIL(store_at, running, scheduler_queue);
 
-	switch_threads(to_run);
-
-	/* We are now running "to_run" thread */
-    to_run->status = RUNNING;
     running_thread = to_run;
+    to_run->status = RUNNING;
 
-    /* Add currently running thread to back of store_at queue */
-    running->status = store_status;
-    Q_INSERT_TAIL(store_at, running, scheduler_queue);
+	switch_threads(running, to_run);
 
     enable_interrupts();
 }
 
 static void
-switch_threads(tcb_t *to_run)
+switch_threads(tcb_t *running, tcb_t *to_run)
 {
-	assert(running_thread);
-    assert(to_run->tid != running_thread->tid);
-
-    tcb_t *running = running_thread;
-    assert(running->status == RUNNING);
+	assert(running && to_run);
+    assert(to_run->tid != running->tid);
 
     /* Let thread know where to come back to on USER->KERN mode switch */
     set_esp0((uint32_t)to_run->kernel_stack_hi);
-
-	//log_info("Context switching to thread %d from task %d",
-	//		to_run->tid, to_run->owning_task->pid);
 
     context_switch((void **)&(running->kernel_esp),
             to_run->kernel_esp, to_run->owning_task->pd);

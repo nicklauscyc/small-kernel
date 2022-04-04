@@ -78,7 +78,10 @@ mutex_lock( mutex_t *mp )
         enable_interrupts(); /* } */
         return;
     }
-    log("[tid %d] Waiting on lock.", get_running_tid());
+    log("Waiting on lock. mp->owned %d, mp->owner_tid %d",
+			mp->owned, mp->owner_tid);
+
+	enable_interrupts();
 
     affirm(yield_execution(&mp->waiters_queue, BLOCKED, -1) == 0);
 }
@@ -109,9 +112,12 @@ mutex_unlock( mutex_t *mp )
     tcb_t *to_run;
     if ((to_run = Q_GET_FRONT(&mp->waiters_queue))) {
         Q_REMOVE(&mp->waiters_queue, to_run, scheduler_queue);
+		log("Unlocking. Giving lock to %d",
+			to_run->tid);
         mp->owner_tid = to_run->tid;
         add_to_runnable_queue(to_run);
     } else {
+		log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
         mp->owned = 0;
     }
 
