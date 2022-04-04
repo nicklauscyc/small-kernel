@@ -113,7 +113,7 @@ struct {\
 	affirm_msg((Q_HEAD) != NULL,\
 	           "Variable queue head pointer cannot be NULL!");\
 	affirm_msg((Q_ELEM) != NULL,\
-	           "Variable queue element pointer cannot be NULL!")\
+	           "Variable queue element pointer cannot be NULL!");\
 \
 	/* Q is currently empty, insert tail as well */\
 	if ((Q_HEAD)->front == NULL) {\
@@ -386,6 +386,9 @@ struct {\
 		((((Q_ELEM)->LINK_NAME).prev)->LINK_NAME).next = \
 			(((Q_ELEM)->LINK_NAME).next);\
 	}\
+	/* Make sure to remove aliases of next and prev */\
+	((Q_ELEM)->LINK_NAME).next = NULL;\
+	((Q_ELEM)->LINK_NAME).prev = NULL;\
 } while(0)
 
 #endif /* _VARIABLE_QUEUE_H_ */
