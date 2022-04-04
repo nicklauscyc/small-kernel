@@ -110,6 +110,7 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		assert(tcb->status == RUNNABLE);
 
 	} else {
+		/* find_tcb() is already guarded by a mutex */
 		tcb = find_tcb(tid);
 		if (!tcb) {
 			log_warn("Trying to yield_execution to non-existent"
@@ -121,7 +122,7 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 					 " thread with tid %d", tid);
 			return -1;
 		}
-		disable_interrupts(); // No need to disable interrupts for find_tcb
+		disable_interrupts();
 	}
 
     swap_running_thread(tcb, store_at, store_status);
@@ -235,31 +236,30 @@ scheduler_on_tick( unsigned int num_ticks )
 /* ------- HELPER FUNCTIONS -------- */
 
 /** @brief Swaps the running thread to to_run. Stores currently running
- *		   thread with store_status in the appropriate queue. If status
- *		   is BLOCKED, a queue for the thread to wait on has to be provided.
+ *         thread with store_status in the appropriate queue. If status
+ *         is BLOCKED, a queue for the thread to wait on has to be provided.
  *
- *	@pre Interrupts disabled when called.
+ *  @pre Interrupts disabled when called.
  *
- *	@param to_run		Thread to run next
- *  @param store_at		Queue in which to store old thread in case store_status
- *						is blocked. For any other store status scheduler
- *						determines queue to store thread into.
+ *  @param to_run Thread to run next
+ *  @param store_at	Queue in which to store old thread in case store_status
+ *                  is blocked. For any other store status scheduler determines
+ *                  queue to store thread into.
  *  @param store_status	Status with which to store old thread.
- *  @return Void
- *  */
+ *  @return Void.
+ */
 static void
 swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 {
 	assert(to_run);
-
-    if (!scheduler_init) {
-        enable_interrupts();
-        return;
-    }
+    affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
+	           "swap_running_thread");
 
 	/* yield_execution will not remove the thread it yields to from
 	 * the runnable queue. Therefore, we give it more CPU cycles without
 	 * an explicit context switch by just returning.*/
+
+	/* No-op if we swap with ourselves */
 	if (to_run->tid == running_thread->tid) {
         enable_interrupts();
         return;
