@@ -251,11 +251,8 @@ static void
 swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 {
 	assert(to_run);
-
-    if (!scheduler_init) {
-        enable_interrupts();
-        return;
-    }
+    affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
+	           "swap_running_thread");
 
 	/* yield_execution will not remove the thread it yields to from
 	 * the runnable queue. Therefore, we give it more CPU cycles without
