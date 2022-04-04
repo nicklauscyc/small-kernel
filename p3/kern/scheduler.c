@@ -110,6 +110,7 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		assert(tcb->status == RUNNABLE);
 
 	} else {
+		/* find_tcb() is already guarded by a mutex */
 		tcb = find_tcb(tid);
 		if (!tcb) {
 			log_warn("Trying to yield_execution to non-existent"
@@ -121,7 +122,7 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 					 " thread with tid %d", tid);
 			return -1;
 		}
-		disable_interrupts(); // No need to disable interrupts for find_tcb
+		disable_interrupts();
 	}
 
     swap_running_thread(tcb, store_at, store_status);
