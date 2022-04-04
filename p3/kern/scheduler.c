@@ -1,21 +1,21 @@
 /** @file scheduler.c
- *  @brief A round-robin scheduler.
+ *	@brief A round-robin scheduler.
  *
- *  Note: As mutexes are implemented by manipulating the schedulers
- *  so that threads waiting on a lock are not executed, the scheduler
- *  itself uses disable/enable interrupts to protect critical sections.
- *  All critical sections protected this way must be short. */
+ *	Note: As mutexes are implemented by manipulating the schedulers
+ *	so that threads waiting on a lock are not executed, the scheduler
+ *	itself uses disable/enable interrupts to protect critical sections.
+ *	All critical sections protected this way must be short. */
 
 #include <scheduler.h>
-#include <task_manager.h>   /* tcb_t */
+#include <task_manager.h>	/* tcb_t */
 #include <variable_queue.h> /* Q_NEW_LINK() */
 #include <context_switch.h> /* context_switch() */
-#include <assert.h>         /* affirm() */
-#include <malloc.h>         /* smalloc(), sfree() */
-#include <stdint.h>         /* uint32_t */
-#include <cr.h>             /* get_esp0() */
-#include <logger.h>         /* log_warn() */
-#include <asm.h>            /* enable/disable_interrupts() */
+#include <assert.h>			/* affirm() */
+#include <malloc.h>			/* smalloc(), sfree() */
+#include <stdint.h>			/* uint32_t */
+#include <cr.h>				/* get_esp0() */
+#include <logger.h>			/* log_warn() */
+#include <asm.h>			/* enable/disable_interrupts() */
 
 #include <simics.h>
 
@@ -37,7 +37,7 @@ static void switch_threads(tcb_t *running, tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
  *
- *  @return 1 if initialized, 0 if not */
+ *	@return 1 if initialized, 0 if not */
 int
 is_scheduler_init( void )
 {
@@ -73,12 +73,12 @@ print_status(status_t status)
 }
 
 /** @brief Yield execution of current thread, storing it at
- *         the designated queue.
+ *		   the designated queue.
  *
- *  @param store_at       Queue in which to store thread
- *  @param store_status   Status with which to store thread
- *  @param tid			Id of thread to yield to, -1 if any
- *  @return 0 on success, negative value on error */
+ *	@param store_at		  Queue in which to store thread
+ *	@param store_status   Status with which to store thread
+ *	@param tid			Id of thread to yield to, -1 if any
+ *	@return 0 on success, negative value on error */
 int
 yield_execution( queue_t *store_at, status_t store_status, int tid )
 {
@@ -125,38 +125,38 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		disable_interrupts();
 	}
 
-    swap_running_thread(tcb, store_at, store_status);
+	swap_running_thread(tcb, store_at, store_status);
 	return 0;
 }
 
 // FIXME: Maybe crash if !scheduler_init???
 /** @brief Gets tid of currently active thread.
  *
- *  @return Id of running thread */
+ *	@return Id of running thread */
 int
 get_running_tid( void )
 {
 	/* If running_thread is NULL, we have a single thread with tid 0. */
-    if (!running_thread) {
-        return 0;
+	if (!running_thread) {
+		return 0;
 	}
-    return running_thread->tid;
+	return running_thread->tid;
 }
 
 void
 add_to_runnable_queue( tcb_t *tcb )
 {
-    affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
-	           "runnable queue!");
+	affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
+			   "runnable queue!");
 	tcb->status = RUNNABLE;
 	disable_interrupts();
-    Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
+	Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
 	enable_interrupts();
 }
 
 /** @brief Initializes scheduler and registers its first thread.
  *
- *  @return 0 on success, -1 on error
+ *	@return 0 on success, -1 on error
  */
 static int
 init_scheduler( void )
@@ -174,52 +174,52 @@ init_scheduler( void )
 }
 
 /** @brief Registers thread with scheduler. After this call,
- *         the thread may be executed by the scheduler.
+ *		   the thread may be executed by the scheduler.
  *
- *  @param tid Id of thread to register
+ *	@param tid Id of thread to register
  *
- *  @return 0 on success, negative value on error */
+ *	@return 0 on success, negative value on error */
 /* TODO: Think of synchronization here*/
 int
 register_thread(uint32_t tid)
 {
 	log("Registering thread %d", tid);
 
-    int first_thread = !scheduler_init;
-    if (!scheduler_init) {
-        init_scheduler();
-    }
+	int first_thread = !scheduler_init;
+	if (!scheduler_init) {
+		init_scheduler();
+	}
 
-    tcb_t *tcbp = find_tcb(tid);
-    if (!tcbp)
-        return -1;
+	tcb_t *tcbp = find_tcb(tid);
+	if (!tcbp)
+		return -1;
 
-    assert(tcbp->status == UNINITIALIZED);
+	assert(tcbp->status == UNINITIALIZED);
 
-    /* Add tcb to runnable queue, as any thread starts as runnable */
+	/* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
-    if (first_thread) {
-        tcbp->status = RUNNING;
-        running_thread = tcbp;
-    } else {
-        tcbp->status = RUNNABLE;
-        Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
-    }
+	if (first_thread) {
+		tcbp->status = RUNNING;
+		running_thread = tcbp;
+	} else {
+		tcbp->status = RUNNABLE;
+		Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
+	}
 	enable_interrupts();
 
 	log("Succesfully registered thread %d", tid);
 
-    return 0;
+	return 0;
 }
 
 void
 scheduler_on_tick( unsigned int num_ticks )
 {
-    if (!scheduler_init)
-        return;
+	if (!scheduler_init)
+		return;
 
-    if (num_ticks % WAIT_TICKS == 0) {
-        disable_interrupts();
+	if (num_ticks % WAIT_TICKS == 0) {
+		disable_interrupts();
 
 		tcb_t *to_run;
 		/* Do nothing if there's no thread waiting to be run */
@@ -229,31 +229,31 @@ scheduler_on_tick( unsigned int num_ticks )
 		}
 		Q_REMOVE(&runnable_q, to_run, scheduler_queue);
 
-        swap_running_thread(to_run, NULL, RUNNABLE);
-    }
+		swap_running_thread(to_run, NULL, RUNNABLE);
+	}
 }
 
 /* ------- HELPER FUNCTIONS -------- */
 
 /** @brief Swaps the running thread to to_run. Stores currently running
- *         thread with store_status in the appropriate queue. If status
- *         is BLOCKED, a queue for the thread to wait on has to be provided.
+ *		   thread with store_status in the appropriate queue. If status
+ *		   is BLOCKED, a queue for the thread to wait on has to be provided.
  *
- *  @pre Interrupts disabled when called.
+ *	@pre Interrupts disabled when called.
  *
- *  @param to_run Thread to run next
- *  @param store_at	Queue in which to store old thread in case store_status
- *                  is blocked. For any other store status scheduler determines
- *                  queue to store thread into.
- *  @param store_status	Status with which to store old thread.
- *  @return Void.
+ *	@param to_run Thread to run next
+ *	@param store_at	Queue in which to store old thread in case store_status
+ *					is blocked. For any other store status scheduler determines
+ *					queue to store thread into.
+ *	@param store_status	Status with which to store old thread.
+ *	@return Void.
  */
 static void
 swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 {
 	assert(to_run);
-    affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
-	           "swap_running_thread");
+	affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
+			   "swap_running_thread");
 
 	/* yield_execution will not remove the thread it yields to from
 	 * the runnable queue. Therefore, we give it more CPU cycles without
@@ -261,9 +261,9 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 
 	/* No-op if we swap with ourselves */
 	if (to_run->tid == running_thread->tid) {
-        enable_interrupts();
-        return;
-    }
+		enable_interrupts();
+		return;
+	}
 
 	/* Pick appropriate queue in which to store currently running thread */
 	switch (store_status) {
@@ -297,25 +297,25 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 	running->status = store_status;
 	Q_INSERT_TAIL(store_at, running, scheduler_queue);
 
-    running_thread = to_run;
-    to_run->status = RUNNING;
+	running_thread = to_run;
+	to_run->status = RUNNING;
 
 	switch_threads(running, to_run);
 
-    enable_interrupts();
+	enable_interrupts();
 }
 
 static void
 switch_threads(tcb_t *running, tcb_t *to_run)
 {
 	assert(running && to_run);
-    assert(to_run->tid != running->tid);
+	assert(to_run->tid != running->tid);
 
-    /* Let thread know where to come back to on USER->KERN mode switch */
-    set_esp0((uint32_t)to_run->kernel_stack_hi);
+	/* Let thread know where to come back to on USER->KERN mode switch */
+	set_esp0((uint32_t)to_run->kernel_stack_hi);
 
-    context_switch((void **)&(running->kernel_esp),
-            to_run->kernel_esp, to_run->owning_task->pd);
+	context_switch((void **)&(running->kernel_esp),
+			to_run->kernel_esp, to_run->owning_task->pd);
 }
 
 
