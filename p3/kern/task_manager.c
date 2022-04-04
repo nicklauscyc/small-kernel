@@ -267,6 +267,8 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	/* Add to owning task's list of threads, increment num_threads not DEAD */
 	//mutex_lock(&owning_task->thread_list_mux);
+	Q_INIT_ELEM(tcb, scheduler_queue);
+	Q_INIT_ELEM(tcb, tid2tcb_queue);
 	Q_INIT_ELEM(tcb, owning_task_thread_list);
 	Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
 	++(owning_task->num_threads);

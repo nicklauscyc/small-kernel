@@ -17,6 +17,8 @@
 #include <logger.h>         /* log_warn() */
 #include <asm.h>            /* enable/disable_interrupts() */
 
+#include <simics.h>
+
 /* Timer interrupts every ms, we want to swap every 2 ms. */
 #define WAIT_TICKS 2
 
@@ -29,7 +31,8 @@ static queue_t descheduled_q;
 static queue_t dead_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
-static void run_next_tcb( queue_t *store_at, status_t store_status );
+static void swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status );
+static void switch_threads(tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
  *
@@ -63,10 +66,15 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		disable_interrupts();
 		tcb = Q_GET_FRONT(&runnable_q);
 		if (!tcb) {
-			enable_interrupts();
-			return 0; /* Yield to self*/
+			if (store_status == RUNNABLE) {
+				enable_interrupts();
+				return 0; /* Yield to self*/
+			} else {
+				panic("DEADLOCK, scheduler has no one to run!");
+			}
 		}
 		assert(tcb->status == RUNNABLE);
+
 	} else {
 		tcb = find_tcb(tid);
 		if (!tcb) {
@@ -83,10 +91,7 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		disable_interrupts(); // No need to disable interrupts for find_tcb
 	}
 
-	/* Add to front of queue and swap to next runnable thread.
-	 * run_next_tcb requires interrupts to be disabled when called. */
-	Q_INSERT_FRONT(&runnable_q, tcb, scheduler_queue);
-    run_next_tcb(store_at, store_status);
+    swap_running_thread(tcb, store_at, store_status);
 	return 0;
 }
 
@@ -178,36 +183,41 @@ scheduler_on_tick( unsigned int num_ticks )
 {
     if (!scheduler_init)
         return;
+
     if (num_ticks % WAIT_TICKS == 0) {
         disable_interrupts();
-        run_next_tcb(NULL, RUNNABLE);
+
+		tcb_t *to_run;
+		/* Do nothing if there's no thread waiting to be run */
+		if (!(to_run = Q_GET_FRONT(&runnable_q))) {
+			enable_interrupts();
+			return;
+		}
+		Q_REMOVE(&runnable_q, to_run, scheduler_queue);
+
+        swap_running_thread(to_run, NULL, RUNNABLE);
     }
 }
 
 /* ------- HELPER FUNCTIONS -------- */
 
-
-/** @brief Context switch to next thread, as determined by runnable queue.
+/** @brief Swaps the running thread to to_run. Stores currently running
+ *		   thread with store_status in the appropriate queue. If status
+ *		   is BLOCKED, a queue for the thread to wait on has to be provided.
  *
- *	@pre Interrupts disabled when run_next_tcb called.
- *  @arg store_at Queue in which to store old thread in case store_status
- *				  is blocked. For any other store status scheduler determines
- *				  queue to store thread into.
- *  @arg store_status Status with which to store old thread.
+ *	@pre Interrupts disabled when called.
+ *
+ *	@param to_run		Thread to run next
+ *  @param store_at		Queue in which to store old thread in case store_status
+ *						is blocked. For any other store status scheduler
+ *						determines queue to store thread into.
+ *  @param store_status	Status with which to store old thread.
  *  @return Void
  *  */
 static void
-run_next_tcb( queue_t *store_at, status_t store_status )
+swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 {
-	/* DEBUG: */
-	log_info("run_next_tcb: Examining runnable_q");
-	tcb_t *curr = Q_GET_FRONT(&runnable_q);
-	log_info("{");
-    while (curr) {
-		log_info("\t%d,", curr->tid);
-		curr = Q_GET_NEXT(curr, scheduler_queue);
-    }
-	log_info("}");
+	affirm(to_run);
 
     if (!scheduler_init) {
         enable_interrupts();
@@ -242,21 +252,11 @@ run_next_tcb( queue_t *store_at, status_t store_status )
 			break;
 	}
 
-    tcb_t *to_run;
-    /* Do nothing if there's no thread waiting to be run */
-    if (!(to_run = Q_GET_FRONT(&runnable_q))) {
-        affirm_msg(store_status == RUNNABLE, "DEADLOCK, no thread to run in scheduler");
-        enable_interrupts();
-        return;
-    }
-    Q_REMOVE(&runnable_q, to_run, scheduler_queue);
+	tcb_t *running = running_thread;
 
-    assert(to_run->tid != running_thread->tid);
+	switch_threads(to_run);
 
-    /* Start context switch */
-    tcb_t *running = running_thread;
-    assert(running->status == RUNNING);
-
+	/* We are now running "to_run" thread */
     to_run->status = RUNNING;
     running_thread = to_run;
 
@@ -264,15 +264,26 @@ run_next_tcb( queue_t *store_at, status_t store_status )
     running->status = store_status;
     Q_INSERT_TAIL(store_at, running, scheduler_queue);
 
+    enable_interrupts();
+}
+
+static void
+switch_threads(tcb_t *to_run)
+{
+	assert(running_thread);
+    assert(to_run->tid != running_thread->tid);
+
+    tcb_t *running = running_thread;
+    assert(running->status == RUNNING);
+
     /* Let thread know where to come back to on USER->KERN mode switch */
     set_esp0((uint32_t)to_run->kernel_stack_hi);
 
 	//log_info("Context switching to thread %d from task %d",
-//			to_run->tid, to_run->owning_task->pid);
+	//		to_run->tid, to_run->owning_task->pid);
 
     context_switch((void **)&(running->kernel_esp),
             to_run->kernel_esp, to_run->owning_task->pd);
-
-    enable_interrupts();
 }
+
 
