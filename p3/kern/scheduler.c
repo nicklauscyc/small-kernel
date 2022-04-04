@@ -200,14 +200,14 @@ static void
 run_next_tcb( queue_t *store_at, status_t store_status )
 {
 	/* DEBUG: */
-	log_info("run_next_tcb: Examining runnable_q");
+	//log_info("run_next_tcb: Examining runnable_q");
 	tcb_t *curr = Q_GET_FRONT(&runnable_q);
-	log_info("{");
+	//log_info("{");
     while (curr) {
-		log_info("\t%d,", curr->tid);
+		//log_info("\t%d,", curr->tid);
 		curr = Q_GET_NEXT(curr, scheduler_queue);
     }
-	log_info("}");
+	//log_info("}");
 
     if (!scheduler_init) {
         enable_interrupts();
