@@ -53,6 +53,7 @@ is_scheduler_init( void )
 int
 yield_execution( queue_t *store_at, status_t store_status, int tid )
 {
+	affirm(scheduler_init);
 	if (!scheduler_init) {
 		log_warn("Attempting to call yield but scheduler is not initialized");
 		return -1;
