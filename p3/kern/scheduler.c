@@ -59,29 +59,28 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		return 0; // yielding to self
 
 	tcb_t *tcb;
-	if (tid != -1) {
-		tcb = find_tcb(tid);
-		if (!tcb) {
-			log_warn("Trying to yield_execution to non-existent"
-					 "thread with tid %d", tid);
-			return -1; /* Thread not found */
-		}
-		disable_interrupts(); // No need to disable interrupts for find_tcb
-	} else {
+	if (tid == -1) {
 		disable_interrupts();
 		tcb = Q_GET_FRONT(&runnable_q);
 		if (!tcb) {
 			enable_interrupts();
 			return 0; /* Yield to self*/
 		}
-	}
-
-	/* If no one to swap to or can't swap to given tid, just return */
-	if (tcb->status != RUNNABLE) {
-		log_warn("Trying to yield_execution to non-runnable"
-				 "thread with tid %d", tid);
-		enable_interrupts();
-		return -1;
+		assert(tcb->status == RUNNABLE);
+	} else {
+		tcb = find_tcb(tid);
+		if (!tcb) {
+			log_warn("Trying to yield_execution to non-existent"
+					 " thread with tid %d", tid);
+			return -1; /* Thread not found */
+		}
+		if (tcb->status != RUNNABLE) {
+			log_warn("Trying to yield_execution to non-runnable"
+					 " thread with tid %d", tid);
+			enable_interrupts();
+			return -1;
+		}
+		disable_interrupts(); // No need to disable interrupts for find_tcb
 	}
 
 	/* Add to front of queue and swap to next runnable thread.
@@ -108,6 +107,7 @@ add_to_runnable_queue( tcb_t *tcb )
 {
     affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
 	           "runnable queue!");
+	tcb->status = RUNNABLE;
 	disable_interrupts();
     Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
 	enable_interrupts();
@@ -115,15 +115,10 @@ add_to_runnable_queue( tcb_t *tcb )
 
 /** @brief Initializes scheduler and registers its first thread.
  *
- *  Must be called once and only once. A thread must be supplied
- *  as the scheduler maintains the invariant that there is always
- *  one thread running. If this cannot be met, we are facing a deadlock.
- *
- *  @arg tid Id of thread to start running.
  *  @return 0 on success, -1 on error
  */
-int
-init_scheduler( uint32_t tid )
+static int
+init_scheduler( void )
 {
 	/* Initialize once and only once */
 	affirm(!scheduler_init);
@@ -147,9 +142,11 @@ init_scheduler( uint32_t tid )
 int
 register_thread(uint32_t tid)
 {
+	log_info("Registering thread %d", tid);
+
     int first_thread = !scheduler_init;
     if (!scheduler_init) {
-        init_scheduler(tid);
+        init_scheduler();
     }
 
     tcb_t *tcbp = find_tcb(tid);
@@ -168,6 +165,8 @@ register_thread(uint32_t tid)
         Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
     }
 	enable_interrupts();
+
+	log_info("Succesfully registered thread %d", tid);
 
     return 0;
 }
@@ -256,6 +255,9 @@ run_next_tcb( queue_t *store_at, status_t store_status )
 
     /* Let thread know where to come back to on USER->KERN mode switch */
     set_esp0((uint32_t)to_run->kernel_stack_hi);
+
+	//log_info("Context switching to thread %d from task %d",
+//			to_run->tid, to_run->owning_task->pid);
 
     context_switch((void **)&(running->kernel_esp),
             to_run->kernel_esp, to_run->owning_task->pd);
