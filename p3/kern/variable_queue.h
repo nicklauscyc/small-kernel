@@ -114,6 +114,10 @@ struct {\
 	           "Variable queue head pointer cannot be NULL!");\
 	affirm_msg((Q_ELEM) != NULL,\
 	           "Variable queue element pointer cannot be NULL!");\
+	affirm_msg(((Q_ELEM)->LINK_NAME).next == NULL,\
+	           "Variable queue element pointer next must be NULL!");\
+	affirm_msg(((Q_ELEM)->LINK_NAME).prev == NULL,\
+	           "Variable queue element pointer prev must be NULL!");\
 \
 	/* Q is currently empty, insert tail as well */\
 	if ((Q_HEAD)->front == NULL) {\
@@ -152,6 +156,10 @@ struct {\
 	           "Variable queue head pointer cannot be NULL!");\
 	affirm_msg((Q_ELEM) != NULL,\
 	           "Variable queue element pointer cannot be NULL!");\
+	affirm_msg(((Q_ELEM)->LINK_NAME).next == NULL,\
+	           "Variable queue element pointer next must be NULL!");\
+	affirm_msg(((Q_ELEM)->LINK_NAME).prev == NULL,\
+	           "Variable queue element pointer prev must be NULL!");\
 \
 	/* Q is currently empty, insert front as well */\
 	if ((Q_HEAD)->tail == NULL) {\
@@ -357,22 +365,22 @@ struct {\
 \
 	/* If Q_ELEM is only element */\
 	if (((Q_ELEM) == (Q_HEAD)->front) && ((Q_ELEM) == (Q_HEAD)->tail)) {\
-		(Q_HEAD)->front = 0;\
-		(Q_HEAD)->tail = 0;\
+		(Q_HEAD)->front = NULL;\
+		(Q_HEAD)->tail = NULL;\
 \
 	/* If Q_ELEM is at the front */\
 	} else if ((Q_ELEM) == (Q_HEAD)->front) {\
 		(Q_HEAD)->front = ((Q_ELEM)->LINK_NAME).next;\
 		affirm_msg((Q_HEAD)->front != NULL,\
 	               "Variable queue front pointer cannot be NULL!");\
-		(((Q_HEAD)->front)->LINK_NAME).prev = 0;\
+		(((Q_HEAD)->front)->LINK_NAME).prev = NULL;\
 \
 	/* If Q_ELEM is at the tail */\
 	} else if ((Q_ELEM) == (Q_HEAD)->tail) {\
 		(Q_HEAD)->tail = ((Q_ELEM)->LINK_NAME).prev;\
 		affirm_msg((Q_HEAD)->tail != NULL,\
 	               "Variable queue tail pointer cannot be NULL!");\
-		(((Q_HEAD)->tail)->LINK_NAME).next = 0;\
+		(((Q_HEAD)->tail)->LINK_NAME).next = NULL;\
 \
 	/* Q_ELEM is somewhere in the middle */\
 	} else {\
