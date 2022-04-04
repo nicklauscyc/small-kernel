@@ -1,24 +1,24 @@
 /** @brief Module for management of tasks.
- *  Includes context switch facilities. */
+ *	Includes context switch facilities. */
 
 // TODO maybe a function such as is_legal_pcb, is_legal_tcb for invariant checks?
 //
 #include <task_manager.h>
 
-#include <scheduler.h>  /* add_tcb_to_run_queue() */
-#include <eflags.h>     /* get_eflags*/
-#include <seg.h>        /* SEGSEL_... */
-#include <stdint.h>     /* uint32_t, UINT32_MAX */
-#include <stddef.h>     /* NULL */
-#include <malloc.h>     /* malloc, smemalign, free, sfree */
-#include <elf_410.h>    /* simple_elf_t */
-#include <page.h>       /* PAGE_SIZE */
-#include <cr.h>         /* set_esp0 */
-#include <string.h>     /* memset */
-#include <assert.h>     /* affirm, assert */
-#include <simics.h>     /* sim_reg_process */
-#include <logger.h>     /* log */
-#include <iret_travel.h>    /* iret_travel */
+#include <scheduler.h>	/* add_tcb_to_run_queue() */
+#include <eflags.h>	/* get_eflags*/
+#include <seg.h>	/* SEGSEL_... */
+#include <stdint.h>	/* uint32_t, UINT32_MAX */
+#include <stddef.h>	/* NULL */
+#include <malloc.h>	/* malloc, smemalign, free, sfree */
+#include <elf_410.h>	/* simple_elf_t */
+#include <page.h>	/* PAGE_SIZE */
+#include <cr.h>		/* set_esp0 */
+#include <string.h>	/* memset */
+#include <assert.h>	/* affirm, assert */
+#include <simics.h>	/* sim_reg_process */
+#include <logger.h>	/* log */
+#include <iret_travel.h>	/* iret_travel */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 #include <variable_queue.h> /* Q_INSERT_TAIL */
 #include <lib_thread_management/hashmap.h>	/* map_* functions */
@@ -47,8 +47,9 @@ static uint32_t next_tid = 0;
 
 /** @brief Initializes task manager's resources
  *
- *	@return Void
- *	*/
+ *	 @return Void
+ *
+ */
 void
 task_manager_init ( void )
 {
@@ -60,118 +61,115 @@ task_manager_init ( void )
 
 /** @brief Creates a task
  *
- *  @param pid Pointer where task id for new task is stored
- *  @param tid Pointer where thread id for new thread is stored
- *  @param elf Elf header for use in allocating new task's memory
+ *	@param pid Pointer where task id for new task is stored
+ *	@param tid Pointer where thread id for new thread is stored
+ *	@param elf Elf header for use in allocating new task's memory
  *
- *  @return 0 on success, negative value on failure.
+ *	@return 0 on success, negative value on failure.
  * */
 int
 create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 {
-    // TODO: Think about preconditions for this.
-    // Paging fine, how about making it a critical section?
+	// TODO: Think about preconditions for this.
+	// Paging fine, how about making it a critical section?
 
 	/* Allocates physical memory to a new page table and enables VM */
-    /* Ensure alignment of page table directory */
-    /* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-    void *pd = new_pd_from_elf(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
-	if (!pd) {
+	/* Ensure alignment of page table directory */
+	/* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
+	void *pd = new_pd_from_elf(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+		if (!pd) {
+			return -1;
+		}
+
+	if (create_pcb(pid, pd) < 0) {
+		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
+	pcb_t *pcb = find_pcb(*pid);
+	affirm(pcb);
 
-    if (create_pcb(pid, pd) < 0) {
-        sfree(pd, PAGE_SIZE);
-        return -1;
-    }
-
-    pcb_t *pcb = find_pcb(*pid);
-    affirm(pcb);
-
-    if (create_tcb(*pid, tid) < 0) {
-        // TODO: Delete pcb, and return -1
-        sfree(pd, PAGE_SIZE);
-        return -1;
-    }
-
+	if (create_tcb(*pid, tid) < 0) {
+		// TODO: Delete pcb, and return -1
+		sfree(pd, PAGE_SIZE);
+		return -1;
+	}
 #ifndef NDEBUG
-    /* Register this task with simics for better debugging */
-    sim_reg_process(pcb->pd, elf->e_fname);
+	/* Register this task with simics for better debugging */
+	sim_reg_process(pcb->pd, elf->e_fname);
 #endif
-
-    return 0;
+	return 0;
 }
 
 /** NOTE: Not to be used in context-switch, only when running task
- *  for the first time
+ *	for the first time
  *
- *  Enables virtual memory of task. Use this before transplanting data
- *  into task's memory.
- *  */
+ *	Enables virtual memory of task. Use this before transplanting data
+ *	into task's memory.
+ *	*/
 int
 activate_task_memory( uint32_t pid )
 {
-    /* Likely messing up direct mapping of kernel memory, and
-     * some instruction after task_prepare is being seen as invalid?*/
-    pcb_t *pcb;
-    if ((pcb = find_pcb(pid)) == NULL)
-        return -1;
+	/* Likely messing up direct mapping of kernel memory, and
+	 * some instruction after task_prepare is being seen as invalid?*/
+	pcb_t *pcb;
+	if ((pcb = find_pcb(pid)) == NULL)
+		return -1;
 
-    /* Enable VM */
-    vm_enable_task(pcb->pd);
+	/* Enable VM */
+	vm_enable_task(pcb->pd);
 
-    return 0;
+	return 0;
 }
 
 /** NOTE: Not to be used in context-switch, only when running task
- *  for the first time
+ *	for the first time
  *
- *  Should only ever be called once, and after task has been initialized
- *  after a call to new_task.
- *  The caller is supposed to install memory on the new task before
- *  calling this function. Stack pointer should be appropriately set
- *  if any arguments have been loaded on stack.
+ *	Should only ever be called once, and after task has been initialized
+ *	after a call to new_task.
+ *	The caller is supposed to install memory on the new task before
+ *	calling this function. Stack pointer should be appropriately set
+ *	if any arguments have been loaded on stack.
  *
- *  @param tid Id of thread to run
- *  @param esp Stack pointer
- *  @param entry_point First program instruction
+ *	@param tid Id of thread to run
+ *	@param esp Stack pointer
+ *	@param entry_point First program instruction
  *
- *  @return Never returns.
- *  */
+ *	@return Never returns.
+ *	*/
 void
 task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 {
-    tcb_t *tcb;
-    affirm((tcb = find_tcb(tid)) != NULL);
-    pcb_t *pcb = tcb->owning_task;
+	tcb_t *tcb;
+	affirm((tcb = find_tcb(tid)) != NULL);
+	pcb_t *pcb = tcb->owning_task;
 
-    // TODO: Remove this check?
-    if (!pcb->prepared) {
-        activate_task_memory(pcb->pid);
-    }
+	// TODO: Remove this check?
+	if (!pcb->prepared) {
+	activate_task_memory(pcb->pid);
+	}
 
-    /* Let scheduler know it can now run this thread */
-    register_thread(tid);
+	/* Let scheduler know it can now run this thread */
+	register_thread(tid);
 
-    /* Before going to user mode, update esp0, so we know where to go back to */
-    set_esp0((uint32_t)tcb->kernel_esp);
+	/* Before going to user mode, update esp0, so we know where to go back to */
+	set_esp0((uint32_t)tcb->kernel_esp);
 
-    /* We're currently going directly to entry point. In the future,
-     * however, we should go to some "receiver" function which appropriately
-     * sets user registers and segment selectors, and lastly RETs to
-     * the entry_point. */
-    iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
-                esp, SEGSEL_USER_DS);
+	/* We're currently going directly to entry point. In the future,
+	 * however, we should go to some "receiver" function which appropriately
+	 * sets user registers and segment selectors, and lastly RETs to
+	 * the entry_point. */
+	iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
+		esp, SEGSEL_USER_DS);
 
-    /* NOTREACHED */
-    panic("iret_travel should not return");
+	/* NOTREACHED */
+	panic("iret_travel should not return");
 }
 
 /** Looks for pcb with given pid.
  *
- *  @param pid Task id to look for
+ *	@param pid Task id to look for
  *
- *  @return Pointer to pcb on success, NULL on failure */
+ *	@return Pointer to pcb on success, NULL on failure */
 pcb_t *
 find_pcb( uint32_t pid )
 {
@@ -185,23 +183,23 @@ find_pcb( uint32_t pid )
 
 /** Looks for tcb with given tid.
  *
- *  @param tid Thread id to look for
+ *	@param tid Thread id to look for
  *
- *  @return Pointer to tcb on success, NULL on failure */
+ *	@return Pointer to tcb on success, NULL on failure */
 tcb_t *
 find_tcb( uint32_t tid )
 {
 	mutex_lock(&tcb_map_mux);
-    tcb_t *res = (tcb_t *)map_get(tid);
+	tcb_t *res = (tcb_t *)map_get(tid);
 	mutex_unlock(&tcb_map_mux);
 	return res;
 }
 
 /** @brief Initializes new pcb, and corresponding tcb.
  *
- *  @param pid Pointer to where pid should be stored
- *  @param pd  Pointer to page directory for new task
- *  @return 0 on success, negative value on error
+ *	@param pid Pointer to where pid should be stored
+ *	@param pd  Pointer to page directory for new task
+ *	@return 0 on success, negative value on error
  */
 int
 create_pcb( uint32_t *pid, void *pd )
@@ -221,7 +219,7 @@ create_pcb( uint32_t *pid, void *pd )
 	pcb->num_threads = 0;
 
 
-    /* Add to pcb linked list*/
+	/* Add to pcb linked list*/
 	mutex_lock(&pcb_list_mux);
 	Q_INIT_ELEM(pcb, task_link);
 	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
@@ -231,11 +229,11 @@ create_pcb( uint32_t *pid, void *pd )
 }
 
 /** @brief Initializes new tcb. Does not add thread to scheduler.
- *         This should be done by whoever creates this thread.
+ *	   This should be done by whoever creates this thread.
  *
- *  @param pid Id of owning task
- *  @param tid Pointer to where id of new thread will be stored
- *  @return 0 on success, negative value on failure
+ *	@param pid Id of owning task
+ *	@param tid Pointer to where id of new thread will be stored
+ *	@return 0 on success, negative value on failure
  * */
 int
 create_tcb( uint32_t pid, uint32_t *tid )
@@ -290,7 +288,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	tcb->kernel_esp = tcb->kernel_stack_lo;
 	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
-	                  PAGE_SIZE - sizeof(uint32_t));
+			  PAGE_SIZE - sizeof(uint32_t));
 	tcb->kernel_stack_hi = tcb->kernel_esp;
 
 	return 0;
@@ -298,12 +296,12 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 /** @brief Returns number of threads in the owning task
  *
- *  The return value cannot be zero. The moment a tcb_t is initialize it
- *  is immediately added to its owning_task's owned_threads field, which is
- *  a list of threads owned by that task.
+ *	The return value cannot be zero. The moment a tcb_t is initialize it
+ *	is immediately added to its owning_task's owned_threads field, which is
+ *	a list of threads owned by that task.
  *
- *  @param tcbp Pointer to tcb
- *  @return Number of threads in owning task
+ *	@param tcbp Pointer to tcb
+ *	@return Number of threads in owning task
  */
 int
 get_num_threads_in_owning_task( tcb_t *tcbp )
@@ -319,13 +317,13 @@ get_num_threads_in_owning_task( tcb_t *tcbp )
 }
 
 /** @brief Gets the highest writable address of the kernel stack for thread
- *         that corresponds to supplied TCB
+ *	   that corresponds to supplied TCB
  *
- *  Requires that tcbp is non-NULL, and that its kernel_stack_hi field is
- *  stack aligned.
+ *	Requires that tcbp is non-NULL, and that its kernel_stack_hi field is
+ *	stack aligned.
  *
- *  @param tcbp Pointer to TCB
- *  @return Kernel stack highest writable address
+ *	@param tcbp Pointer to TCB
+ *	@return Kernel stack highest writable address
  */
 void *
 get_kern_stack_hi( tcb_t *tcbp )
@@ -336,19 +334,19 @@ get_kern_stack_hi( tcb_t *tcbp )
 	/* Invariant checks to ensure returned value is legal */
 	affirm_msg(tcbp->kernel_stack_hi, "tcbp->kernel_stack_hi cannot be NULL!");
 	affirm_msg(STACK_ALIGNED(tcbp->kernel_stack_hi), "tcbp->kernel_stack_hi "
-	           "must be stack aligned!");
+		   "must be stack aligned!");
 	return tcbp->kernel_stack_hi;
 }
 
 /** @brief Sets the kernel_esp field in supplied TCB
  *
- *  Requires that tcbp is non-NULL and that kernel_esp is stack aligned and also
- *  non-NULL
+ *	Requires that tcbp is non-NULL and that kernel_esp is stack aligned and also
+ *	non-NULL
  *
- *  @param tcbp Pointer to TCB
- *  @param kernel_esp Kernel esp the next time this thread goes into kernel
- *         mode either through a context switch or mode switch
- *  @return Void.
+ *	@param tcbp Pointer to TCB
+ *	@param kernel_esp Kernel esp the next time this thread goes into kernel
+ *	   mode either through a context switch or mode switch
+ *	@return Void.
  */
 void
 set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
@@ -367,27 +365,27 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 static uint32_t
 get_user_eflags( void )
 {
-    uint32_t eflags = get_eflags();
+	uint32_t eflags = get_eflags();
 
-    /* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
-    eflags |= EFL_IOPL_RING0; /* Set privilege level to user */
-    eflags |= EFL_RESV1;      /* Maitain reserved as 1 */
-    eflags &= ~(EFL_AC);      /* Disable alignment-checking */
-    eflags |= EFL_IF;         /* Enable hardware interrupts */
+	/* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
+	eflags |= EFL_IOPL_RING0; /* Set privilege level to user */
+	eflags |= EFL_RESV1;	  /* Maitain reserved as 1 */
+	eflags &= ~(EFL_AC);	  /* Disable alignment-checking */
+	eflags |= EFL_IF;		  /* Enable hardware interrupts */
 
-    return eflags;
+	return eflags;
 }
 
 /** @brief Returns a unique pid. */
 static uint32_t
 get_unique_pid( void )
 {
-    return add_one_atomic(&next_pid);
+	return add_one_atomic(&next_pid);
 }
 
 /** @brief Returns a unique tid. */
 static uint32_t
 get_unique_tid( void )
 {
-    return add_one_atomic(&next_tid);
+	return add_one_atomic(&next_tid);
 }
