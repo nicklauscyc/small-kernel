@@ -189,6 +189,8 @@ configure_stack( int argc, char **argv )
 int
 execute_user_program( const char *fname, int argc, char **argv )
 {
+	log_info("Executing: %s", fname);
+
 	/* Load user program information */
 	simple_elf_t se_hdr;
     if (elf_check_header(fname) == ELF_NOTELF)

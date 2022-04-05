@@ -7,8 +7,6 @@
 
 #include <logger.h> /* log() */
 #include <assert.h>
-#include <x86/asm.h> /* idt_base() */
-#include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <x86/cr.h> /* get_cr3() */
 #include <common_kern.h> /* USER_MEM_START */
@@ -19,6 +17,7 @@
 #include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
 #include <scheduler.h>
+#include <x86/asm.h> /* outb() */
 
 // saves regs and returns new esp
 void *save_child_regs(void *parent_kern_esp, void *child_kern_esp);
@@ -60,7 +59,6 @@ fork( void )
 	assert(parent_tcb);
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
 
-	/* Only fork if task has 1 thread */
 	log("Forking task with number of threads:%ld", num_threads);
 	if (num_threads > 1) {
 		return -1;

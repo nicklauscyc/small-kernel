@@ -5,4 +5,4 @@
  */
 
 extern void call_fork( void );
-extern void call_exec( char *execname, char **argvec );
+extern void call_exec( void );

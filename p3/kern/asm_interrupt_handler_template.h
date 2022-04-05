@@ -33,6 +33,12 @@ call_ ## HANDLER_NAME ## :;\
 	popa; /* Restores all registers onto the stack */\
 	iret; /* Return to procedure before interrupt */
 
+/** @define CALL_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)
+ *  @brief Wrapper code for syscall assembly wrappers that saves and restores
+ *         general and segment registers.
+ *
+ *  @param HANDLER_SPECIFIC_CODE syscall handler specific wrapper code
+ */
 #define CALL_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)\
 \
 	/* Save all callee save registers */\
@@ -127,7 +133,7 @@ call_ ## HANDLER_NAME ## :;\
 		pushl 4(%esi);      /* push 2nd argument onto stack */\
 		pushl (%esi);       /* push 1st argument onto stack */\
 		call HANDLER_NAME;  /* calls syscall handler */\
-		addl $4, %esp;      /* ignore argument */\
+		addl $8, %esp;      /* ignore argument */\
 	))
 
 

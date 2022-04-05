@@ -52,6 +52,13 @@ void tick(unsigned int numTicks) {
 	scheduler_on_tick(numTicks);
 }
 
+void hard_code_test( char *s )
+{
+	char *user_argv = (char *)s;
+	execute_user_program(s, 1, &user_argv);
+}
+
+
 /** @brief Kernel entrypoint.
  *
  *  This is the entrypoint for the kernel.
@@ -84,6 +91,8 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_warn("this is WARN");
 
     while (!__kernel_all_done) {
+		hard_code_test("exec_basic");
+
         int n = MAX_EXECNAME_LEN;
         char s[n];
 
@@ -97,11 +106,10 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         /* Swap \n returned by readline for null-terminator */
         s[res - 1] = '\0';
 
-        log_info("Executing: %s", s);
-
         char *user_argv = (char *)s;
-
         execute_user_program(s, 1, &user_argv);
+
+
     }
 
     return 0;
