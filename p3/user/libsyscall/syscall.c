@@ -29,10 +29,10 @@ volatile static int placate_the_compiler;
 //	return -1;
 //}
 
-int exec(char *execname, char *argvec[])
-{
-	return -1;
-}
+//int exec(char *execname, char *argvec[])
+//{
+//	return -1;
+//}
 
 void set_status(int status)
 {

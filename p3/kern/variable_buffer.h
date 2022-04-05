@@ -1,4 +1,4 @@
-/** @file generic_buffer.h
+/** @file variable_buffer.h
  *  @brief Generalized circular buffer module for a consumer producer model
  *         where producers can add to the buffer and consumers can remove from
  *         the buffer.

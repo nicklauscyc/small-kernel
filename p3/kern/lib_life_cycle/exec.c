@@ -7,3 +7,8 @@
 
 #include <logger.h> /* log() */
 
+int exec( char *execname, char **argvec )
+{
+	return -1;
+}
+
