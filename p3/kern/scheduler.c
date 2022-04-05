@@ -300,9 +300,13 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 	running_thread = to_run;
 	to_run->status = RUNNING;
 
+	enable_interrupts();
+
 	switch_threads(running, to_run);
 
-	enable_interrupts();
+	/* Nothing should be placed after switch_threads as, when we
+	 * context switch to a new thread for the first time, the stack
+	 * will be setup for it to return directly to the call_fork asm wrapper. */
 }
 
 static void

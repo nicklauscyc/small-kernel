@@ -25,7 +25,6 @@ deschedule( int *reject )
 	if (!is_user_pointer_valid(reject))
 		return -1;
 
-	/* TODO: Will this work? */
 	if (*reject == 0)
 		return yield_execution(NULL, DESCHEDULED, -1);
 	return 0;

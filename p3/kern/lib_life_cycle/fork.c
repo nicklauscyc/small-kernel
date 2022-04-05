@@ -99,8 +99,7 @@ fork( void )
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
-	// TODO what is elf->e_fname for this guy?
-    //sim_reg_process(pd, elf->e_fname);
+    sim_reg_child(child_pd, parent_pd);
 #endif
 
 	uint32_t *child_kernel_esp_on_ctx_switch;
