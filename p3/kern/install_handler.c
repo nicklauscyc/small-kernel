@@ -19,9 +19,8 @@
 #include <timer_driver.h>           /* init_timer() */
 #include <keybd_driver.h>           /* init_keybd() */
 
-#include <install_thread_management_handlers.h> /* install_gettid_handler() */
+#include <install_thread_management_handlers.h> /* install_gettid_handler() TODO delete this */
 #include <asm_thread_management_handlers.h>     /* call_gettid() */
-#include <install_life_cycle_handlers.h>        /* install_fork_handler() */
 #include <asm_life_cycle_handlers.h>            /* call_fork() */
 #include <install_memory_management_handlers.h> /* install_pf_handler() */
 #include <tests.h>                              /* install_test_handler() */
@@ -108,6 +107,22 @@ install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
 	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0);
 }
 
+/** @brief General function to install a handler without an init function
+ *
+ *  @param idt_entry Index in IDT to install
+ *  @param asm_wrapper Assembly wrapper to call the handler
+ *  @param dpl DPL
+ *  @return 0 on success, -1 on error
+ */
+int
+install_handler( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl )
+{
+	if (!asm_wrapper) {
+		return -1;
+	}
+	return install_handler_in_idt(idt_entry, asm_wrapper, dpl);
+}
+
 /** @brief Install keyboard interrupt handler
  */
 int
@@ -162,10 +177,11 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	/* Lib lifecycle*/
-	if (install_fork_handler(FORK_INT, call_fork) < 0) {
+	//TODO are these DPL_3 or DPL_0
+	if (install_handler(FORK_INT, call_fork, DPL_3) < 0) {
 		return -1;
 	}
-	if (install_pf_handler(IDT_PF, call_pagefault_handler) < 0) {
+	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3) < 0) {
 		return -1;
 	}
 

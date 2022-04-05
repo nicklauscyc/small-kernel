@@ -15,7 +15,7 @@
 #include <malloc.h> /* smemalign() */
 #include <string.h> /* memcpy() */
 #include <page.h> /* PAGE_SIZE */
-#include <task_manager.h> /* FIXME: remove me */
+#include <task_manager.h>
 #include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
 #include <scheduler.h>
@@ -43,12 +43,6 @@ log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 		*(child_tcb->kernel_stack_hi - i));
 	}
 	log("result from get_running_tid():%d", get_running_tid());
-}
-
-void
-init_fork( void )
-{
-	/* Nothing to init */
 }
 
 /** @brief Fork task into two.
@@ -125,18 +119,6 @@ fork( void )
 	return child_tcb->tid;
 }
 
-/** @brief Installs the fork() interrupt handler
- */
-int
-install_fork_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
-{
-	if (!asm_wrapper) {
-		return -1;
-	}
-	init_fork();
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
-	return res;
-}
 
 
 
