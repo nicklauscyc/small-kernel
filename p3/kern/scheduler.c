@@ -125,7 +125,8 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 	/* If this thread is to be made not-runnable, ensure it is not
 	 * on the runnable queue. The currently running thread can be
 	 * on the runnable queue if it was yielded to previously. */
-	if (Q_IN_SOME_QUEUE(running_thread, scheduler_queue)) {
+	if (store_status != RUNNABLE &&
+			Q_IN_SOME_QUEUE(running_thread, scheduler_queue)) {
 		/* tcb must be in scheduler_q, therefore we can safely remove it */
 		Q_REMOVE(&runnable_q, running_thread, scheduler_queue);
 	}

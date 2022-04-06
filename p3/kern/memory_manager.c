@@ -289,7 +289,7 @@ is_user_pointer_valid(void *ptr)
 		return 0;
 
 	/* Check if allocated */
-    uint32_t *pd = (uint32_t *)(get_cr3() & ~(PAGE_SIZE - 1));
+	uint32_t *pd = (uint32_t *)(get_cr3() & ~(PAGE_SIZE - 1));
 	if (!(pd[PD_INDEX((uint32_t)ptr)] & PRESENT_FLAG))
 		return 0;
 	uint32_t *pt = (uint32_t *)(pd[PD_INDEX((uint32_t)ptr)] & ~(PAGE_SIZE - 1));

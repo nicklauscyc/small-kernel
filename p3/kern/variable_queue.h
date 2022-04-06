@@ -344,8 +344,13 @@ struct {\
  *         LINK_NAME.
  *  @param LINK_NAME Link name for link to check for queue.
  *  */
-#define Q_IN_SOME_QUEUE(Q_ELEM,LINK_NAME) \
-	((Q_ELEM)->LINK_NAME).next || ((Q_ELEM)->LINK_NAME).prev
+#define Q_IN_SOME_QUEUE(Q_ELEM,LINK_NAME)\
+(\
+	/* Q_HEAD non-NULL check */\
+	((Q_ELEM) != NULL) ?\
+		((void) (Q_ELEM), ((Q_ELEM)->LINK_NAME).next || ((Q_ELEM)->LINK_NAME).prev) :\
+		(panic("Q_IN_SOME_QUEUE: Q_ELEM parameter cannot be NULL"), 0)\
+)
 
 /** @def Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME)
  *
