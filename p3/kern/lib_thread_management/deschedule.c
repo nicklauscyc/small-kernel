@@ -5,9 +5,9 @@
  */
 
 #include <asm.h>				/* outb() */
-#include <util.h>				/* is_user_pointer_valid() */
 #include <stddef.h>				/* NULL */
 #include <scheduler.h>			/* yield_execution() */
+#include <memory_manager.h>		/* is_user_pointer_valid() */
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 
