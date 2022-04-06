@@ -27,19 +27,5 @@ make_runnable( int tid )
 		return -1;
 
 	/* move to runnable queue and mark as runnable */
-	add_to_runnable_queue(tcbp);
-
-	return 0;
-}
-
-/** @brief Installs the yield() interrupt handler
- */
-int
-install_make_runnable_helper(int idt_entry, asm_wrapper_t *asm_wrapper)
-{
-	if (!asm_wrapper) {
-		return -1;
-	}
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
-	return res;
+	return make_thread_runnable(tid);
 }

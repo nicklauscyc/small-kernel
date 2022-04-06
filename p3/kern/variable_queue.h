@@ -336,6 +336,17 @@ struct {\
 	}\
 } while(0)
 
+/** @def Q_IN_SOME_QUEUE(Q_ELEM,LINK_NAME)
+ *
+ *  @brief Checks if Q_ELEM is in some queue for a given link, LINK_NAME.
+ *
+ *  @param Q_ELEM Pointer to the element to remove from the queue organized by
+ *         LINK_NAME.
+ *  @param LINK_NAME Link name for link to check for queue.
+ *  */
+#define Q_IN_SOME_QUEUE(Q_ELEM,LINK_NAME) \
+	((Q_ELEM)->LINK_NAME).next || ((Q_ELEM)->LINK_NAME).prev
+
 /** @def Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME)
  *
  *  @brief Detaches the element Q_ELEM from the queue organized by LINK_NAME,

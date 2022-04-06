@@ -13,9 +13,9 @@ int
 is_user_pointer_valid(void *ptr)
 {
 	/* Check not kern memory and non-NULL */
-	if (ptr < USER_MEM_START)
-		return -1;
+	if ((unsigned int)ptr < USER_MEM_START)
+		return 0;
 
 	/* Check if allocated. Can try accessing and handling pf? */
-
+	return 1;
 }

@@ -6,3 +6,7 @@
 extern void call_gettid( void );
 
 extern void call_yield( void );
+
+extern void call_deschedule( void );
+
+extern void call_make_runnable( void );

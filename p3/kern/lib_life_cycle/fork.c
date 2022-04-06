@@ -110,7 +110,7 @@ fork( void )
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
     /* After setting up child stack and VM, register with scheduler */
-    if (register_thread(child_tcb->tid) < 0)
+    if (make_thread_runnable(child_tcb->tid) < 0)
         return -1;
 
     /* Only parent will return here */

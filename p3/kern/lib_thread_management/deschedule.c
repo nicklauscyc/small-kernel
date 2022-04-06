@@ -29,15 +29,3 @@ deschedule( int *reject )
 		return yield_execution(NULL, DESCHEDULED, -1);
 	return 0;
 }
-
-/** @brief Installs the yield() interrupt handler
- */
-int
-install_deschedule_helper(int idt_entry, asm_wrapper_t *asm_wrapper)
-{
-	if (!asm_wrapper) {
-		return -1;
-	}
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
-	return res;
-}

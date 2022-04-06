@@ -176,6 +176,14 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
+	if (install_handler(DESCHEDULE_INT, call_deschedule, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(MAKE_RUNNABLE_INT, call_make_runnable, DPL_3) < 0) {
+		return -1;
+	}
+
 	/* Lib lifecycle*/
 	//TODO are these DPL_3 or DPL_0
 	if (install_handler(FORK_INT, call_fork, DPL_3) < 0) {
