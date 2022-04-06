@@ -51,8 +51,12 @@ void task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point );
 /* Utility functions for getting and setting task and thread information */
 tcb_t *find_tcb( uint32_t tid );
 pcb_t *find_pcb( uint32_t pid );
+uint32_t get_pid( void );
 int get_num_threads_in_owning_task( tcb_t *tcbp );
 void *get_kern_stack_hi( tcb_t *tcbp );
 void set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp );
+void swap_task_pd( void *new_pd );
 
+//TODO rever to static
+uint32_t get_user_eflags( void );
 #endif /* TASK_MANAGER_H_ */

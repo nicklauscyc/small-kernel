@@ -109,7 +109,7 @@ UPDATE_METHOD = afs
 		   sleep_test1 stack_test1 swexn_basic_test swexn_cookie_monster\
 		   swexn_dispatch swexn_regs yield_desc_mkrun make_crash\
 		   mem_permissions cho cho2 cho_variant\
-		   knife\
+		   knife exec_basic_helper\
 
 ###########################################################################
 # Test programs you have written which you wish to run

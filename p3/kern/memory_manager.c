@@ -66,7 +66,7 @@ static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
-static void vm_set_pd( void *pd );
+
 static void free_pd_memory( void *pd );
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
@@ -444,7 +444,7 @@ enable_paging( void )
 	set_cr0(current_cr0 | PAGING_FLAG);
 }
 
-static void
+void
 vm_set_pd( void *pd )
 {
     uint32_t cr3 = get_cr3();

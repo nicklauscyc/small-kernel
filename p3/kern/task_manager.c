@@ -31,7 +31,7 @@
 
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
-static uint32_t get_user_eflags( void );
+//static uint32_t get_user_eflags( void );
 
 Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
@@ -41,9 +41,9 @@ static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
-static uint32_t next_pid = 0;
+static uint32_t next_pid = 1;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
-static uint32_t next_tid = 0;
+static uint32_t next_tid = 1;
 
 /** @brief Initializes task manager's resources
  *
@@ -59,7 +59,26 @@ task_manager_init ( void )
 	Q_INIT_HEAD(&pcb_list);
 }
 
+/** @brief Changes the page directory in the PCB to new_pd
+ *
+ *  @param new_pid New page directory pointer to change to
+ *  @return Void.
+ */
+void
+swap_task_pd( void *new_pd )
+{
+	uint32_t pid = get_pid();
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+	pcb->pd = new_pd;
+}
+
 /** @brief Creates a task
+ *
+ * 	If *pid == 0, a new PCB will be created
+ * 	If *tid == 0, a new TCB will be created
+ *
+ * 	@pre (*pid == 0 && *tid == 0) || (*pid != 0 && *tid != 0)
  *
  *	@param pid Pointer where task id for new task is stored
  *	@param tid Pointer where thread id for new thread is stored
@@ -70,6 +89,8 @@ task_manager_init ( void )
 int
 create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 {
+	if (!pid) return -1;
+	if (!tid) return -1;
 	// TODO: Think about preconditions for this.
 	// Paging fine, how about making it a critical section?
 
@@ -145,7 +166,7 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 
 	// TODO: Remove this check?
 	if (!pcb->prepared) {
-	activate_task_memory(pcb->pid);
+		activate_task_memory(pcb->pid);
 	}
 
 	/* Let scheduler know it can now run this thread */
@@ -362,7 +383,7 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 /* ------ HELPER FUNCTIONS ------ */
 
 /** @brief Returns eflags with PL altered to 3 */
-static uint32_t
+uint32_t
 get_user_eflags( void )
 {
 	uint32_t eflags = get_eflags();
@@ -389,3 +410,26 @@ get_unique_tid( void )
 {
 	return add_one_atomic(&next_tid);
 }
+
+/** @brief Returns the pid of the currently running thread
+ *
+ *  @return Void.
+ */
+uint32_t
+get_pid( void )
+{
+	/* Get tid to get TCB */
+	uint32_t tid = get_running_tid();
+	tcb_t *tcb = find_tcb(tid);
+	assert(tcb);
+
+	/* Get PCB to get and return pid */
+	pcb_t *pcb = tcb->owning_task;
+	assert(pcb);
+	uint32_t pid = pcb->pid;
+	assert(pid > 0);
+	return pid;
+}
+
+
+

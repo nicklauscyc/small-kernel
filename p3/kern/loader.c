@@ -92,7 +92,7 @@ getbytes( const char *filename, int offset, int size, char *buf )
  *
  *  @return 0 on sucess, negative value on failure.
  *  */
-static int
+int
 transplant_program_memory( simple_elf_t *se_hdr )
 {
     /* Disable write-protection temporarily so we may
@@ -134,7 +134,11 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  This entrypoint is defined in 410user/crt0.c and is used by all user
  *  programs.
  *  */
-static uint32_t *
+//TODO revert to static
+//TODO does not set up stack properly for main
+//void _main(int argc, char *argv[], void *stack_high, void *stack_low)
+//
+uint32_t *
 configure_stack( int argc, char **argv )
 {
     /* TODO: Consider writing this with asm, as it might be simpler. */

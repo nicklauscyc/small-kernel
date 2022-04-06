@@ -46,7 +46,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 2;
+int log_level = 1;
 
 void tick(unsigned int numTicks) {
 	scheduler_on_tick(numTicks);
@@ -91,7 +91,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_warn("this is WARN");
 
     while (!__kernel_all_done) {
-		hard_code_test("exec_basic");
+		//hard_code_test("exec_basic");
 
         int n = MAX_EXECNAME_LEN;
         char s[n];
