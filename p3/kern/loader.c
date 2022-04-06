@@ -16,9 +16,7 @@
  *
  */
 /*@{*/
-
-/* --- Includes --- */
-#include <loader.h>
+/* --- Includes --- */ #include <loader.h>
 #include <page.h>       /* PAGE_SIZE */
 #include <string.h>     /* strncmp, memcpy */
 #include <exec2obj.h>   /* exec2obj_TOC */
@@ -181,7 +179,7 @@ configure_stack( int argc, char **argv )
 }
 
 /** @brief Run a user program indicated by filename.
- *         Assumes virtual memory module has been initialized.
+ *         Assumes virtual memory module has not been initialized.
  *
  *  This function requires no synchronization as it is only
  *  meant to be used to load the starter program (when we have
