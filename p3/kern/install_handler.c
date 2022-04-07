@@ -196,6 +196,10 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(FORK_INT, call_fork, DPL_3) < 0) {
 		return -1;
 	}
+	if (install_handler(EXEC_INT, call_exec, DPL_3) < 0) {
+		return -1;
+	}
+
 	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3) < 0) {
 		return -1;
 	}

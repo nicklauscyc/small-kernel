@@ -9,6 +9,7 @@
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
+#include <task_manager_internal.h> /* Q MACROS on tcb */
 
 /* Using linked list as a naive priority queue implementation.
  * TODO: Use a heap instead! (or something else, like fibonnaci heaps...)

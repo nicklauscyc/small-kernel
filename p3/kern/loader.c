@@ -16,9 +16,9 @@
  *
  */
 /*@{*/
-
 /* --- Includes --- */
 #include <loader.h>
+#include <malloc.h>     /* sfree() */
 #include <page.h>       /* PAGE_SIZE */
 #include <string.h>     /* strncmp, memcpy */
 #include <exec2obj.h>   /* exec2obj_TOC */
@@ -27,10 +27,15 @@
 #include <task_manager.h>   /* task_new, task_prepare, task_set */
 #include <memory_manager.h> /* {disable,enable}_write_protection */
 #include <logger.h>     /* log_warn() */
-
+#include <scheduler.h> /* get_running_tid() */
 #include <assert.h> /* assert() */
 
 /* --- Local function prototypes --- */
+
+/* first_task is 1 if there is currently no user task running, so
+ * execute_user_program will do some initialization
+ */
+static int first_task = 1;
 
 /* TODO: Move this to a helper file.
  *
@@ -134,6 +139,9 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  This entrypoint is defined in 410user/crt0.c and is used by all user
  *  programs.
  *  */
+//TODO does not set up stack properly for main
+//void _main(int argc, char *argv[], void *stack_high, void *stack_low)
+//
 static uint32_t *
 configure_stack( int argc, char **argv )
 {
@@ -176,43 +184,75 @@ configure_stack( int argc, char **argv )
 	return esp;
 }
 
-/** @brief Run a user program indicated by filename.
- *         Assumes virtual memory module has been initialized.
+/** @brief Run a user program indicated by fname.
  *
  *  This function requires no synchronization as it is only
  *  meant to be used to load the starter program (when we have
- *  a single thread).
+ *  a single thread) and for the syscall exec(). We disable calls to
+ *  exec() when there is more than 1 thread in the invoking task.
+ *
+ *  TODO don't think this is the best requires
+ *  @req that fname and argv are in kernel memory, unaffected by
+ *       parent directory
  *
  *  @param fname Name of program to run.
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname, int argc, char **argv )
+execute_user_program( const char *fname, int argc, char **argv)
 {
+	log_info("Executing: %s", fname);
+
 	/* Load user program information */
 	simple_elf_t se_hdr;
-    if (elf_check_header(fname) == ELF_NOTELF)
+    if (elf_check_header(fname) == ELF_NOTELF) {
         return -1;
-
-    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
+	}
+    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
         return -1;
-
+	}
     uint32_t pid, tid;
-    if (create_task(&pid, &tid, &se_hdr) < 0)
-        return -1;
 
-    /* Enable VM */
-    if (activate_task_memory(pid) < 0)
-        return -1;
+	/* First task, so create a new task */
+	if (first_task) {
+		if (create_task(&pid, &tid, &se_hdr) < 0)
+			return -1;
 
-    if (transplant_program_memory(&se_hdr) < 0)
+	/* Not the first task, so we replace the current running task */
+	} else {
+		pid = get_pid();
+		tid = get_running_tid();
+
+		/* Create new pd */
+		uint32_t stack_lo = UINT32_MAX - PAGE_SIZE + 1;
+		uint32_t stack_len = PAGE_SIZE;
+		void *new_pd = new_pd_from_elf(&se_hdr, stack_lo, stack_len);
+		if (!new_pd) {
+			return -1;
+		}
+		void *old_pd = swap_task_pd(new_pd);
+		free_pd_memory(old_pd);
+		sfree(old_pd, PAGE_SIZE);
+	}
+	/* Update page directory, enable VM if necessary */
+	if (activate_task_memory(pid) < 0) {
+		return -1;
+	}
+    if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
+	}
 
     uint32_t *esp = configure_stack(argc, argv);
 
-    task_set_active(tid, (uint32_t)esp, se_hdr.e_entry);
+	/* If this is the first task we must activate it */
+	if (first_task) {
+		task_set_active(tid);
+	}
+	first_task = 0;
 
-	return 0;
+	/* Start the task */
+	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
+
+	panic("execute_user_program does not return");
+	return -1;
 }
-
-/*@}*/

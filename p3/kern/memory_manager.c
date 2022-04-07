@@ -54,6 +54,9 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
+#define PT_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
+/* 1 if VM is enabled, 0 otherwise */
+static int vm_enabled = 0;
 
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
@@ -67,10 +70,10 @@ static int allocate_region( void *pd, void *start,
 static void enable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 static void vm_set_pd( void *pd );
-static void free_pd_memory( void *pd );
+static void free_pt_memory( void *pt );
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
- * 	       Does not transfer executable data into physical memory.
+ *		   Does not transfer executable data into physical memory.
  *
  *  Assumes page table directory is empty. Sets appropriate
  *  read/write permissions. To copy memory over, set the WP flag
@@ -103,7 +106,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 			return NULL;
 		}
 		/* Indicate page table entry permissions */
-	    if (addr == 0) {
+		if (addr == 0) {
             *ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
             *ptep = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
@@ -238,12 +241,25 @@ new_pd_from_parent( void *v_parent_pd )
     return child_pd;
 }
 
-/** @brief Sets new page table directory and enables paging. */
+/** @brief Sets new page table directory and enables paging if necessary.
+ *
+ *  Paging should only be set once and never disabled.
+ *
+ *  @param pd Page directory pointer
+ *  @return Void.
+ */
 void
 vm_enable_task( void *pd )
 {
+	affirm_msg(pd, "Page directory must be non-NULL!");
+	affirm_msg(PAGE_ALIGNED(pd), "Page directory must be page aligned!");
+	affirm_msg((uint32_t) pd < USER_MEM_START,
+			   "Page directory must in kernel memory!");
+
     vm_set_pd(pd);
-    enable_paging();
+	if (!vm_enabled) {
+		enable_paging();
+	}
 }
 
 /** @brief Enables write_protect flag in cr0, allowing
@@ -299,12 +315,100 @@ is_user_pointer_valid(void *ptr)
 	return 1;
 }
 
+/** @brief Checks that the address of every character in the string is a valid
+ *		   address
+ *
+ *	The maximum permitted string length is USER_STR_LEN, including '\0'
+ *	terminating character. Therefore the longest possible user string will
+ *	have at most USER_STR_LEN - 1 non-NULL characters.
+ *
+ *	This does not check for the existence of a user executable with this
+ *	name. That is done when we try to fill in the ELF header.
+ *
+ *	@param s String to be checked
+ *	@return 1 if valid user string, 0 otherwise
+ */
+int
+is_valid_user_string( char *s )
+{
+	/* Check address of every character in s */
+	int i;
+	for (i = 0; i < USER_STR_LEN; ++i) {
+
+		if (!is_user_pointer_valid(s + i)) {
+			log_warn("invalid address %p at index %d of user string %s",
+					 s + i, i, s);
+			return 0;
+
+		} else {
+
+			/* String has ended within USER_STR_LEN */
+			if (s[i] == '\0') {
+				break;
+			}
+		}
+	}
+	/* Check length of s */
+	if (i == USER_STR_LEN) {
+		log_warn("user string of length >= USER_STR_LEN");
+		return 0;
+	}
+	return 1;
+}
+
+/** @brief Checks address of every char * in argvec, argvec has max length
+ *		   of < NUM_USER_ARGS
+ *
+ *	@param execname Executable name
+ *	@param argvec Argument vector
+ *	@return Number of user args if valid argvec, 0 otherwise
+ */
+int
+is_valid_user_argvec( char *execname,  char **argvec )
+{
+	/* Check address of every char * in argvec */
+	int i;
+	for (i = 0; i < NUM_USER_ARGS; ++i) {
+
+		/* Invalid char ** */
+		if (!is_user_pointer_valid(argvec + i)) {
+			log_warn("invalid address %p at index %d of argvec", argvec + i, i);
+			return 0;
+
+		/* Valid char **, so check if char * is valid */
+		} else {
+
+			/* String has ended within NUM_USER_ARGS */
+			if (argvec[i] == NULL) {
+				break;
+			}
+			/* Check if valid string */
+			if (!is_valid_user_string(argvec[i])) {
+				log_warn("invalid address user string %s at index %d of argvec",
+						 argvec[i], i);
+				return 0;
+			}
+		}
+	}
+	/* Check length of arg_vec */
+	if (i == NUM_USER_ARGS) {
+		log_warn("argvec has length >= NUM_USER_ARGS");
+		return 0;
+	}
+	/* Check if argvec[0] == execname */
+	if (strcmp(argvec[0],execname) != 0) {
+		log_warn("argvec[0]:%s not equal to execname:%s", argvec[0], execname);
+		return 0;
+	}
+	return i;
+}
+
 /* ----- HELPER FUNCTIONS ----- */
 
 /** @brief Allocate memory for a new page table and zero all entries
  *
- * 	Ensures that the allocated page table has an address that is page
- * 	aligned
+ *	Ensures that the allocated page table has an address that is page
+ *	aligned
  *
  *  @return Pointer in kernel VM of page table if successful, 0 otherwise
  */
@@ -316,6 +420,7 @@ get_new_pt( void )
 	if (!pt) {
 		return 0;
 	}
+	log("new pt at address %p", pt);
 	assert(PAGE_ALIGNED((uint32_t) pt));
 
 	/* Initialize all page table entries as non-present */
@@ -439,7 +544,7 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
         int res = allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i,
-			                     write_mode);
+								 write_mode);
 		if (res < 0) {
 			// TODO CLEAN UP ALL PREVIOUSLY ALLOCATED PHYS FRAMES
 			return -1;
@@ -466,6 +571,8 @@ enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
+	vm_enabled = 1;
 }
 
 static void
@@ -479,15 +586,58 @@ vm_set_pd( void *pd )
     set_cr3(cr3);
 }
 
-static void
-free_pd_memory( void *pd ) {
-    // TODO: Free all physical frames in pd. Do not free pd itself.
+/** brief Walks the page directory and frees the entire page directory,
+ *        page tables, and all physical frames
+ */
+void
+free_pd_memory( void *pd )
+{
+	//TODO this needs to be debugged for bs page table entries
+	return;
+	affirm(is_valid_pd(pd));
+	uint32_t *pd_to_free = (uint32_t *) pd;
+	int num_pd_entries = PAGE_SIZE / sizeof(uint32_t);
+	for (int i = 0; i < num_pd_entries; ++i) {
+
+		/* Free page table if entry non-zero */
+		if (pd_to_free[i]) {
+			log("page directory entry at index %d:0x%08lx", i, pd_to_free[i]);
+			uint32_t pt = PT_ADDRESS(pd_to_free[i]);
+			log("freeing page table at address %p", pt);
+			free_pt_memory((uint32_t *) pt);
+			sfree((uint32_t *) pt, PAGE_SIZE);
+		}
+	}
 }
 
-/** @brief Disables paging mechanism. */
-//static void
-//disable_paging( void )
-//{
-//	uint32_t current_cr0 = get_cr0();
-//	set_cr0(current_cr0 & (~PAGING_FLAG));
-//}
+/** @brief Frees a page table along with all physical frames
+ *
+ *  @param pt Page table to be freed
+ */
+static void
+free_pt_memory( void * pt) {
+	affirm(is_valid_pd(pt));
+	uint32_t *pt_to_free = (uint32_t *) pt;
+	int num_pt_entries = PAGE_SIZE / sizeof(uint32_t);
+	for (int i = 0; i < num_pt_entries; ++i) {
+
+		/* Free physical frame */
+		if (pt_to_free[i] >= USER_MEM_START) {
+			uint32_t physframe = PT_ADDRESS(pt_to_free[i]);
+			log("freeing physical address:0x%lx", physframe);
+			physfree(physframe);
+		}
+	}
+}
+
+/** @brief Checks if supplied page directory is valid or not
+ *
+ *  TODO keep a record of all page directory addresses ever given out?
+ *
+ *  @param pd Page directory to check
+ */
+int
+is_valid_pd( void *pd )
+{
+	return pd && ((uint32_t) pd < USER_MEM_START) && PAGE_ALIGNED(pd);
+}

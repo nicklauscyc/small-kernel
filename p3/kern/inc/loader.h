@@ -9,11 +9,12 @@
 #ifndef _LOADER_H
 #define _LOADER_H
 
+#include <elf_410.h>    /* simple_elf_t */
 
 /* --- Prototypes --- */
 
 int getbytes( const char *filename, int offset, int size, char *buf );
 
-int execute_user_program( const char *fname, int argc, char **argv );
+int execute_user_program( const char *fname, int argc, char **argv);
 
 #endif /* _LOADER_H */

@@ -10,9 +10,8 @@
 #define TASK_MANAGER_INTERNAL_H_
 
 #include <variable_queue.h> /* Q_NEW_LINK */
+#include <scheduler.h> /* status_t */
 
-enum status { RUNNING, RUNNABLE, DESCHEDULED, BLOCKED, DEAD, UNINITIALIZED };
-typedef enum status status_t;
 
 /* PCB owned threads queue definition */
 Q_NEW_HEAD(owned_threads_queue_t, tcb);

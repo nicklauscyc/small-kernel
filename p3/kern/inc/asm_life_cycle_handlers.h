@@ -8,6 +8,6 @@
 #define ASM_LIFE_CYCLE_HANDLERS_H_
 
 extern void call_fork( void );
-extern void call_exec( char *execname, char **argvec );
+extern void call_exec( void );
 
 #endif /* ASM_LIFE_CYCLE_HANDLERS_H_ */

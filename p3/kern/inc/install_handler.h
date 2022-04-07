@@ -31,9 +31,7 @@
 typedef void asm_wrapper_t(void);
 
 int handler_install(void (*tick)(unsigned int));
-
-int install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl);
-
+int install_handler_in_idt( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl );
 int install_handler( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl );
 
 

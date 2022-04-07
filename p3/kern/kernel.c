@@ -47,7 +47,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 2;
+int log_level = 1;
 
 void tick(unsigned int numTicks) {
 	/* The amount of work done before scheduler tick handler should be
@@ -58,6 +58,13 @@ void tick(unsigned int numTicks) {
 	/* Scheduler tick handler should be last, as it triggers context_switch */
 	scheduler_on_tick(numTicks);
 }
+
+void hard_code_test( char *s )
+{
+	char *user_argv = (char *)s;
+	execute_user_program(s, 1, &user_argv);
+}
+
 
 /** @brief Kernel entrypoint.
  *
@@ -81,7 +88,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	clear_console();
 
 	task_manager_init();
-	test_physalloc(); // TODO put in test suite
+	//test_physalloc(); // TODO put in test suite
 
 
     //TODO: Run shell once exec and fork are working
@@ -91,6 +98,9 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_warn("this is WARN");
 
     while (!__kernel_all_done) {
+		// Used for development to run a certain test straightaway
+		//hard_code_test("exec_nonexist");
+
         int n = MAX_EXECNAME_LEN;
         char s[n];
 
@@ -104,11 +114,11 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         /* Swap \n returned by readline for null-terminator */
         s[res - 1] = '\0';
 
-        log_info("Executing: %s", s);
-
         char *user_argv = (char *)s;
 
         execute_user_program(s, 1, &user_argv);
+
+
     }
 
     return 0;

@@ -5,6 +5,7 @@
  *
  *  @author Andre Nascimento (anascime) */
 
+#include <task_manager_internal.h> /* Q MACRO for tcb */
 #include <lib_thread_management/hashmap.h>
 #include <stdint.h> /* uint32_t */
 #include <stddef.h> /* NULL */

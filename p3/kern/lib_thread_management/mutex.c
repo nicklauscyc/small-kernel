@@ -11,6 +11,7 @@
 #include <scheduler.h>  /* queue_t, make_thread_runnable, run_next_tcb */
 #include <asm.h>        /* enable/disable_interrupts() */
 #include <logger.h>     /* log */
+#include <task_manager_internal.h> /* Q MACRO for tcb */
 
 static void store_tcb_in_mutex_queue( tcb_t *tcb, void *data );
 
@@ -116,7 +117,8 @@ mutex_unlock( mutex_t *mp )
         mp->owner_tid = to_run->tid;
         make_thread_runnable(to_run->tid);
     } else {
-		log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
+		//Permission to remove this since it'll flood debug
+		//log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
         mp->owned = 0;
     }
 

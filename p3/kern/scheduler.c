@@ -8,6 +8,7 @@
 
 #include <scheduler.h>
 #include <task_manager.h>	/* tcb_t */
+#include <task_manager_internal.h> /* To use Q MACROS on tcb */
 #include <variable_queue.h> /* Q_NEW_LINK() */
 #include <context_switch.h> /* context_switch() */
 #include <assert.h>			/* affirm() */
@@ -107,7 +108,7 @@ yield_execution( status_t store_status, int tid,
 				panic("DEADLOCK, scheduler has no one to run!");
 			}
 		}
-		assert(tcb->status == RUNNABLE);
+		assert(get_tcb_status(tcb) == RUNNABLE);
 
 	} else {
 		/* find_tcb() is already guarded by a mutex */
@@ -118,7 +119,7 @@ yield_execution( status_t store_status, int tid,
 			return -1; /* Thread not found */
 		}
 		disable_interrupts();
-		if (tcb->status != RUNNABLE) {
+		if (get_tcb_status(tcb) != RUNNABLE) {
 			log_warn("Trying to yield_execution to non-runnable"
 					 " thread with tid %d", tid);
 			return -1;
@@ -193,6 +194,10 @@ make_thread_runnable(uint32_t tid)
 	if (!tcbp)
 		return -1;
 
+	//TODO scheduler breaks interface
+	//TODO the problem is task_set_active() calls this function and exec()
+	//     calls task_set_active() and so this is going to fail
+	/* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
 		log_warn("Trying to make runnable thread %d runnable again", tid);

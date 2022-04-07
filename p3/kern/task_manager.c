@@ -4,6 +4,8 @@
 // TODO maybe a function such as is_legal_pcb, is_legal_tcb for invariant checks?
 //
 #include <task_manager.h>
+#include <task_manager_internal.h>
+
 
 #include <scheduler.h>	/* add_tcb_to_run_queue() */
 #include <eflags.h>	/* get_eflags*/
@@ -45,6 +47,12 @@ static uint32_t next_pid = 0;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
 static uint32_t next_tid = 0;
 
+uint32_t
+get_tcb_tid(tcb_t *tcb)
+{
+	return tcb->tid;
+}
+
 /** @brief Initializes task manager's resources
  *
  *	 @return Void
@@ -59,6 +67,43 @@ task_manager_init ( void )
 	Q_INIT_HEAD(&pcb_list);
 }
 
+/** @brief Gets the status of a tcb
+ *
+ *  Needs to be guarded by synchronization from invoking function
+ *
+ *  @param tcb TCB from which to get status from
+ *  @return Status of a thread i.e. RUNNING, RUNNABLE, DESCHEDULED, ...
+ */
+status_t
+get_tcb_status( tcb_t *tcb )
+{
+	return tcb->status;
+}
+
+/** @brief Changes the page directory in the PCB to new_pd
+ *
+ *  @param new_pd New page directory pointer to change to
+ *  @return the old page directory.
+ */
+void *
+swap_task_pd( void *new_pd )
+{
+	affirm(is_valid_pd(new_pd));
+
+	/* Find PCB to swap its stored page directory */
+	uint32_t pid = get_pid();
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+
+	/* Swap page directories */
+	void *old_pd = pcb->pd;
+	pcb->pd = new_pd;
+
+	/* Check and return the old page directory */
+	affirm(is_valid_pd(old_pd));
+	return old_pd;
+}
+
 /** @brief Creates a task
  *
  *	@param pid Pointer where task id for new task is stored
@@ -70,6 +115,8 @@ task_manager_init ( void )
 int
 create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 {
+	if (!pid) return -1;
+	if (!tid) return -1;
 	// TODO: Think about preconditions for this.
 	// Paging fine, how about making it a critical section?
 
@@ -115,7 +162,7 @@ activate_task_memory( uint32_t pid )
 	if ((pcb = find_pcb(pid)) == NULL)
 		return -1;
 
-	/* Enable VM */
+	/* Update the page directory and enable VM if necessary */
 	vm_enable_task(pcb->pd);
 
 	return 0;
@@ -137,7 +184,7 @@ activate_task_memory( uint32_t pid )
  *	@return Never returns.
  *	*/
 void
-task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
+task_set_active( uint32_t tid )
 {
 	tcb_t *tcb;
 	affirm((tcb = find_tcb(tid)) != NULL);
@@ -145,11 +192,24 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 
 	// TODO: Remove this check?
 	if (!pcb->prepared) {
-	activate_task_memory(pcb->pid);
+		activate_task_memory(pcb->pid);
 	}
 
 	/* Let scheduler know it can now run this thread */
-	make_thread_runnable(tid);
+	/* Let scheduler know it can now run this thread if it doesn't know */
+	/* TODO in a bit of a pickle because we need to call disable_interrupts()
+	 * to check this?
+	 */
+	if (tcb->status == UNINITIALIZED) {
+		make_thread_runnable(tid);
+	}
+}
+
+void
+task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
+{
+	tcb_t *tcb;
+	affirm((tcb = find_tcb(tid)) != NULL);
 
 	/* Before going to user mode, update esp0, so we know where to go back to */
 	set_esp0((uint32_t)tcb->kernel_esp);
@@ -389,3 +449,24 @@ get_unique_tid( void )
 {
 	return add_one_atomic(&next_tid);
 }
+
+/** @brief Returns the pid of the currently running thread
+ *
+ *  @return Void.
+ */
+uint32_t
+get_pid( void )
+{
+	/* Get TCB */
+	tcb_t *tcb = get_running_thread();
+	assert(tcb);
+
+	/* Get PCB to get and return pid */
+	pcb_t *pcb = tcb->owning_task;
+	assert(pcb);
+	uint32_t pid = pcb->pid;
+	return pid;
+}
+
+
+

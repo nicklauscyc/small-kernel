@@ -109,7 +109,7 @@ UPDATE_METHOD = afs
 		   sleep_test1 stack_test1 swexn_basic_test swexn_cookie_monster\
 		   swexn_dispatch swexn_regs yield_desc_mkrun make_crash\
 		   mem_permissions cho cho2 cho_variant\
-		   knife\
+		   knife exec_basic_helper\
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -152,8 +152,8 @@ THREAD_OBJS = malloc.o panic.o
 # Object files for your syscall wrappers
 ###########################################################################
 SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
-			   make_runnable.o get_ticks.o sleep.o print.o set_cursor_pos.o \
-			   get_cursor_pos.o set_term_color.o \
+			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
+			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -190,6 +190,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  \
 			  lib_life_cycle/asm_life_cycle_handlers.o \
 			  lib_life_cycle/fork.o \
+			  lib_life_cycle/exec.o \
 			  lib_life_cycle/save_child_regs.o \
 			  \
 			  lib_memory_management/physalloc.o \

@@ -15,6 +15,7 @@
 #include <stdint.h> /* uint32_t */
 
 /* Function prototypes */
+int is_physframe( uint32_t phys_address );
 uint32_t physalloc( void );
 void physfree( uint32_t phys_address );
 uint32_t num_free_phys_frames( void );
