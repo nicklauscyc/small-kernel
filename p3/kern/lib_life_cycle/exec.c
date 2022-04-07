@@ -43,6 +43,13 @@ log_exec_args( char *execname, char **argvec)
 	log("argvec has %d elements", i);
 }
 
+/** @brief Checks that the address of every character in the string is a valid
+ *         address
+ *
+ *  @param s String to be checked
+ */
+int is_valid_user_string( char *s )
+{
 
 /** @brief Executes execname with arguments in argvec
  *
