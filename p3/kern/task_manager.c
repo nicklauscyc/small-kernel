@@ -106,11 +106,6 @@ swap_task_pd( void *new_pd )
 
 /** @brief Creates a task
  *
- * 	If *pid == 0, a new PCB will be created
- * 	If *tid == 0, a new TCB will be created
- *
- * 	@pre (*pid == 0 && *tid == 0) || (*pid != 0 && *tid != 0)
- *
  *	@param pid Pointer where task id for new task is stored
  *	@param tid Pointer where thread id for new thread is stored
  *	@param elf Elf header for use in allocating new task's memory
