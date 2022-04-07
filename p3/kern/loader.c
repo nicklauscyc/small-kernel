@@ -17,6 +17,7 @@
  */
 /*@{*/
 /* --- Includes --- */
+#include <x86/cr.h>     /* {get,set}_{cr0,cr3} */
 #include <loader.h>
 #include <malloc.h>     /* sfree() */
 #include <page.h>       /* PAGE_SIZE */
@@ -131,6 +132,7 @@ transplant_program_memory( simple_elf_t *se_hdr )
     /* Re-enable write-protection bit. */
     enable_write_protection();
 
+	assert(is_valid_pd((void *)get_cr3()));
 	return i;
 }
 
@@ -231,6 +233,7 @@ execute_user_program( const char *fname, int argc, char **argv)
 			return -1;
 		}
 		void *old_pd = swap_task_pd(new_pd);
+		assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 	}

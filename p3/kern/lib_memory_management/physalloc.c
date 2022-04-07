@@ -61,9 +61,11 @@ int
 is_physframe( uint32_t phys_address )
 {
 	if (!PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)) {
+		log_warn("0x%08lx is not page aligned!", phys_address);
 		return 0;
 	}
 	if (!(USER_MEM_START <= phys_address && phys_address <= max_free_address)) {
+		log_warn("0x%08lx is not in valid address range!", phys_address);
 		return 0;
 	}
 	return 1;

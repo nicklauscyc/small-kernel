@@ -43,10 +43,10 @@
 /* Flags for page directory and page table entries */
 #define PRESENT_FLAG 1 << 0
 #define RW_FLAG      1 << 1
-#define US_FLAG      1 << 2
+#define USER_FLAG    1 << 2
 #define GLOBAL_FLAG  1 << 8
 
-#define PE_USER_READABLE (PRESENT_FLAG | US_FLAG )
+#define PE_USER_READABLE (PRESENT_FLAG | USER_FLAG )
 #define PE_USER_WRITABLE (PE_USER_READABLE | RW_FLAG)
 
 /* Set global flag so TLB doesn't flush kernel entries */
@@ -54,7 +54,7 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
-#define PT_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
+#define TABLE_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
 /* 1 if VM is enabled, 0 otherwise */
 static int vm_enabled = 0;
 
@@ -63,14 +63,24 @@ typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
 
 static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
-static int allocate_frame( uint32_t **pd,
-        uint32_t virtual_address, write_mode_t write_mode );
-static int allocate_region( void *pd, void *start,
-        uint32_t len, write_mode_t write_mode );
+static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
+                          write_mode_t write_mode );
+static int allocate_region( void *pd, void *start, uint32_t len,
+                           write_mode_t write_mode );
 static void enable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 static void vm_set_pd( void *pd );
-static void free_pt_memory( void *pt );
+static void free_pt_memory( uint32_t *pt, int pd_index );
+
+/* TODO do we need this? */
+uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index );
+static int is_valid_pt( uint32_t *pt, int pd_index );
+
+
+uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index )
+{
+	return (pd_index << PAGE_DIRECTORY_SHIFT) | (pt_index << PAGE_TABLE_SHIFT);
+}
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
  *		   Does not transfer executable data into physical memory.
@@ -133,6 +143,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
         return NULL;
     }
 
+	assert(is_valid_pd(pd));
     return pd;
 }
 
@@ -586,49 +597,108 @@ vm_set_pd( void *pd )
     set_cr3(cr3);
 }
 
-/** brief Walks the page directory and frees the entire page directory,
- *        page tables, and all physical frames
- */
-void
-free_pd_memory( void *pd )
-{
-	//TODO this needs to be debugged for bs page table entries
-	return;
-	affirm(is_valid_pd(pd));
-	uint32_t *pd_to_free = (uint32_t *) pd;
-	int num_pd_entries = PAGE_SIZE / sizeof(uint32_t);
-	for (int i = 0; i < num_pd_entries; ++i) {
 
-		/* Free page table if entry non-zero */
-		if (pd_to_free[i]) {
-			log("page directory entry at index %d:0x%08lx", i, pd_to_free[i]);
-			uint32_t pt = PT_ADDRESS(pd_to_free[i]);
-			log("freeing page table at address %p", pt);
-			free_pt_memory((uint32_t *) pt);
-			sfree((uint32_t *) pt, PAGE_SIZE);
-		}
-	}
-}
 
 /** @brief Frees a page table along with all physical frames
  *
  *  @param pt Page table to be freed
  */
 static void
-free_pt_memory( void * pt) {
-	affirm(is_valid_pd(pt));
-	uint32_t *pt_to_free = (uint32_t *) pt;
-	int num_pt_entries = PAGE_SIZE / sizeof(uint32_t);
-	for (int i = 0; i < num_pt_entries; ++i) {
+free_pt_memory( uint32_t *pt, int pd_index ) {
 
-		/* Free physical frame */
-		if (pt_to_free[i] >= USER_MEM_START) {
-			uint32_t physframe = PT_ADDRESS(pt_to_free[i]);
-			log("freeing physical address:0x%lx", physframe);
-			physfree(physframe);
+	affirm(is_valid_pt(pt, pd_index));
+	//uint32_t *pt_to_free = (uint32_t *) pt;
+	//int num_pt_entries = PAGE_SIZE / sizeof(uint32_t);
+	//for (int i = 0; i < num_pt_entries; ++i) {
+
+	//	/* Free physical frame */
+	//	if (pt_to_free[i] >= USER_MEM_START) {
+	//		uint32_t physframe = TABLE_ADDRESS(pt_to_free[i]);
+	//		log("freeing physical address:0x%lx", physframe);
+	//		physfree(physframe);
+	//	}
+	//}
+	/* pt holds physical frames for user memory */
+	if ((pd_index << PAGE_DIRECTORY_SHIFT) >= USER_MEM_START) {
+		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+
+			uint32_t pt_entry = pt[i];
+			if (pt_entry) {
+				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
+				physfree(phys_address);
+			}
+		}
+	} else {
+		/* Currently nothing if < USER_MEM_START */
+	}
+}
+
+/** brief Walks the page directory and frees the entire page directory,
+ *        page tables, and all physical frames
+ */
+void
+free_pd_memory( void *pd )
+{
+	affirm(is_valid_pd(pd));
+	uint32_t **pd_cast = (uint32_t **) pd;
+
+	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+
+		uint32_t *pd_entry = pd_cast[i];
+
+		/* Check page table if entry non-zero */
+		if (pd_entry) {
+			uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd_entry);
+			free_pt_memory(pt, i);
 		}
 	}
 }
+/** @brief Checks if paget table at index i of a page directory is valid or not.
+ *
+ *  If the address is < USER_MEM_START, does not validate the address.
+ *  TODO perhaps find a way to validate such addresses as well?
+ *
+ *  @param pt Page table address to check
+ *  @param pd_index The index this page table address was stored in the
+ *         page directory
+ */
+static int
+is_valid_pt( uint32_t *pt, int pd_index )
+{
+	if (!pt) {
+		log_warn("pt: %p is NULL!", pt);
+		return 0;
+	}
+	if (!PAGE_ALIGNED(pt)) {
+		log_warn("pt: %p is not page aligned!", pt);
+		return 0;
+	}
+	if ((uint32_t) pt >= USER_MEM_START) {
+		log_warn("pt: %p is above USER_MEM_START!", pt);
+		return 0;
+	}
+	/* pt holds physical frames for user memory */
+	if ((pd_index << PAGE_DIRECTORY_SHIFT) >= USER_MEM_START) {
+		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+
+			uint32_t pt_entry = pt[i];
+			if (pt_entry) {
+				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
+
+				if (!is_physframe(phys_address)) {
+					log_warn("0x%08lx of pt_entry 0x%08lx at pt_index %d invalid "
+							 "physical frame!", phys_address, pt_entry, i);
+					return 0;
+				}
+			}
+		}
+		return 1;
+	} else {
+		/* Currently no checks if < USER_MEM_START */
+		return 1;
+	}
+}
+
 
 /** @brief Checks if supplied page directory is valid or not
  *
@@ -639,5 +709,33 @@ free_pt_memory( void * pt) {
 int
 is_valid_pd( void *pd )
 {
-	return pd && ((uint32_t) pd < USER_MEM_START) && PAGE_ALIGNED(pd);
+	if (!pd) {
+		log_warn("pd: %p is NULL!", pd);
+		return 0;
+	}
+	if (!PAGE_ALIGNED(pd)) {
+		log_warn("pd: %p is not page aligned!", pd);
+		return 0;
+	}
+	if ((uint32_t) pd >= USER_MEM_START) {
+		log_warn("pd: %p is above USER_MEM_START!", pd);
+		return 0;
+	}
+	uint32_t **pd_cast = (uint32_t **) pd;
+
+	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+
+		uint32_t *pd_entry = pd_cast[i];
+
+		/* Check page table if entry non-zero */
+		if (pd_entry) {
+			uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd_entry);
+			if (!is_valid_pt(pt, i)) {
+				log_warn("invalid pt: %p, entry in pd is 0x%08lx, index %d",
+				         pt, pd_entry, i);
+				return 0;
+			}
+		}
+	}
+	return 1;
 }
