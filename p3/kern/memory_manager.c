@@ -54,6 +54,8 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
+/* 1 if VM is enabled, 0 otherwise */
+static int vm_enabled = 0;
 
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
@@ -238,12 +240,25 @@ new_pd_from_parent( void *v_parent_pd )
     return child_pd;
 }
 
-/** @brief Sets new page table directory and enables paging. */
+/** @brief Sets new page table directory and enables paging if necessary.
+ *
+ *  Paging should only be set once and never disabled.
+ *
+ *  @param pd Page directory pointer
+ *  @return Void.
+ */
 void
 vm_enable_task( void *pd )
 {
+	affirm_msg(pd, "Page directory must be non-NULL!");
+	affirm_msg(PAGE_ALIGNED(pd), "Page directory must be page aligned!");
+	affirm_msg((uint32_t) pd < USER_MEM_START,
+	           "Page directory must in kernel memory!");
+
     vm_set_pd(pd);
-    enable_paging();
+	if (!vm_enabled) {
+		enable_paging();
+	}
 }
 
 /** @brief Enables write_protect flag in cr0, allowing
@@ -442,6 +457,8 @@ enable_paging( void )
 {
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
+	vm_enabled = 1;
 }
 
 void

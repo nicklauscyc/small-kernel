@@ -15,7 +15,8 @@
 
 int getbytes( const char *filename, int offset, int size, char *buf );
 
-int execute_user_program( const char *fname, int argc, char **argv );
+int execute_user_program( const char *fname, int argc, char **argv,
+                          int replace_current_task );
 
 //TODO these should be reverted to static
 int transplant_program_memory( simple_elf_t *se_hdr );

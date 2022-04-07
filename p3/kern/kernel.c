@@ -55,7 +55,7 @@ void tick(unsigned int numTicks) {
 void hard_code_test( char *s )
 {
 	char *user_argv = (char *)s;
-	execute_user_program(s, 1, &user_argv);
+	execute_user_program(s, 1, &user_argv, 0);
 }
 
 
@@ -107,7 +107,10 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
         s[res - 1] = '\0';
 
         char *user_argv = (char *)s;
-        execute_user_program(s, 1, &user_argv);
+
+		/* Very first user task run, so we're not replacing any current task */
+		int replace_current_task = 1;
+        execute_user_program(s, 1, &user_argv, !replace_current_task);
 
 
     }

@@ -136,7 +136,7 @@ activate_task_memory( uint32_t pid )
 	if ((pcb = find_pcb(pid)) == NULL)
 		return -1;
 
-	/* Enable VM */
+	/* Update the page directory and enable VM if necessary */
 	vm_enable_task(pcb->pd);
 
 	return 0;
@@ -169,8 +169,10 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 		activate_task_memory(pcb->pid);
 	}
 
-	/* Let scheduler know it can now run this thread */
-	register_thread(tid);
+	/* Let scheduler know it can now run this thread if it doesn't know */
+	if (tcb->status == UNINITIALIZED) {
+		register_thread(tid);
+	}
 
 	/* Before going to user mode, update esp0, so we know where to go back to */
 	set_esp0((uint32_t)tcb->kernel_esp);

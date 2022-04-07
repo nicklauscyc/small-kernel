@@ -196,6 +196,7 @@ register_thread(uint32_t tid)
 
 	assert(tcbp->status == UNINITIALIZED);
 
+	//TODO scheduler breaks interface
 	/* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
 	if (first_thread) {

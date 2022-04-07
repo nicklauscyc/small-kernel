@@ -185,11 +185,15 @@ configure_stack( int argc, char **argv )
  *  meant to be used to load the starter program (when we have
  *  a single thread).
  *
+ *  Requires that fname and argv are in kernel memory, unaffected by
+ *  parent directory
+ *
  *  @param fname Name of program to run.
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname, int argc, char **argv )
+execute_user_program( const char *fname, int argc, char **argv,
+                      int replace_current_task)
 {
 	log_info("Executing: %s", fname);
 
@@ -201,22 +205,36 @@ execute_user_program( const char *fname, int argc, char **argv )
     if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
         return -1;
 
-    uint32_t pid, tid;
-    if (create_task(&pid, &tid, &se_hdr) < 0)
-        return -1;
 
-    /* Enable VM */
-    if (activate_task_memory(pid) < 0)
-        return -1;
+	/* Replacing current running user task with fname */
+    uint32_t pid, tid;
+	if (replace_current_task) {
+		/* Create new pd */
+		void *new_pd = new_pd_from_elf(&se_hdr, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+		if (!new_pd) {
+			return -1;
+		}
+		swap_task_pd(new_pd);
+		//TODO cleanup the parent_pd!!
+	} else {
+
+		if (create_task(&pid, &tid, &se_hdr) < 0)
+			return -1;
+	}
+	/* Update page directory, enable VM if necessary */
+	if (activate_task_memory(pid) < 0)
+		return -1;
 
     if (transplant_program_memory(&se_hdr) < 0)
         return -1;
 
     uint32_t *esp = configure_stack(argc, argv);
 
+	// Does not return
     task_set_active(tid, (uint32_t)esp, se_hdr.e_entry);
+	panic("execute_user_program does not return");
 
 	return 0;
 }
 
-/*@}*/
+

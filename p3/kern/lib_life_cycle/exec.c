@@ -136,60 +136,9 @@ exec( char *execname, char **argvec )
 	}
 
 
-	/* Get parent_pd in kernel memory, unaffected by paging */
-	uint32_t cr3 = get_cr3();
-	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
-	assert((uint32_t) parent_pd < USER_MEM_START);
-
-	/* Get pid */
-	uint32_t pid = get_pid();
-
-	(void) pid;
-
-	/* Load user program information */
-	simple_elf_t se_hdr;
-    if (elf_check_header(fname) == ELF_NOTELF) {
-        return -1;
-	}
-    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
-        return -1;
-	}
-	log("execname:'%s'", fname);
-
-
-	/* Create new pd */
-	void *new_pd = new_pd_from_elf(&se_hdr, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
-	if (!new_pd) {
+	if (execute_user_program(fname, argc, kern_stack_argvec, 1) < 0) {
 		return -1;
 	}
-	vm_set_pd(new_pd);
-	log("after new_pd execname:'%s'", fname);
-
-	//TODO cleanup the parent_pd!!
-
-    if (transplant_program_memory(&se_hdr) < 0) {
-        return -1;
-	}
-
-    uint32_t *esp = configure_stack(argc, kern_stack_argvec);
-
-	//TODO this part copied from task_set_active(),
-	//change for better interface function
-
-	/* Before going to user mode, update esp0, so we know where to go back to */
-    uint32_t *kernel_esp = get_kern_stack_hi(find_tcb(tid));
-
-	set_esp0((uint32_t)kernel_esp);
-
-	/* We're currently going directly to entry point. In the future,
-	 * however, we should go to some "receiver" function which appropriately
-	 * sets user registers and segment selectors, and lastly RETs to
-	 * the entry_point. */
-	iret_travel(se_hdr.e_entry, SEGSEL_USER_CS, get_user_eflags(),
-		(uint32_t) esp, SEGSEL_USER_DS);
-
-	/* NOTREACHED */
-	panic("iret_travel should not return");
 
 
 	return -1;
