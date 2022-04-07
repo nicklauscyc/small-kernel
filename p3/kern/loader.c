@@ -18,6 +18,7 @@
 /*@{*/
 /* --- Includes --- */
 #include <loader.h>
+#include <malloc.h>     /* sfree() */
 #include <page.h>       /* PAGE_SIZE */
 #include <string.h>     /* strncmp, memcpy */
 #include <exec2obj.h>   /* exec2obj_TOC */
@@ -220,8 +221,9 @@ execute_user_program( const char *fname, int argc, char **argv,
 		if (!new_pd) {
 			return -1;
 		}
-		swap_task_pd(new_pd);
-		//TODO cleanup the parent_pd!!
+		void *old_pd = swap_task_pd(new_pd);
+		free_pd_memory(old_pd);
+		sfree(old_pd, PAGE_SIZE);
 	/* Create brand new user task */
 	} else {
 

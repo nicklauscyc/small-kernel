@@ -116,6 +116,7 @@ physalloc( void )
 
 	mutex_unlock(&mux);
 
+	log("physalloc returned frame 0x%lx", frame);
 	return frame;
 }
 
@@ -158,6 +159,7 @@ physfree(uint32_t phys_address)
 
     reuse_stack.data[reuse_stack.top++] = phys_address;
 	mutex_unlock(&mux);
+	log("physfree freed frame 0x%lx", phys_address);
 }
 
 /** @brief Tests physalloc and physfree

@@ -54,6 +54,7 @@
 #define PE_KERN_WRITABLE (PE_KERN_READABLE | RW_FLAG)
 #define PE_UNMAPPED 0
 
+#define PT_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
 /* 1 if VM is enabled, 0 otherwise */
 static int vm_enabled = 0;
 
@@ -69,7 +70,7 @@ static int allocate_region( void *pd, void *start,
 static void enable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
 static void vm_set_pd( void *pd );
-static void free_pd_memory( void *pd );
+static void free_pt_memory( void *pt );
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
  *		   Does not transfer executable data into physical memory.
@@ -419,6 +420,7 @@ get_new_pt( void )
 	if (!pt) {
 		return 0;
 	}
+	log("new pt at address %p", pt);
 	assert(PAGE_ALIGNED((uint32_t) pt));
 
 	/* Initialize all page table entries as non-present */
@@ -584,9 +586,46 @@ vm_set_pd( void *pd )
     set_cr3(cr3);
 }
 
+/** brief Walks the page directory and frees the entire page directory,
+ *        page tables, and all physical frames
+ */
+void
+free_pd_memory( void *pd )
+{
+	affirm(is_valid_pd(pd));
+	uint32_t *pd_to_free = (uint32_t *) pd;
+	int num_pd_entries = PAGE_SIZE / sizeof(uint32_t);
+	for (int i = 0; i < num_pd_entries; ++i) {
+
+		/* Free page table if entry non-zero */
+		if (pd_to_free[i]) {
+			log("page directory entry at index %d:0x%08lx", i, pd_to_free[i]);
+			uint32_t pt = PT_ADDRESS(pd_to_free[i]);
+			log("freeing page table at address %p", pt);
+			free_pt_memory((uint32_t *) pt);
+			sfree((uint32_t *) pt, PAGE_SIZE);
+		}
+	}
+}
+
+/** @brief Frees a page table along with all physical frames
+ *
+ *  @param pt Page table to be freed
+ */
 static void
-free_pd_memory( void *pd ) {
-    // TODO: Free all physical frames in pd. Do not free pd itself.
+free_pt_memory( void * pt) {
+	affirm(is_valid_pd(pt));
+	uint32_t *pt_to_free = (uint32_t *) pt;
+	int num_pt_entries = PAGE_SIZE / sizeof(uint32_t);
+	for (int i = 0; i < num_pt_entries; ++i) {
+
+		/* Free physical frame */
+		if (pt_to_free[i] >= USER_MEM_START) {
+			uint32_t physframe = PT_ADDRESS(pt_to_free[i]);
+			log("freeing physical address:0x%lx", physframe);
+			physfree(physframe);
+		}
+	}
 }
 
 /** @brief Checks if supplied page directory is valid or not

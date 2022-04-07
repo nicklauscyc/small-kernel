@@ -18,6 +18,7 @@ int is_valid_pd( void *pd );
 int is_user_pointer_valid( void *ptr );
 int is_valid_user_string( char *s );
 int is_valid_user_argvec( char *execname,  char **argvec );
+void free_pd_memory( void *pd );
 
 /* True if address if paged align, false otherwise */
 #define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
