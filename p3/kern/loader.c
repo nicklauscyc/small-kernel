@@ -25,7 +25,7 @@
 #include <task_manager.h>   /* task_new, task_prepare, task_set */
 #include <memory_manager.h> /* {disable,enable}_write_protection */
 #include <logger.h>     /* log_warn() */
-
+#include <scheduler.h> /* get_running_tid() */
 #include <assert.h> /* assert() */
 
 /* --- Local function prototypes --- */
@@ -199,16 +199,18 @@ execute_user_program( const char *fname, int argc, char **argv,
 
 	/* Load user program information */
 	simple_elf_t se_hdr;
-    if (elf_check_header(fname) == ELF_NOTELF)
+    if (elf_check_header(fname) == ELF_NOTELF) {
         return -1;
-
-    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF)
+	}
+    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
         return -1;
-
-
+	}
 	/* Replacing current running user task with fname */
     uint32_t pid, tid;
 	if (replace_current_task) {
+		pid = get_pid();
+		tid = get_running_tid();
+
 		/* Create new pd */
 		void *new_pd = new_pd_from_elf(&se_hdr, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
 		if (!new_pd) {
@@ -218,15 +220,17 @@ execute_user_program( const char *fname, int argc, char **argv,
 		//TODO cleanup the parent_pd!!
 	} else {
 
-		if (create_task(&pid, &tid, &se_hdr) < 0)
+		if (create_task(&pid, &tid, &se_hdr) < 0) {
 			return -1;
+		}
 	}
 	/* Update page directory, enable VM if necessary */
-	if (activate_task_memory(pid) < 0)
+	if (activate_task_memory(pid) < 0) {
 		return -1;
-
-    if (transplant_program_memory(&se_hdr) < 0)
+	}
+    if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
+	}
 
     uint32_t *esp = configure_stack(argc, argv);
 

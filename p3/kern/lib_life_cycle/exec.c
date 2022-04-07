@@ -69,7 +69,7 @@ exec( char *execname, char **argvec )
 	assert(parent_tcb);
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
 
-	log("Forking task with number of threads:%ld", num_threads);
+	log("Exec() task with number of threads:%ld", num_threads);
 	if (num_threads > 1) {
 		return -1;
 	}
@@ -137,6 +137,7 @@ exec( char *execname, char **argvec )
 
 
 	if (execute_user_program(fname, argc, kern_stack_argvec, 1) < 0) {
+		assert(0);
 		return -1;
 	}
 
