@@ -592,6 +592,8 @@ vm_set_pd( void *pd )
 void
 free_pd_memory( void *pd )
 {
+	//TODO this needs to be debugged for bs page table entries
+	return;
 	affirm(is_valid_pd(pd));
 	uint32_t *pd_to_free = (uint32_t *) pd;
 	int num_pd_entries = PAGE_SIZE / sizeof(uint32_t);

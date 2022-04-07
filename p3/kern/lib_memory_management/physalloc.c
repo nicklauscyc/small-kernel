@@ -51,6 +51,24 @@ static stack_t reuse_stack;
 
 static mutex_t mux;
 
+/** @brief Checks if a physical address is page aligned and could have
+ *         been given out by physalloc
+ *
+ *  @param physaddress Physical address
+ *  @return 1 if valid, 0 otherwise
+ */
+int
+is_physframe( uint32_t phys_address )
+{
+	if (!PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address)) {
+		return 0;
+	}
+	if (!(USER_MEM_START <= phys_address && phys_address <= max_free_address)) {
+		return 0;
+	}
+	return 1;
+}
+
 /** @brief Returns number of free physical frames with physical address at
  *         least USER_MEM_START
  *
@@ -117,6 +135,7 @@ physalloc( void )
 	mutex_unlock(&mux);
 
 	log("physalloc returned frame 0x%lx", frame);
+	assert(is_physframe(frame));
 	return frame;
 }
 
@@ -135,8 +154,7 @@ void
 physfree(uint32_t phys_address)
 {
 	mutex_lock(&mux);
-	affirm(PHYS_FRAME_ADDRESS_ALIGNMENT(phys_address));
-	affirm(USER_MEM_START <= phys_address && phys_address <= max_free_address);
+	affirm(is_physframe(phys_address));
 
 	/* Add phys_address to stack, growing it if necessary. */
     if (reuse_stack.top >= reuse_stack.len) {
