@@ -19,10 +19,9 @@
 #include <timer_driver.h>           /* init_timer() */
 #include <keybd_driver.h>           /* init_keybd() */
 
-#include <install_thread_management_handlers.h> /* install_gettid_handler() TODO delete this */
 #include <asm_thread_management_handlers.h>     /* call_gettid() */
 #include <asm_life_cycle_handlers.h>            /* call_fork() */
-#include <install_memory_management_handlers.h> /* install_pf_handler() */
+#include <asm_memory_management_handlers.h>		/* call_pf_handler() */
 #include <tests.h>                              /* install_test_handler() */
 
 #include <syscall_int.h> /* *_INT */
