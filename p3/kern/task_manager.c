@@ -43,9 +43,9 @@ static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
-static uint32_t next_pid = 1;
+static uint32_t next_pid = 0;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
-static uint32_t next_tid = 1;
+static uint32_t next_tid = 0;
 
 uint32_t
 get_tcb_tid(tcb_t *tcb)
@@ -465,7 +465,6 @@ get_pid( void )
 	pcb_t *pcb = tcb->owning_task;
 	assert(pcb);
 	uint32_t pid = pcb->pid;
-	assert(pid > 0);
 	return pid;
 }
 
