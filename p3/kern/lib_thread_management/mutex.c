@@ -53,7 +53,7 @@ mutex_lock( mutex_t *mp )
 {
     /* Exit if impossible to lock mutex, as just returning would give
      * thread the false impression that lock was acquired. */
-    assert(mp && mp->initialized);
+    affirm(mp && mp->initialized);
 
 	/* To simplify the mutex interface, we let a thread run mutex
 	 * guarded code even if the scheduler is not initialized. This

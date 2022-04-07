@@ -26,6 +26,8 @@ static void store_tcb_in_sleep_queue( tcb_t *tcb, void *data );
 static void
 init_sleep( void )
 {
+	if (sleep_initialized)
+		return;
 	Q_INIT_HEAD(&sleep_q);
 	mutex_init(&queue_mux);
 	sleep_initialized = 1;
