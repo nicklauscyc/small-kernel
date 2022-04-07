@@ -22,9 +22,6 @@
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <x86/asm.h> /* outb() */
 
-#define USER_STR_LEN 256
-#define NUM_USER_ARGS 16
-
 /** @brief Prints arguments passed to exec() when log level is DEBUG
  *
  *	@param execname Executable name
@@ -41,94 +38,6 @@ log_exec_args( char *execname, char **argvec)
 		++i;
 	}
 	log("argvec has %d elements", i);
-}
-
-/** @brief Checks that the address of every character in the string is a valid
- *		   address
- *
- *	The maximum permitted string length is USER_STR_LEN, including '\0'
- *	terminating character. Therefore the longest possible user string will
- *	have at most USER_STR_LEN - 1 non-NULL characters.
- *
- *	This does not check for the existence of a user executable with this
- *	name. That is done when we try to fill in the ELF header.
- *
- *	@param s String to be checked
- *	@return 1 if valid user string, 0 otherwise
- */
-int
-is_valid_user_string( char *s )
-{
-	/* Check address of every character in s */
-	int i;
-	for (i = 0; i < USER_STR_LEN; ++i) {
-
-		if (!is_user_pointer_valid(s + i)) {
-			log_warn("invalid address %p at index %d of user string %s",
-					 s + i, i, s);
-			return 0;
-
-		} else {
-
-			/* String has ended within USER_STR_LEN */
-			if (s[i] == '\0') {
-				break;
-			}
-		}
-	}
-	/* Check length of s */
-	if (i == USER_STR_LEN) {
-		log_warn("user string of length >= USER_STR_LEN");
-		return 0;
-	}
-	return 1;
-}
-
-/** @brief Checks address of every char * in argvec, argvec has max length
- *		   of < NUM_USER_ARGS
- *
- *	@param execname Executable name
- *	@param argvec Argument vector
- *	@return Number of user args if valid argvec, 0 otherwise
- */
-int
-is_valid_user_argvec( char *execname,  char **argvec )
-{
-	/* Check address of every char * in argvec */
-	int i;
-	for (i = 0; i < NUM_USER_ARGS; ++i) {
-
-		/* Invalid char ** */
-		if (!is_user_pointer_valid(argvec + i)) {
-			log_warn("invalid address %p at index %d of argvec", argvec + i, i);
-			return 0;
-
-		/* Valid char **, so check if char * is valid */
-		} else {
-
-			/* String has ended within NUM_USER_ARGS */
-			if (argvec[i] == NULL) {
-				break;
-			}
-			/* Check if valid string */
-			if (!is_valid_user_string(argvec[i])) {
-				log_warn("invalid address user string %s at index %d of argvec",
-						 argvec[i], i);
-				return 0;
-			}
-		}
-	}
-	/* Check length of arg_vec */
-	if (i == NUM_USER_ARGS) {
-		log_warn("argvec has length >= NUM_USER_ARGS");
-		return 0;
-	}
-	/* Check if argvec[0] == execname */
-	if (strcmp(argvec[0],execname) != 0) {
-		log_warn("argvec[0]:%s not equal to execname:%s", argvec[0], execname);
-		return 0;
-	}
-	return i;
 }
 
 /** @brief Executes execname with arguments in argvec

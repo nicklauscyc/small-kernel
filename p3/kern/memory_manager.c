@@ -72,7 +72,7 @@ static void vm_set_pd( void *pd );
 static void free_pd_memory( void *pd );
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
- * 	       Does not transfer executable data into physical memory.
+ *		   Does not transfer executable data into physical memory.
  *
  *  Assumes page table directory is empty. Sets appropriate
  *  read/write permissions. To copy memory over, set the WP flag
@@ -105,7 +105,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 			return NULL;
 		}
 		/* Indicate page table entry permissions */
-	    if (addr == 0) {
+		if (addr == 0) {
             *ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
             *ptep = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
@@ -253,7 +253,7 @@ vm_enable_task( void *pd )
 	affirm_msg(pd, "Page directory must be non-NULL!");
 	affirm_msg(PAGE_ALIGNED(pd), "Page directory must be page aligned!");
 	affirm_msg((uint32_t) pd < USER_MEM_START,
-	           "Page directory must in kernel memory!");
+			   "Page directory must in kernel memory!");
 
     vm_set_pd(pd);
 	if (!vm_enabled) {
@@ -314,12 +314,100 @@ is_user_pointer_valid(void *ptr)
 	return 1;
 }
 
+/** @brief Checks that the address of every character in the string is a valid
+ *		   address
+ *
+ *	The maximum permitted string length is USER_STR_LEN, including '\0'
+ *	terminating character. Therefore the longest possible user string will
+ *	have at most USER_STR_LEN - 1 non-NULL characters.
+ *
+ *	This does not check for the existence of a user executable with this
+ *	name. That is done when we try to fill in the ELF header.
+ *
+ *	@param s String to be checked
+ *	@return 1 if valid user string, 0 otherwise
+ */
+int
+is_valid_user_string( char *s )
+{
+	/* Check address of every character in s */
+	int i;
+	for (i = 0; i < USER_STR_LEN; ++i) {
+
+		if (!is_user_pointer_valid(s + i)) {
+			log_warn("invalid address %p at index %d of user string %s",
+					 s + i, i, s);
+			return 0;
+
+		} else {
+
+			/* String has ended within USER_STR_LEN */
+			if (s[i] == '\0') {
+				break;
+			}
+		}
+	}
+	/* Check length of s */
+	if (i == USER_STR_LEN) {
+		log_warn("user string of length >= USER_STR_LEN");
+		return 0;
+	}
+	return 1;
+}
+
+/** @brief Checks address of every char * in argvec, argvec has max length
+ *		   of < NUM_USER_ARGS
+ *
+ *	@param execname Executable name
+ *	@param argvec Argument vector
+ *	@return Number of user args if valid argvec, 0 otherwise
+ */
+int
+is_valid_user_argvec( char *execname,  char **argvec )
+{
+	/* Check address of every char * in argvec */
+	int i;
+	for (i = 0; i < NUM_USER_ARGS; ++i) {
+
+		/* Invalid char ** */
+		if (!is_user_pointer_valid(argvec + i)) {
+			log_warn("invalid address %p at index %d of argvec", argvec + i, i);
+			return 0;
+
+		/* Valid char **, so check if char * is valid */
+		} else {
+
+			/* String has ended within NUM_USER_ARGS */
+			if (argvec[i] == NULL) {
+				break;
+			}
+			/* Check if valid string */
+			if (!is_valid_user_string(argvec[i])) {
+				log_warn("invalid address user string %s at index %d of argvec",
+						 argvec[i], i);
+				return 0;
+			}
+		}
+	}
+	/* Check length of arg_vec */
+	if (i == NUM_USER_ARGS) {
+		log_warn("argvec has length >= NUM_USER_ARGS");
+		return 0;
+	}
+	/* Check if argvec[0] == execname */
+	if (strcmp(argvec[0],execname) != 0) {
+		log_warn("argvec[0]:%s not equal to execname:%s", argvec[0], execname);
+		return 0;
+	}
+	return i;
+}
+
 /* ----- HELPER FUNCTIONS ----- */
 
 /** @brief Allocate memory for a new page table and zero all entries
  *
- * 	Ensures that the allocated page table has an address that is page
- * 	aligned
+ *	Ensures that the allocated page table has an address that is page
+ *	aligned
  *
  *  @return Pointer in kernel VM of page table if successful, 0 otherwise
  */
@@ -454,7 +542,7 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
         int res = allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i,
-			                     write_mode);
+								 write_mode);
 		if (res < 0) {
 			// TODO CLEAN UP ALL PREVIOUSLY ALLOCATED PHYS FRAMES
 			return -1;
@@ -512,11 +600,3 @@ is_valid_pd( void *pd )
 {
 	return pd && ((uint32_t) pd < USER_MEM_START) && PAGE_ALIGNED(pd);
 }
-
-/** @brief Disables paging mechanism. */
-//static void
-//disable_paging( void )
-//{
-//	uint32_t current_cr0 = get_cr0();
-//	set_cr0(current_cr0 & (~PAGING_FLAG));
-//}
