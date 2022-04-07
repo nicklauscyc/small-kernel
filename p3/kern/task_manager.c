@@ -395,7 +395,7 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 /* ------ HELPER FUNCTIONS ------ */
 
 /** @brief Returns eflags with PL altered to 3 */
-uint32_t
+static uint32_t
 get_user_eflags( void )
 {
 	uint32_t eflags = get_eflags();
