@@ -1,7 +1,7 @@
 /** @file mutex.c
  *  @brief A mutex object
  *
- *  Mutex uses atomically sections for synchr
+ *  Mutex uses atomically sections for synchronization
  *
  *  @author Andre Nascimento (anascime)
  *  */
@@ -12,8 +12,7 @@
 #include <asm.h>        /* enable/disable_interrupts() */
 #include <logger.h>     /* log */
 
-/* TODO: Create function to give up execution rights as opposed to run_next_tcb*/
-
+static void store_tcb_in_mutex_queue( tcb_t *tcb, void *data );
 
 /** @brief Initialize a mutex
  *  @param mp Pointer to memory location where mutex should be initialized
@@ -54,7 +53,7 @@ mutex_lock( mutex_t *mp )
 {
     /* Exit if impossible to lock mutex, as just returning would give
      * thread the false impression that lock was acquired. */
-    assert(mp && mp->initialized);
+    affirm(mp && mp->initialized);
 
 	/* To simplify the mutex interface, we let a thread run mutex
 	 * guarded code even if the scheduler is not initialized. This
@@ -80,10 +79,10 @@ mutex_lock( mutex_t *mp )
     }
     log("Waiting on lock. mp->owned %d, mp->owner_tid %d",
 			mp->owned, mp->owner_tid);
-
 	enable_interrupts();
 
-    affirm(yield_execution(&mp->waiters_queue, BLOCKED, -1) == 0);
+    affirm(yield_execution(BLOCKED, -1, store_tcb_in_mutex_queue, mp) == 0);
+
 }
 
 /** @brief Unlock mutex.
@@ -122,4 +121,15 @@ mutex_unlock( mutex_t *mp )
     }
 
     enable_interrupts();
+}
+
+
+static void
+store_tcb_in_mutex_queue( tcb_t *tcb, void *data )
+{
+	affirm(tcb && data && tcb->status == BLOCKED);
+	/* Since thread not running, might as well use the scheduler queue link! */
+	mutex_t *mp = (mutex_t *)data;
+	Q_INIT_ELEM(tcb, scheduler_queue);
+	Q_INSERT_TAIL(&mp->waiters_queue, tcb, scheduler_queue);
 }

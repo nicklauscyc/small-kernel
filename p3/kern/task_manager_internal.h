@@ -49,6 +49,9 @@ struct tcb {
 	uint32_t *kernel_stack_lo; /* Lowest _writable_ kernel stack address */
 	                           /* that is stack aligned */
 
+
+	/* Info for syscalls */
+	uint32_t sleep_expiry_date;
 };
 #endif /* TASK_MANAGER_INTERNAL_H_ */
 

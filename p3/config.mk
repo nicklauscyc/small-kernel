@@ -152,7 +152,8 @@ THREAD_OBJS = malloc.o panic.o
 # Object files for your syscall wrappers
 ###########################################################################
 SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
-			   make_runnable.o
+			   make_runnable.o get_ticks.o sleep.o print.o set_cursor_pos.o \
+			   get_cursor_pos.o set_term_color.o \
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -177,9 +178,11 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  scheduler.o logger.o tests.o \
 			  \
 			  lib_thread_management/gettid.o \
+			  lib_thread_management/get_ticks.o \
 			  lib_thread_management/yield.o \
 			  lib_thread_management/make_runnable.o \
 			  lib_thread_management/deschedule.o \
+			  lib_thread_management/sleep.o \
 			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/hashmap.o \
 			  lib_thread_management/add_one_atomic.o \

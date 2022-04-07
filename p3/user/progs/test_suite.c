@@ -44,6 +44,24 @@ int mutex_test() {
     return result;
 }
 
+int sleep_test() {
+	if (gettid() != 0) // Hack until vanish is implemented
+		return 0;
+
+	/* Need to fork or we get deadlock, currently no idle task. */
+
+	int ticks = 10000;
+	lprintf("Running sleep_test, sleeping for %d seconds (%d ticks).\
+			 Currently at tick %d", ticks / 1000, ticks, get_ticks());
+
+	if (fork()) {
+		sleep(ticks);
+		lprintf("Passed sleep_test. Now at tick %d", get_ticks());
+	}
+
+	return 0;
+}
+
 int yield_test() {
 	if (gettid() != 0) // Hack until vanish is implemented
 		return 0;
@@ -69,7 +87,8 @@ int yield_test() {
 
 
 int main() {
-    if (mutex_test() < 0 ||
+    if (sleep_test() < 0 ||
+		mutex_test() < 0 ||
 		yield_test() < 0 ||
         multiple_fork_test() < 0)
         return -1;
