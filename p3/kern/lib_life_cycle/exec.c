@@ -1,26 +1,18 @@
 /** @file exec.c
- *	@brief Contains exec interrupt handler and helper functions for
- *		   installation
+ *	@brief Contains exec interrupt handler and helper functions
  *
  *	@author Nicklaus Choo (nchoo)
  */
-#include <elf_410.h>	/* simple_elf_t, elf_load_helper */
-#include <seg.h>	/* SEGSEL_... */
-#include <eflags.h>	/* get_eflags*/
-#include <string.h> /* strlen(), memcpy(), memset() */
 
-#include <loader.h> /* transplant_program_memory() */
-#include <page.h> /* PAGE_SIZE */
-#include <memory_manager.h> /* PAGE_ALIGNED() */
-#include <common_kern.h> /* USER_MEM_START */
-#include <x86/cr.h> /* get_cr3() */
-#include <logger.h> /* log() */
-#include <assert.h> /* affirm() */
-#include <task_manager.h> /* get_num_threads_in_owning_task() */
-#include <iret_travel.h> /* iret_travel() */
+#include <string.h>    /* strlen(), memcpy(), memset() */
+#include <loader.h>    /* exec_user_program() */
+#include <logger.h>    /* log() */
+#include <assert.h>    /* affirm() */
+#include <x86/asm.h>   /* outb() */
 #include <scheduler.h> /* get_running_tid() */
+#include <task_manager.h>   /* get_num_threads_in_owning_task() */
+#include <memory_manager.h> /* is_valid_user_string(), is_valid_user_argvec() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
-#include <x86/asm.h> /* outb() */
 
 /** @brief Prints arguments passed to exec() when log level is DEBUG
  *
@@ -42,12 +34,14 @@ log_exec_args( char *execname, char **argvec)
 
 /** @brief Executes execname with arguments in argvec
  *
- *	argvec can have a maximum of 16 elements, which is admittedly an arbitrary
+ *	argvec can have a maximum of NUM_USER_ARGS, which is admittedly an arbitrary
  *	power of 2, but most executable invocations usually use less than 16
  *	parameters.
  *
  *	execname and each of the string arguments can have < USER_STR_LEN
  *	characters, which is a gain another reasonable limit for string length.
+ *
+ *	(NUM_USER_ARGS, USER_STR_LEN defined in memory_manager.h)
  *
  *	@param execname Executable name
  *	@param argvec String array of arguments for executable execname
