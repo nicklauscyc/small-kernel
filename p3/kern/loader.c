@@ -239,11 +239,16 @@ execute_user_program( const char *fname, int argc, char **argv,
 
     uint32_t *esp = configure_stack(argc, argv);
 
-	// Does not return
-    task_set_active(tid, (uint32_t)esp, se_hdr.e_entry);
-	panic("execute_user_program does not return");
+	/* If we're not replacing a current user task, we must activate it */
+	if (!replace_current_task) {
+		task_set_active(tid);
+	}
 
-	return 0;
+	/* Start the task */
+	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
+
+	panic("execute_user_program does not return");
+	return -1;
 }
 
 

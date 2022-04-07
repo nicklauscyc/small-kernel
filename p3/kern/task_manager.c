@@ -168,7 +168,7 @@ activate_task_memory( uint32_t pid )
  *	@return Never returns.
  *	*/
 void
-task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
+task_set_active( uint32_t tid )
 {
 	tcb_t *tcb;
 	affirm((tcb = find_tcb(tid)) != NULL);
@@ -187,6 +187,13 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	if (tcb->status == UNINITIALIZED) {
 		make_thread_runnable(tid);
 	}
+}
+
+void
+task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
+{
+	tcb_t *tcb;
+	affirm((tcb = find_tcb(tid)) != NULL);
 
 	/* Before going to user mode, update esp0, so we know where to go back to */
 	set_esp0((uint32_t)tcb->kernel_esp);

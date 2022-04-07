@@ -46,7 +46,8 @@ int create_pcb( uint32_t *pid, void *pd );
 int create_tcb( uint32_t pid , uint32_t *tid );
 int create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf );
 int activate_task_memory( uint32_t pid );
-void task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point );
+void task_set_active( uint32_t tid );
+void task_start( uint32_t tid, uint32_t esp, uint32_t entry_point );
 
 /* Utility functions for getting and setting task and thread information */
 tcb_t *find_tcb( uint32_t tid );
