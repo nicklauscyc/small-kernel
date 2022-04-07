@@ -31,7 +31,7 @@
 
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
-//static uint32_t get_user_eflags( void );
+static uint32_t get_user_eflags( void );
 
 Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
@@ -61,16 +61,26 @@ task_manager_init ( void )
 
 /** @brief Changes the page directory in the PCB to new_pd
  *
- *  @param new_pid New page directory pointer to change to
- *  @return Void.
+ *  @param new_pd New page directory pointer to change to
+ *  @return the old page directory.
  */
-void
+void *
 swap_task_pd( void *new_pd )
 {
+	affirm(is_valid_pd(new_pd));
+
+	/* Find PCB to swap its stored page directory */
 	uint32_t pid = get_pid();
 	pcb_t *pcb = find_pcb(pid);
 	affirm(pcb);
+
+	/* Swap page directories */
+	void *old_pd = pcb->pd;
 	pcb->pd = new_pd;
+
+	/* Check and return the old page directory */
+	affirm(is_valid_pd(old_pd));
+	return old_pd;
 }
 
 /** @brief Creates a task

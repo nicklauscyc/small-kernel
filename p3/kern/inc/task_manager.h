@@ -55,8 +55,6 @@ uint32_t get_pid( void );
 int get_num_threads_in_owning_task( tcb_t *tcbp );
 void *get_kern_stack_hi( tcb_t *tcbp );
 void set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp );
-void swap_task_pd( void *new_pd );
+void *swap_task_pd( void *new_pd );
 
-//TODO rever to static
-uint32_t get_user_eflags( void );
 #endif /* TASK_MANAGER_H_ */

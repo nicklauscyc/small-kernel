@@ -68,7 +68,7 @@ static int allocate_region( void *pd, void *start,
         uint32_t len, write_mode_t write_mode );
 static void enable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
-
+static void vm_set_pd( void *pd );
 static void free_pd_memory( void *pd );
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
@@ -461,7 +461,7 @@ enable_paging( void )
 	vm_enabled = 1;
 }
 
-void
+static void
 vm_set_pd( void *pd )
 {
     uint32_t cr3 = get_cr3();
@@ -475,6 +475,18 @@ vm_set_pd( void *pd )
 static void
 free_pd_memory( void *pd ) {
     // TODO: Free all physical frames in pd. Do not free pd itself.
+}
+
+/** @brief Checks if supplied page directory is valid or not
+ *
+ *  TODO keep a record of all page directory addresses ever given out?
+ *
+ *  @param pd Page directory to check
+ */
+int
+is_valid_pd( void *pd )
+{
+	return pd && ((uint32_t) pd < USER_MEM_START) && PAGE_ALIGNED(pd);
 }
 
 /** @brief Disables paging mechanism. */

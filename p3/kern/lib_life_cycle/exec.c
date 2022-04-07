@@ -137,7 +137,6 @@ exec( char *execname, char **argvec )
 
 
 	if (execute_user_program(fname, argc, kern_stack_argvec, 1) < 0) {
-		assert(0);
 		return -1;
 	}
 

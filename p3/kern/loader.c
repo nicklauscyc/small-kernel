@@ -16,7 +16,8 @@
  *
  */
 /*@{*/
-/* --- Includes --- */ #include <loader.h>
+/* --- Includes --- */
+#include <loader.h>
 #include <page.h>       /* PAGE_SIZE */
 #include <string.h>     /* strncmp, memcpy */
 #include <exec2obj.h>   /* exec2obj_TOC */
@@ -90,7 +91,7 @@ getbytes( const char *filename, int offset, int size, char *buf )
  *
  *  @return 0 on sucess, negative value on failure.
  *  */
-int
+static int
 transplant_program_memory( simple_elf_t *se_hdr )
 {
     /* Disable write-protection temporarily so we may
@@ -132,11 +133,10 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  This entrypoint is defined in 410user/crt0.c and is used by all user
  *  programs.
  *  */
-//TODO revert to static
 //TODO does not set up stack properly for main
 //void _main(int argc, char *argv[], void *stack_high, void *stack_low)
 //
-uint32_t *
+static uint32_t *
 configure_stack( int argc, char **argv )
 {
     /* TODO: Consider writing this with asm, as it might be simpler. */
@@ -178,15 +178,16 @@ configure_stack( int argc, char **argv )
 	return esp;
 }
 
-/** @brief Run a user program indicated by filename.
- *         Assumes virtual memory module has not been initialized.
+/** @brief Run a user program indicated by fname.
  *
  *  This function requires no synchronization as it is only
  *  meant to be used to load the starter program (when we have
- *  a single thread).
+ *  a single thread) and for the syscall exec(). We disable calls to
+ *  exec() when there is more than 1 thread in the invoking task.
  *
- *  Requires that fname and argv are in kernel memory, unaffected by
- *  parent directory
+ *  TODO don't think this is the best requires
+ *  @req that fname and argv are in kernel memory, unaffected by
+ *       parent directory
  *
  *  @param fname Name of program to run.
  *  @return 0 on success, negative value on error.
@@ -205,19 +206,23 @@ execute_user_program( const char *fname, int argc, char **argv,
     if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
         return -1;
 	}
-	/* Replacing current running user task with fname */
     uint32_t pid, tid;
+
+	/* Replacing current running user task with fname */
 	if (replace_current_task) {
 		pid = get_pid();
 		tid = get_running_tid();
 
 		/* Create new pd */
-		void *new_pd = new_pd_from_elf(&se_hdr, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+		uint32_t stack_lo = UINT32_MAX - PAGE_SIZE + 1;
+		uint32_t stack_len = PAGE_SIZE;
+		void *new_pd = new_pd_from_elf(&se_hdr, stack_lo, stack_len);
 		if (!new_pd) {
 			return -1;
 		}
 		swap_task_pd(new_pd);
 		//TODO cleanup the parent_pd!!
+	/* Create brand new user task */
 	} else {
 
 		if (create_task(&pid, &tid, &se_hdr) < 0) {
