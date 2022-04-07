@@ -37,7 +37,7 @@
 /*                                                                   */
 /*********************************************************************/
 
-/** @brief Installs an interrupt handler at idt_entry for gettid()
+/** @brief Installs an interrupt handler at idt_entry
  *
  *  If a tickback function pointer is provided, init_timer() will be called.
  *  Else it is assumed that init_keybd() should be called instead, since there
@@ -168,11 +168,15 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	/* Lib thread management */
-	if (install_gettid_handler(GETTID_INT, call_gettid) < 0) {
+	if (install_handler(GETTID_INT, call_gettid, DPL_3) < 0) {
 		return -1;
 	}
 
-	if (install_yield_handler(YIELD_INT, call_yield) < 0) {
+	if (install_handler(GET_TICKS_INT, call_get_ticks, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(YIELD_INT, call_yield, DPL_3) < 0) {
 		return -1;
 	}
 
@@ -181,6 +185,10 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	if (install_handler(MAKE_RUNNABLE_INT, call_make_runnable, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(SLEEP_INT, call_sleep, DPL_3) < 0) {
 		return -1;
 	}
 

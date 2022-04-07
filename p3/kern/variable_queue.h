@@ -12,6 +12,7 @@
 #define _VARIABLE_QUEUE_H_
 
 #include <stddef.h> /* NULL */
+#include <assert.h> /* panic, affirm_msg */
 
 /** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
  *
@@ -345,7 +346,7 @@ struct {\
  *  @param LINK_NAME Link name for link to check for queue.
  *  */
 #define Q_IN_SOME_QUEUE(Q_ELEM,LINK_NAME) \
-	((Q_ELEM)->LINK_NAME).next || ((Q_ELEM)->LINK_NAME).prev
+	(((Q_ELEM)->LINK_NAME).next || ((Q_ELEM)->LINK_NAME).prev)
 
 /** @def Q_REMOVE(Q_HEAD,Q_ELEM,LINK_NAME)
  *
