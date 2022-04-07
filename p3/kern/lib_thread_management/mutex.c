@@ -8,7 +8,7 @@
 
 #include "mutex.h"
 #include <assert.h>     /* affirm_msg() */
-#include <scheduler.h>  /* queue_t, add_to_runnable_queue, run_next_tcb */
+#include <scheduler.h>  /* queue_t, make_thread_runnable, run_next_tcb */
 #include <asm.h>        /* enable/disable_interrupts() */
 #include <logger.h>     /* log */
 
@@ -115,7 +115,7 @@ mutex_unlock( mutex_t *mp )
 		log("Unlocking. Giving lock to %d",
 			to_run->tid);
         mp->owner_tid = to_run->tid;
-        add_to_runnable_queue(to_run);
+        make_thread_runnable(to_run->tid);
     } else {
 		log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
         mp->owned = 0;

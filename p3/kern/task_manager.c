@@ -149,7 +149,7 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	}
 
 	/* Let scheduler know it can now run this thread */
-	register_thread(tid);
+	make_thread_runnable(tid);
 
 	/* Before going to user mode, update esp0, so we know where to go back to */
 	set_esp0((uint32_t)tcb->kernel_esp);

@@ -93,8 +93,7 @@ fork( void )
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
-	// TODO what is elf->e_fname for this guy?
-    //sim_reg_process(pd, elf->e_fname);
+    sim_reg_child(child_pd, parent_pd);
 #endif
 
 	uint32_t *child_kernel_esp_on_ctx_switch;
@@ -111,7 +110,7 @@ fork( void )
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
     /* After setting up child stack and VM, register with scheduler */
-    if (register_thread(child_tcb->tid) < 0)
+    if (make_thread_runnable(child_tcb->tid) < 0)
         return -1;
 
     /* Only parent will return here */

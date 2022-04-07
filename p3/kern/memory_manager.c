@@ -275,6 +275,30 @@ vm_new_pages ( void *pd, void *base, int len )
     return -1;
 }
 
+/** @brief Checks if a user pointer is valid.
+ *	Valid means the pointer is non-NULL, belongs to
+ *	user memory and is in an allocated memory region.
+ *
+ *	@param ptr Pointer to check
+ *	@return 1 if valid, 0 if not */
+int
+is_user_pointer_valid(void *ptr)
+{
+	/* Check not kern memory and non-NULL */
+	if ((uint32_t)ptr < USER_MEM_START)
+		return 0;
+
+	/* Check if allocated */
+	uint32_t *pd = (uint32_t *)(get_cr3() & ~(PAGE_SIZE - 1));
+	if (!(pd[PD_INDEX((uint32_t)ptr)] & PRESENT_FLAG))
+		return 0;
+	uint32_t *pt = (uint32_t *)(pd[PD_INDEX((uint32_t)ptr)] & ~(PAGE_SIZE - 1));
+	if (!(pt[PT_INDEX((uint32_t)ptr)] & PRESENT_FLAG))
+		return 0;
+
+	return 1;
+}
+
 /* ----- HELPER FUNCTIONS ----- */
 
 /** @brief Allocate memory for a new page table and zero all entries
