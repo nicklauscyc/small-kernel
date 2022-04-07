@@ -50,15 +50,11 @@ sleep_on_tick( unsigned int total_ticks )
 
 	tcb_t *curr = Q_GET_FRONT(&sleep_q);
 	while (curr) {
-		/* A context_switch here could cause us to try removing
-		 * an element from the queue twice */
-		disable_interrupts();
 		if (curr->sleep_expiry_date <= total_ticks) {
 			Q_REMOVE(&sleep_q, curr, scheduler_queue);
 			make_thread_runnable(curr->tid);
 		}
 		curr = Q_GET_NEXT(curr, scheduler_queue);
-		enable_interrupts();
 	}
 	mutex_unlock(&queue_mux);
 }
