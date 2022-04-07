@@ -15,7 +15,6 @@
 
 int getbytes( const char *filename, int offset, int size, char *buf );
 
-int execute_user_program( const char *fname, int argc, char **argv,
-                          int replace_current_task );
+int execute_user_program( const char *fname, int argc, char **argv);
 
 #endif /* _LOADER_H */

@@ -33,13 +33,13 @@ log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 {
 	log("print parent stack");
 	for (int i = 0; i < 32; ++i) {
-		log("address:%p, value:0x%lx", parent_tcb->kernel_stack_hi - i,
-		*(parent_tcb->kernel_stack_hi - i));
+		log("address:%p, value:0x%lx", get_kern_stack_hi(parent_tcb) - i,
+		*((uint32_t *) get_kern_stack_hi(parent_tcb) - i));
 	}
 	log("print child stack");
 	for (int i = 0; i < 32; ++i) {
-		log("address:%p, value:0x%lx", child_tcb->kernel_stack_hi - i,
-		*(child_tcb->kernel_stack_hi - i));
+		log("address:%p, value:0x%lx", get_kern_stack_hi(child_tcb) - i,
+		*((uint32_t *) get_kern_stack_hi(child_tcb) - i));
 	}
 	log("result from get_running_tid():%d", get_running_tid());
 }
@@ -54,8 +54,7 @@ fork( void )
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	/* Only allow forking of task that has 1 thread */
-	int tid = get_running_tid();
-	tcb_t *parent_tcb = find_tcb(tid);
+	tcb_t *parent_tcb = get_running_thread();
 	assert(parent_tcb);
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
 
@@ -108,12 +107,12 @@ fork( void )
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
     /* After setting up child stack and VM, register with scheduler */
-    if (make_thread_runnable(child_tcb->tid) < 0)
+    if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0)
         return -1;
 
     /* Only parent will return here */
-    assert(get_running_tid() == parent_tcb->tid);
-	return child_tcb->tid;
+    assert(get_running_tid() == get_tcb_tid(parent_tcb));
+	return get_tcb_tid(child_tcb);
 }
 
 

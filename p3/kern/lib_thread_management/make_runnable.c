@@ -7,7 +7,7 @@
 #include <asm.h>				/* outb() */
 #include <scheduler.h>			/* make_thread_runnable() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
-
+#include <task_manager.h>       /* get_tcb_status() */
 /** @brief Makes a previously descheduled thread runnable.
  *		   Atomic w.r.t. deschedule.
  *
@@ -21,7 +21,7 @@ make_runnable( int tid )
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	tcb_t *tcbp = find_tcb(tid);
-	if (!tcbp || tcbp->status != DESCHEDULED)
+	if (!tcbp || get_tcb_status(tcbp) != DESCHEDULED)
 		return -1;
 
 	/* move to runnable queue and mark as runnable */

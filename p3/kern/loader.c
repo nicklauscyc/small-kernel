@@ -32,6 +32,11 @@
 
 /* --- Local function prototypes --- */
 
+/* first_task is 1 if there is currently no user task running, so
+ * execute_user_program will do some initialization
+ */
+static int first_task = 1;
+
 /* TODO: Move this to a helper file.
  *
  * Having a helper means we evaluate the arguments before expanding _MIN
@@ -194,8 +199,7 @@ configure_stack( int argc, char **argv )
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname, int argc, char **argv,
-                      int replace_current_task)
+execute_user_program( const char *fname, int argc, char **argv)
 {
 	log_info("Executing: %s", fname);
 
@@ -209,8 +213,13 @@ execute_user_program( const char *fname, int argc, char **argv,
 	}
     uint32_t pid, tid;
 
-	/* Replacing current running user task with fname */
-	if (replace_current_task) {
+	/* First task, so create a new task */
+	if (first_task) {
+		if (create_task(&pid, &tid, &se_hdr) < 0)
+			return -1;
+
+	/* Not the first task, so we replace the current running task */
+	} else {
 		pid = get_pid();
 		tid = get_running_tid();
 
@@ -224,12 +233,6 @@ execute_user_program( const char *fname, int argc, char **argv,
 		void *old_pd = swap_task_pd(new_pd);
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
-	/* Create brand new user task */
-	} else {
-
-		if (create_task(&pid, &tid, &se_hdr) < 0) {
-			return -1;
-		}
 	}
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
@@ -241,10 +244,11 @@ execute_user_program( const char *fname, int argc, char **argv,
 
     uint32_t *esp = configure_stack(argc, argv);
 
-	/* If we're not replacing a current user task, we must activate it */
-	if (!replace_current_task) {
+	/* If this is the first task we must activate it */
+	if (first_task) {
 		task_set_active(tid);
 	}
+	first_task = 0;
 
 	/* Start the task */
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
@@ -252,5 +256,3 @@ execute_user_program( const char *fname, int argc, char **argv,
 	panic("execute_user_program does not return");
 	return -1;
 }
-
-

@@ -3,6 +3,10 @@
 
 #include <task_manager.h>   /* status_t */
 #include <stdint.h>         /* uint32_t */
+#include <variable_queue.h> /* Q_NEW_HEAD() */
+
+enum status { RUNNING, RUNNABLE, DESCHEDULED, BLOCKED, DEAD, UNINITIALIZED };
+typedef enum status status_t;
 
 /* Queue head definition */
 Q_NEW_HEAD(queue_t, tcb);

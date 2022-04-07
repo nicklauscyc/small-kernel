@@ -54,8 +54,7 @@ exec( char *execname, char **argvec )
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	/* Only allow exec of task that has 1 thread */
-	uint32_t tid = get_running_tid();
-	tcb_t *parent_tcb = find_tcb(tid);
+	tcb_t *parent_tcb = get_running_thread();
 	assert(parent_tcb);
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
 
@@ -99,7 +98,7 @@ exec( char *execname, char **argvec )
 		offset += USER_STR_LEN;
 	}
 	/* Execute */
-	if (execute_user_program(kern_stack_execname, argc, kern_stack_argvec, 1)
+	if (execute_user_program(kern_stack_execname, argc, kern_stack_argvec)
 		< 0) {
 		return -1;
 	}

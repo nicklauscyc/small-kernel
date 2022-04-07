@@ -4,6 +4,8 @@
 // TODO maybe a function such as is_legal_pcb, is_legal_tcb for invariant checks?
 //
 #include <task_manager.h>
+#include <task_manager_internal.h>
+
 
 #include <scheduler.h>	/* add_tcb_to_run_queue() */
 #include <eflags.h>	/* get_eflags*/
@@ -45,6 +47,12 @@ static uint32_t next_pid = 1;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
 static uint32_t next_tid = 1;
 
+uint32_t
+get_tcb_tid(tcb_t *tcb)
+{
+	return tcb->tid;
+}
+
 /** @brief Initializes task manager's resources
  *
  *	 @return Void
@@ -57,6 +65,19 @@ task_manager_init ( void )
 	mutex_init(&pcb_list_mux);
 	mutex_init(&tcb_map_mux);
 	Q_INIT_HEAD(&pcb_list);
+}
+
+/** @brief Gets the status of a tcb
+ *
+ *  Needs to be guarded by synchronization from invoking function
+ *
+ *  @param tcb TCB from which to get status from
+ *  @return Status of a thread i.e. RUNNING, RUNNABLE, DESCHEDULED, ...
+ */
+status_t
+get_tcb_status( tcb_t *tcb )
+{
+	return tcb->status;
 }
 
 /** @brief Changes the page directory in the PCB to new_pd
@@ -441,9 +462,8 @@ get_unique_tid( void )
 uint32_t
 get_pid( void )
 {
-	/* Get tid to get TCB */
-	uint32_t tid = get_running_tid();
-	tcb_t *tcb = find_tcb(tid);
+	/* Get TCB */
+	tcb_t *tcb = get_running_thread();
 	assert(tcb);
 
 	/* Get PCB to get and return pid */
