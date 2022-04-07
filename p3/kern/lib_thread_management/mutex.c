@@ -116,7 +116,8 @@ mutex_unlock( mutex_t *mp )
         mp->owner_tid = to_run->tid;
         make_thread_runnable(to_run->tid);
     } else {
-		log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
+		//Permission to remove this since it'll flood debug
+		//log("Unlocking. No one in waiters_queue at %p", &mp->waiters_queue);
         mp->owned = 0;
     }
 
