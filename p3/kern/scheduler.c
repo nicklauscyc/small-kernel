@@ -29,7 +29,8 @@ static int scheduler_init = 0;
 static queue_t runnable_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
-static void swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status );
+static void swap_running_thread( tcb_t *to_run, status_t store_status,
+		void (*callback)(tcb_t *, void *), void *data );
 static void switch_threads(tcb_t *running, tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
@@ -70,14 +71,16 @@ print_status(status_t status)
 }
 
 /** @brief Yield execution of current thread, storing it at
- *		   the designated queue.
+ *		   the runnable queue if store_status is RUNNABLE.
  *
- *	@param store_at		  Queue in which to store thread
- *	@param store_status   Status with which to store thread
+ *	@param store_status Status which currently running thread will take
  *	@param tid			Id of thread to yield to, -1 if any
+ *	@param callback		Function to be called atomically with tcb of
+ *						current thread. MUST BE SHORT
  *	@return 0 on success, negative value on error */
 int
-yield_execution( queue_t *store_at, status_t store_status, int tid )
+yield_execution( status_t store_status, int tid,
+		void (*callback)(tcb_t *, void *), void *data )
 {
 	affirm(scheduler_init);
 	if (!scheduler_init) {
@@ -114,12 +117,12 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 					 " thread with tid %d", tid);
 			return -1; /* Thread not found */
 		}
+		disable_interrupts();
 		if (tcb->status != RUNNABLE) {
 			log_warn("Trying to yield_execution to non-runnable"
 					 " thread with tid %d", tid);
 			return -1;
 		}
-		disable_interrupts();
 	}
 
 	/* If this thread is to be made not-runnable, ensure it is not
@@ -131,11 +134,10 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		Q_REMOVE(&runnable_q, running_thread, scheduler_queue);
 	}
 
-	swap_running_thread(tcb, store_at, store_status);
+	swap_running_thread(tcb, store_status, callback, data);
 	return 0;
 }
 
-// FIXME: Maybe crash if !scheduler_init???
 /** @brief Gets tid of currently active thread.
  *
  *	@return Id of running thread */
@@ -149,16 +151,14 @@ get_running_tid( void )
 	return running_thread->tid;
 }
 
-//void
-//add_to_runnable_queue( tcb_t *tcb )
-//{
-//	affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
-//			   "runnable queue!");
-//	tcb->status = RUNNABLE;
-//	disable_interrupts();
-//	Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
-//	enable_interrupts();
-//}
+/** @brief Gets currently active thread.
+ *
+ *	@return Running thread, NULL if no such thread */
+tcb_t *
+get_running_thread( void )
+{
+	return running_thread;
+}
 
 /** @brief Initializes scheduler and registers its first thread.
  *
@@ -235,17 +235,6 @@ make_thread_runnable(uint32_t tid)
 //
 //	/* TODO: Unimplemented. Any ops on currently running
 //	 * thread must check runnable queue as well */
-//	return -1;
-//}
-//
-//int
-//deschedule_thread(uint32_t tid)
-//{
-//	/* TODO: Unimplemented. Any ops on currently running
-//	 * thread must check runnable queue as well */
-//	return -1;
-//}
-//
 //int
 //block_thread(uint32_t tid)
 //{
@@ -279,15 +268,13 @@ scheduler_on_tick( unsigned int num_ticks )
 		}
 		Q_REMOVE(&runnable_q, to_run, scheduler_queue);
 
-		swap_running_thread(to_run, NULL, RUNNABLE);
+		swap_running_thread(to_run, RUNNABLE, NULL, NULL);
 	}
 }
 
 /* ------- HELPER FUNCTIONS -------- */
 
-/** @brief Swaps the running thread to to_run. Stores currently running
- *		   thread with store_status in the appropriate queue. If status
- *		   is BLOCKED, a queue for the thread to wait on has to be provided.
+/** @brief Swaps the running thread to to_run.
  *
  *	@pre Interrupts disabled when called.
  *
@@ -299,7 +286,8 @@ scheduler_on_tick( unsigned int num_ticks )
  *	@return Void.
  */
 static void
-swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
+swap_running_thread( tcb_t *to_run, status_t store_status,
+		void (*callback)(tcb_t *, void *), void *data )
 {
 	assert(to_run);
 	affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
@@ -315,25 +303,18 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 		return;
 	}
 
-	// FIXME: Should this even be here? Could we have the mutex put the thread in
-	// the mutex queue at a later time? Probably would be better
-	/* Pick appropriate queue in which to store currently running thread */
+	/* Validate store status */
 	switch (store_status) {
 		case RUNNING:
 			panic("Trying to store thread with status RUNNING!");
 			break;
 		case RUNNABLE:
-			affirm(store_at == NULL);
-			store_at = &runnable_q;
 			break;
 		case DESCHEDULED:
-			affirm(store_at == NULL);
 			break;
 		case BLOCKED:
-			affirm(store_at != NULL);
 			break;
 		case DEAD:
-			affirm(store_at == NULL);
 			break;
 		case UNINITIALIZED:
 			panic("Trying to store thread with status UNINITIALIZED!");
@@ -345,8 +326,13 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 
 	tcb_t *running = running_thread;
 	running->status = store_status;
-	if (store_at != NULL)
-		Q_INSERT_TAIL(store_at, running, scheduler_queue);
+	/* Data structure for other statuses are managed by their own components,
+	 * scheduler is only responsible for managing runnable/running threads. */
+	if (store_status == RUNNABLE)
+		Q_INSERT_TAIL(&runnable_q, running, scheduler_queue);
+	else if (callback) {
+		callback(running, data);
+	}
 
 	running_thread = to_run;
 	to_run->status = RUNNING;
@@ -355,8 +341,8 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 
 	switch_threads(running, to_run);
 
-	/* Nothing should be placed after switch_threads as, when we
-	 * context switch to a new thread for the first time, the stack
+	/* Nothing which must run should be placed after switch_threads as,
+	 * when we context switch to a new thread for the first time, the stack
 	 * will be setup for it to return directly to the call_fork asm wrapper. */
 }
 

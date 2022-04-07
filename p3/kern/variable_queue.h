@@ -12,6 +12,7 @@
 #define _VARIABLE_QUEUE_H_
 
 #include <stddef.h> /* NULL */
+#include <assert.h> /* panic, affirm_msg */
 
 /** @def Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE)
  *

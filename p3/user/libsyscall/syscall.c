@@ -72,10 +72,10 @@ int wait(int *status_ptr)
 //	return -1;
 //}
 
-int sleep(int ticks)
-{
-	return -1;
-}
+//int sleep(int ticks)
+//{
+//	return -1;
+//}
 
 int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
 {
@@ -92,25 +92,25 @@ int readline(int size, char *buf)
 	return -1;
 }
 
-int print(int size, char *buf)
-{
-	return -1;
-}
+//int print(int size, char *buf)
+//{
+//	return -1;
+//}
 
-int set_term_color(int color)
-{
-	return -1;
-}
+//int set_term_color(int color)
+//{
+//	return -1;
+//}
 
-int get_cursor_pos(int *row, int *col)
-{
-	return -1;
-}
+//int get_cursor_pos(int *row, int *col)
+//{
+//	return -1;
+//}
 
-int set_cursor_pos(int row, int col)
-{
-	return -1;
-}
+//int set_cursor_pos(int row, int col)
+//{
+//	return -1;
+//}
 
 void halt(void)
 {
@@ -143,10 +143,10 @@ int remove_pages(void *addr)
 	return -1;
 }
 
-unsigned int get_ticks(void)
-{
-	return 1;
-}
+//unsigned int get_ticks(void)
+//{
+//	return 1;
+//}
 
 void misbehave(int mode)
 {

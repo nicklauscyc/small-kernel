@@ -34,6 +34,7 @@
 #include <logger.h>		/* log_info() */
 #include <task_manager.h>	/* task_manager_init() */
 #include <keybd_driver.h>	/* readline() */
+#include <lib_thread_management/sleep.h>		/* sleep_on_tick() */
 
 
 volatile static int __kernel_all_done = 0;
@@ -49,6 +50,12 @@ volatile static int __kernel_all_done = 0;
 int log_level = 1;
 
 void tick(unsigned int numTicks) {
+	/* The amount of work done before scheduler tick handler should be
+	 * small, as it will consume time from the thread being context switched
+	 * to (in most cases). */
+	sleep_on_tick(numTicks);
+
+	/* Scheduler tick handler should be last, as it triggers context_switch */
 	scheduler_on_tick(numTicks);
 }
 

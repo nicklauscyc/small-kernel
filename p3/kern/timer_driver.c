@@ -30,6 +30,12 @@ static void (*application_tickback) (unsigned int) = NULL;
 /* Total ticks caught */
 static unsigned int total_ticks = 0;
 
+unsigned int
+get_total_ticks( void )
+{
+	return total_ticks;
+}
+
 /*********************************************************************/
 /*                                                                   */
 /* Internal helper functions                                         */
