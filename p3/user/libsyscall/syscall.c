@@ -57,15 +57,15 @@ int wait(int *status_ptr)
 	return -1;
 }
 
-int deschedule(int *flag)
-{
-	return -1;
-}
+//int deschedule(int *flag)
+//{
+//	return -1;
+//}
 
-int make_runnable(int pid)
-{
-	return -1;
-}
+//int make_runnable(int pid)
+//{
+//	return -1;
+//}
 
 //int gettid(void)
 //{

@@ -8,7 +8,13 @@
 
 #include <x86/seg.h> /* SEGSEL_KERNEL_{CS, DS} */
 
-/* TODO to what extent do we still need this handler ? */
+
+/** @define CALL_HANDLER(HANDLER_NAME)
+ *  @brief Assembly wrapper to call interupt handlers that do not service
+ *         syscalls (hence the need to save _all_ general registers
+ *
+ *  @param HANDLER_NAME name of handler function to call
+ */
 #define CALL_HANDLER(HANDLER_NAME)\
 \
 .globl call_##HANDLER_NAME; /* create the asm function call_HANDLER_NAME */\

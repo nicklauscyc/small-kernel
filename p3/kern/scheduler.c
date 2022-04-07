@@ -27,12 +27,9 @@ static int scheduler_init = 0;
 
 /* Thread queues.*/
 static queue_t runnable_q;
-static queue_t descheduled_q;
-static queue_t dead_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
 static void swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status );
-//static void switch_threads(tcb_t *to_run);
 static void switch_threads(tcb_t *running, tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
@@ -125,6 +122,15 @@ yield_execution( queue_t *store_at, status_t store_status, int tid )
 		disable_interrupts();
 	}
 
+	/* If this thread is to be made not-runnable, ensure it is not
+	 * on the runnable queue. The currently running thread can be
+	 * on the runnable queue if it was yielded to previously. */
+	if (store_status != RUNNABLE &&
+			Q_IN_SOME_QUEUE(running_thread, scheduler_queue)) {
+		/* tcb must be in scheduler_q, therefore we can safely remove it */
+		Q_REMOVE(&runnable_q, running_thread, scheduler_queue);
+	}
+
 	swap_running_thread(tcb, store_at, store_status);
 	return 0;
 }
@@ -143,16 +149,16 @@ get_running_tid( void )
 	return running_thread->tid;
 }
 
-void
-add_to_runnable_queue( tcb_t *tcb )
-{
-	affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
-			   "runnable queue!");
-	tcb->status = RUNNABLE;
-	disable_interrupts();
-	Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
-	enable_interrupts();
-}
+//void
+//add_to_runnable_queue( tcb_t *tcb )
+//{
+//	affirm_msg(scheduler_init, "Scheduler uninitialized, cannot add to "
+//			   "runnable queue!");
+//	tcb->status = RUNNABLE;
+//	disable_interrupts();
+//	Q_INSERT_TAIL(&runnable_q, tcb, scheduler_queue);
+//	enable_interrupts();
+//}
 
 /** @brief Initializes scheduler and registers its first thread.
  *
@@ -165,8 +171,6 @@ init_scheduler( void )
 	affirm(!scheduler_init);
 
 	Q_INIT_HEAD(&runnable_q);
-	Q_INIT_HEAD(&descheduled_q);
-	Q_INIT_HEAD(&dead_q);
 
 	scheduler_init = 1;
 
@@ -181,25 +185,27 @@ init_scheduler( void )
  *	@return 0 on success, negative value on error */
 /* TODO: Think of synchronization here*/
 int
-register_thread(uint32_t tid)
+make_thread_runnable(uint32_t tid)
 {
-	log("Registering thread %d", tid);
-
-	int first_thread = !scheduler_init;
-	if (!scheduler_init) {
-		init_scheduler();
-	}
+	log("Making thread %d runnable", tid);
 
 	tcb_t *tcbp = find_tcb(tid);
 	if (!tcbp)
 		return -1;
 
-	assert(tcbp->status == UNINITIALIZED);
-
 	//TODO scheduler breaks interface
+	//TODO the problem is task_set_active() calls this function and exec()
+	//     calls task_set_active() and so this is going to fail
 	/* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
-	if (first_thread) {
+	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
+		log_warn("Trying to make runnable thread %d runnable again", tid);
+		enable_interrupts();
+		return -1;
+	}
+
+	if (!scheduler_init) {
+		init_scheduler();
 		tcbp->status = RUNNING;
 		running_thread = tcbp;
 	} else {
@@ -212,6 +218,49 @@ register_thread(uint32_t tid)
 
 	return 0;
 }
+
+//int
+//schedule_thread(uint32_t tid)
+//{
+//	tcb_t *tcbp = find_tcb(tid);
+//	if (!tcbp)
+//		return -1;
+//
+//	disable_interrupts();
+//	if (tcbp->status != DESCHEDULED) {
+//		log_warn("Trying to schedule thread %d which is not descheduled", tid);
+//		enable_interrupts();
+//		return -1;
+//	}
+//
+//	/* TODO: Unimplemented. Any ops on currently running
+//	 * thread must check runnable queue as well */
+//	return -1;
+//}
+//
+//int
+//deschedule_thread(uint32_t tid)
+//{
+//	/* TODO: Unimplemented. Any ops on currently running
+//	 * thread must check runnable queue as well */
+//	return -1;
+//}
+//
+//int
+//block_thread(uint32_t tid)
+//{
+//	/* TODO: Unimplemented. Any ops on currently running
+//	 * thread must check runnable queue as well */
+//	return -1;
+//}
+//
+//int
+//unblock_thread(uint32_t tid)
+//{
+//	/* TODO: Unimplemented. Any ops on currently running
+//	 * thread must check runnable queue as well */
+//	return -1;
+//}
 
 void
 scheduler_on_tick( unsigned int num_ticks )
@@ -266,6 +315,8 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 		return;
 	}
 
+	// FIXME: Should this even be here? Could we have the mutex put the thread in
+	// the mutex queue at a later time? Probably would be better
 	/* Pick appropriate queue in which to store currently running thread */
 	switch (store_status) {
 		case RUNNING:
@@ -277,14 +328,12 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 			break;
 		case DESCHEDULED:
 			affirm(store_at == NULL);
-			store_at = &descheduled_q;
 			break;
 		case BLOCKED:
 			affirm(store_at != NULL);
 			break;
 		case DEAD:
 			affirm(store_at == NULL);
-			store_at = &dead_q;
 			break;
 		case UNINITIALIZED:
 			panic("Trying to store thread with status UNINITIALIZED!");
@@ -296,14 +345,19 @@ swap_running_thread( tcb_t *to_run, queue_t *store_at, status_t store_status )
 
 	tcb_t *running = running_thread;
 	running->status = store_status;
-	Q_INSERT_TAIL(store_at, running, scheduler_queue);
+	if (store_at != NULL)
+		Q_INSERT_TAIL(store_at, running, scheduler_queue);
 
 	running_thread = to_run;
 	to_run->status = RUNNING;
 
+	enable_interrupts();
+
 	switch_threads(running, to_run);
 
-	enable_interrupts();
+	/* Nothing should be placed after switch_threads as, when we
+	 * context switch to a new thread for the first time, the stack
+	 * will be setup for it to return directly to the call_fork asm wrapper. */
 }
 
 static void

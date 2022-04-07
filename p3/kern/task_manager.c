@@ -179,9 +179,13 @@ task_set_active( uint32_t tid, uint32_t esp, uint32_t entry_point )
 		activate_task_memory(pcb->pid);
 	}
 
+	/* Let scheduler know it can now run this thread */
 	/* Let scheduler know it can now run this thread if it doesn't know */
+	/* TODO in a bit of a pickle because we need to call disable_interrupts()
+	 * to check this?
+	 */
 	if (tcb->status == UNINITIALIZED) {
-		register_thread(tid);
+		make_thread_runnable(tid);
 	}
 
 	/* Before going to user mode, update esp0, so we know where to go back to */
