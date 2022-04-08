@@ -648,6 +648,7 @@ free_pd_memory( void *pd )
 		if (pd_entry) {
 			uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd_entry);
 			free_pt_memory(pt, i);
+			sfree(pt, PAGE_SIZE);
 		}
 	}
 }
