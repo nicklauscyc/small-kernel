@@ -607,17 +607,7 @@ static void
 free_pt_memory( uint32_t *pt, int pd_index ) {
 
 	affirm(is_valid_pt(pt, pd_index));
-	//uint32_t *pt_to_free = (uint32_t *) pt;
-	//int num_pt_entries = PAGE_SIZE / sizeof(uint32_t);
-	//for (int i = 0; i < num_pt_entries; ++i) {
 
-	//	/* Free physical frame */
-	//	if (pt_to_free[i] >= USER_MEM_START) {
-	//		uint32_t physframe = TABLE_ADDRESS(pt_to_free[i]);
-	//		log("freeing physical address:0x%lx", physframe);
-	//		physfree(physframe);
-	//	}
-	//}
 	/* pt holds physical frames for user memory */
 	if ((pd_index << PAGE_DIRECTORY_SHIFT) >= USER_MEM_START) {
 		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
@@ -629,7 +619,7 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 			}
 		}
 	} else {
-		/* Currently nothing if < USER_MEM_START */
+		/* Currently nothing to free if < USER_MEM_START */
 	}
 }
 
