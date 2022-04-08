@@ -516,9 +516,11 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode
      * .bss and new_pages are the only ones required to be zeroed out by spec.
      * Should we even be calling enable paging here??? */
     /* ATOMICALLY start */
+	//disable_interrupts();
     //disable_paging();
     //memset((void *)free_frame, 0, PAGE_SIZE);
     //enable_paging();
+	//enable_interrupts();
     /* ATOMICALLY end*/
 
     if (write_mode == READ_WRITE) {
