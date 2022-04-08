@@ -121,7 +121,9 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
         } else {
             *ptep = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
         }
+		assert(*ptep < USER_MEM_START);
     }
+	log("new_pd_from_elf() direct map ended");
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
@@ -617,7 +619,7 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 	affirm(is_valid_pt(pt, pd_index));
 
 	/* pt holds physical frames for user memory */
-	if ((pd_index << PAGE_DIRECTORY_SHIFT) >= USER_MEM_START) {
+	if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
 		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
 			uint32_t pt_entry = pt[i];
@@ -677,23 +679,32 @@ is_valid_pt( uint32_t *pt, int pd_index )
 		return 0;
 	}
 	/* pt holds physical frames for user memory */
-	if ((pd_index << PAGE_DIRECTORY_SHIFT) >= USER_MEM_START) {
+	if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
 		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
 			uint32_t pt_entry = pt[i];
 			if (pt_entry) {
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 
-				if (!is_physframe(phys_address)) {
-					log_warn("0x%08lx of pt_entry 0x%08lx at pt_index %d invalid "
-							 "physical frame!", phys_address, pt_entry, i);
+				if (phys_address && !is_physframe(phys_address)) {
+					log_warn("0x%08lx of pt_entry 0x%08lx at pd_index %d "
+					         "pt_index %d invalid "
+							 "physical frame!", phys_address, pt_entry, pd_index, i);
 					return 0;
 				}
 			}
 		}
 		return 1;
 	} else {
-		/* Currently no checks if < USER_MEM_START */
+		/* Checks physical frame < USER_MEM_START */
+		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+			uint32_t pt_entry = pt[i];
+			if (pt_entry >= USER_MEM_START) {
+				log_warn("pt_entry 0x%08lx of pt at address %p at pd_index %d "
+				         "above USER_MEM_START!", pt_entry, pt, pd_index);
+				return 0;
+			}
+		}
 		return 1;
 	}
 }
@@ -720,6 +731,7 @@ is_valid_pd( void *pd )
 		log_warn("pd: %p is above USER_MEM_START!", pd);
 		return 0;
 	}
+	log("checking pd at address %p", pd);
 	uint32_t **pd_cast = (uint32_t **) pd;
 
 	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
