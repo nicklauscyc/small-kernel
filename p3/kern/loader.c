@@ -292,30 +292,44 @@ execute_user_program( const char *fname, int argc, char **argv)
 			return -1;
 		}
 		void *old_pd = swap_task_pd(new_pd);
-		assert(is_valid_pd(old_pd));
+		//assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 	}
+
+
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
+	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
 
     if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
 	}
+	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
 
     uint32_t *esp = configure_stack(argc, argv);
+	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
 
 
 	/* If this is the first task we must activate it */
 	if (first_task) {
+	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
+
 		task_set_active(tid);
 	}
+	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
+
 	first_task = 0;
 
 	/* Start the task */
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
+
 
 	panic("execute_user_program does not return");
 	return -1;

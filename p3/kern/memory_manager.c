@@ -34,9 +34,11 @@
 #define PAGE_DIRECTORY_SHIFT 22
 #define PAGE_TABLE_SHIFT 12
 
-/* Get page directory or page table index from a logical/linear address. */
+/* Get page directory index from logical address */
 #define PD_INDEX(addr) \
     ((PAGE_DIRECTORY_INDEX & (addr)) >> PAGE_DIRECTORY_SHIFT)
+
+/* Get page table index from logical address */
 #define PT_INDEX(addr) \
     ((PAGE_TABLE_INDEX & (addr)) >> PAGE_TABLE_SHIFT)
 
@@ -75,6 +77,7 @@ static void free_pt_memory( uint32_t *pt, int pd_index );
 /* TODO do we need this? */
 uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index );
 static int is_valid_pt( uint32_t *pt, int pd_index );
+void *get_new_pd( void );
 
 
 uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index )
@@ -100,18 +103,18 @@ uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index )
 void *
 new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
-    void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
-    if (!pd) {
+	/* Get a new pd that is zero filled */
+    void *pd = get_new_pd();
+	if (!pd) {
         return NULL;
 	}
-    /* Ensure all entries are 0 and therefore not present */
-    memset(pd, 0, PAGE_SIZE);
-	assert(PAGE_ALIGNED((uint32_t) pd));
-
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
         uint32_t *ptep = get_ptep(pd, addr);
+
+		/* If NULL is returned, free all resources in page directory */
 		if (!ptep) {
+			free_pd_memory(pd);
             sfree(pd, PAGE_SIZE);
 			return NULL;
 		}
@@ -119,7 +122,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 		if (addr == 0) {
             *ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
         } else {
-            *ptep = addr | PE_KERN_WRITABLE; /* PE_KERN_WRITABLE FIXME */
+            *ptep = addr | PE_KERN_WRITABLE; /* Can delete this?: PE_KERN_WRITABLE FIXME */
         }
 		assert(*ptep < USER_MEM_START);
     }
@@ -130,6 +133,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 
 	// TODO: implement valid_memory_regions
     if (!valid_memory_regions(elf)) {
+		free_pd_memory(pd);
         sfree(pd, PAGE_SIZE);
         return NULL;
     }
@@ -446,18 +450,47 @@ get_new_pt( void )
 	return pt;
 }
 
+/** @brief Allocate memory for a new page directory and zero all entries
+ *
+ *  @return Pointer in kernel VM of page directory if successfule, 0 otherwise
+ */
+void *
+get_new_pd( void )
+{
+	/* Allocate memory for a new page directory */
+	void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
+	if (!pd) {
+		return 0;
+	}
+	log("new pd at address %p", pd);
+	assert(PAGE_ALIGNED((uint32_t) pd));
+
+	/* Initialize all page table entries as non-present */
+	memset(pd, 0, PAGE_SIZE);
+
+	return pd;
+}
+
+
 /** @brief Gets pointer to page table entry in a given page directory.
  *         Allocates page table if necessary.
  *
  *  @param pd Page table address
  *  @param virtual_address Virtual address corresponding to page table
  *  @return Pointer to a page table entry that can be dereferenced to get
- *          a physical address
+ *          a physical address, NULL on failure.
  */
 static uint32_t *
 get_ptep( uint32_t **pd, uint32_t virtual_address )
 {
-    affirm(pd);
+	/* Checking if a pd is valid is expensive, hence an assert() */
+	assert(is_valid_pd(pd));
+
+	/* NULL pd, so abort and return NULL */
+	if (!pd) {
+		return NULL;
+	}
+	/* Get page directory and page table index */
     uint32_t pd_index = PD_INDEX(virtual_address);
     uint32_t pt_index = PT_INDEX(virtual_address);
 
@@ -467,8 +500,8 @@ get_ptep( uint32_t **pd, uint32_t virtual_address )
 		if (!pt) {
 			return 0;
 		}
-		/* Page table should be in kernel memory */
-		assert((uint32_t) pt < USER_MEM_START);
+		/* Page table should be valid */
+		assert(is_valid_pt(pt, pd_index));
         pd[pd_index] = pt;
 
         /* Set all page directory entries as writable, determine
@@ -482,53 +515,71 @@ get_ptep( uint32_t **pd, uint32_t virtual_address )
 	return ptep + pt_index;
 }
 
-/** Allocate new frame at given virtual memory address.
+/** @brief Allocate new frame at given virtual memory address.
  *  Allocates page tables on demand.
  *
  *  If memory location already had a frame, checks whether it's allocated with
- *  the same flags as this function would set.
+ *  the same flags as this function would set and returns 0 if checks pass,
+ *  else -1 on error.
+ *
+ *  @return 0 on success, -1 on error
  *  */
 static int
-allocate_frame( uint32_t **pd, uint32_t virtual_address, write_mode_t write_mode )
+allocate_frame( uint32_t **pd, uint32_t virtual_address,
+                write_mode_t write_mode )
 {
-    affirm(pd);
+	/* is_valid_pd() is expensive, hence the assert() */
+	assert(is_valid_pd(pd));
 
-    uint32_t *pte = get_ptep(pd, virtual_address);
-
-    if ((*pte & PRESENT_FLAG) != 0) { /* if allocated */
-        /* Ensure it's allocated with same flags. */
-        if (write_mode == READ_WRITE)
-            affirm((*pte & (PAGE_SIZE - 1)) == PE_USER_WRITABLE);
-        else
-            affirm((*pte & (PAGE_SIZE - 1)) == PE_USER_READABLE);
-
-        return 0;
-    }
-    uint32_t free_frame = physalloc();
-	if (!free_frame) {
+	/* pd is NULL, abort with error */
+    if (!pd) {
 		return -1;
 	}
+	/* Find page table entry corresponding to virtual address */
+    uint32_t *ptep = get_ptep(pd, virtual_address);
+	if (!ptep) {
+		return -1;
+	}
+	uint32_t pt_entry = *ptep;
 
-    *pte = free_frame;
+	/* If page table entry contains a non-NULL address */
+    if (TABLE_ADDRESS(pt_entry)) {
 
+		/* Must be present */
+		if (!(pt_entry & PRESENT_FLAG)) {
+			return -1;
+		}
+        /* Ensure it's allocated with same flags. */
+        if (write_mode == READ_WRITE) {
+            if (!((pt_entry & (PAGE_SIZE - 1)) == PE_USER_WRITABLE)) {
+				return -1;
+			}
+		} else {
+            if (!((pt_entry & (PAGE_SIZE - 1)) == PE_USER_READABLE)) {
+				return -1;
+			}
+		}
+        return 0;
+
+	/* Page table entry contains a NULL address, allocate new physical frame */
+    } else {
+		uint32_t free_frame = physalloc();
+		if (!free_frame) {
+			return -1;
+		}
+		*ptep = free_frame;
+	}
     /* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
      * zero-filled pages for the initially allocated regions? Seems like
      * .bss and new_pages are the only ones required to be zeroed out by spec.
      * Should we even be calling enable paging here??? */
     /* ATOMICALLY start */
-	//disable_interrupts();
-    //disable_paging();
-    //memset((void *)free_frame, 0, PAGE_SIZE);
-    //enable_paging();
-	//enable_interrupts();
     /* ATOMICALLY end*/
-
     if (write_mode == READ_WRITE) {
-        *pte |= PE_USER_WRITABLE;
+        *ptep |= PE_USER_WRITABLE;
     } else {
-        *pte |= PE_USER_READABLE;
+        *ptep |= PE_USER_READABLE;
 	}
-
 	return 0;
 }
 
@@ -560,6 +611,7 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
      *        could require distinct permissions. THis might not be the case
      *        for data and bss, though, as both are read-write sections. */
     uint32_t u_start = (uint32_t)start;
+
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
         int res = allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i,
@@ -625,7 +677,7 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
 			uint32_t pt_entry = pt[i];
-			if (pt_entry) {
+			if (pt_entry & PRESENT_FLAG) {
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 				physfree(phys_address);
 			}
@@ -649,7 +701,7 @@ free_pd_memory( void *pd )
 		uint32_t *pd_entry = pd_cast[i];
 
 		/* Check page table if entry non-zero */
-		if (pd_entry) {
+		if ((uint32_t) pd_entry & PRESENT_FLAG) {
 			uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd_entry);
 			free_pt_memory(pt, i);
 			sfree(pt, PAGE_SIZE);
@@ -668,6 +720,7 @@ free_pd_memory( void *pd )
 static int
 is_valid_pt( uint32_t *pt, int pd_index )
 {
+	/* Basic page table address checks */
 	if (!pt) {
 		log_warn("pt: %p is NULL!", pt);
 		return 0;
@@ -680,47 +733,67 @@ is_valid_pt( uint32_t *pt, int pd_index )
 		log_warn("pt: %p is above USER_MEM_START!", pt);
 		return 0;
 	}
-	/* pt holds physical frames for user memory */
-	if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
-		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
-			uint32_t pt_entry = pt[i];
-			if (pt_entry) {
-				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
+	/* Iterate over page table and check each entry */
+	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+		uint32_t pt_entry = pt[i];
+		if (pd_index == 0x3ff) {
+			if (pt_entry) log("pt_entry:0x%08lx", pt_entry);
+		}
 
-				if (phys_address && !is_physframe(phys_address)) {
-					log_warn("0x%08lx of pt_entry 0x%08lx at pd_index %d "
-					         "pt_index %d invalid "
-							 "physical frame!", phys_address, pt_entry, pd_index, i);
+		/* Check only if entry is non-NULL, ignoring bottom 12 bits */
+		if (TABLE_ADDRESS(pt_entry)) {
+
+			uint32_t phys_address = TABLE_ADDRESS(pt_entry);
+
+			/* Present bit must be set */
+			if (!(pt_entry & PRESENT_FLAG)) {
+				log_warn("pt at address: %p has non-present frame physical "
+						 "address: %p with pt_entry: 0x%08lx at "
+						 "index: 0x%08lx",
+						 pt, (uint32_t *) phys_address, pt_entry, i);
+				log_warn("faulting address:%p", &pt_entry);
+				return 0;
+			}
+			/* pt holds physical frames for user memory */
+			if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
+
+				/* Frame must be a valid physical address by physalloc */
+				if (!is_physframe(phys_address)) {
+					log_warn("pt at address: %p has invalid frame physical "
+					         "address: %p with pt_entry: 0x%08lx at "
+							 "index: 0x%08lx",
+							 pt, (uint32_t *) phys_address, pt_entry, i);
+					return 0;
+				}
+			/* pt holds physical frame in kernel VM */
+			} else {
+
+				/* Frame must be < USER_MEM_START */
+				if (phys_address >= USER_MEM_START) {
+					log_warn("pt at address: %p has invalid frame physical "
+					         "address: %p >= USER_MEM_START with pt_entry: "
+							 "0x%08lx at index: 0x%08lx",
+							 pt, (uint32_t *) phys_address, pt_entry, i);
 					return 0;
 				}
 			}
 		}
-		return 1;
-	} else {
-		/* Checks physical frame < USER_MEM_START */
-		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
-			uint32_t pt_entry = pt[i];
-			if (pt_entry >= USER_MEM_START) {
-				log_warn("pt_entry 0x%08lx of pt at address %p at pd_index %d "
-				         "above USER_MEM_START!", pt_entry, pt, pd_index);
-				return 0;
-			}
-		}
-		return 1;
 	}
+	return 1;
 }
-
 
 /** @brief Checks if supplied page directory is valid or not
  *
  *  TODO keep a record of all page directory addresses ever given out?
  *
  *  @param pd Page directory to check
+ *  @return 1 if pd points to a valid page directory, 0 otherwise
  */
 int
 is_valid_pd( void *pd )
 {
+	/* Basic page directory address checks */
 	if (!pd) {
 		log_warn("pd: %p is NULL!", pd);
 		return 0;
@@ -733,19 +806,27 @@ is_valid_pd( void *pd )
 		log_warn("pd: %p is above USER_MEM_START!", pd);
 		return 0;
 	}
-	log("checking pd at address %p", pd);
+	/* Iterate over page directory and check each entry */
 	uint32_t **pd_cast = (uint32_t **) pd;
-
 	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
-
 		uint32_t *pd_entry = pd_cast[i];
 
-		/* Check page table if entry non-zero */
-		if (pd_entry) {
+		/* Check only if entry is non-NULL, ignoring bottom 12 bits */
+		if (TABLE_ADDRESS(pd_entry)) {
 			uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd_entry);
+
+			/* Present bit must be set */
+			if (!((uint32_t) pd_entry & PRESENT_FLAG)) {
+				log_warn("pd at address: %p has non-present pt at address: %p "
+				         "with pd_entry: 0x%08lx at index: 0x%08lx",
+				         pd, pt, pd_entry, i);
+				return 0;
+			}
+			/* Page table at address must be valid */
 			if (!is_valid_pt(pt, i)) {
-				log_warn("invalid pt: %p, entry in pd is 0x%08lx, index %d",
-				         pt, pd_entry, i);
+				log_warn("pd at address: %p has invalid pt at address: %p "
+			             "with pd_entry: 0x%08lx at index: 0x%08lx",
+				         pd, pt, pd_entry, i);
 				return 0;
 			}
 		}
