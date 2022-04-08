@@ -314,7 +314,6 @@ execute_user_program( const char *fname, int argc, char **argv)
 	}
 	first_task = 0;
 
-
 	/* Start the task */
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
 

@@ -329,6 +329,8 @@ is_user_pointer_valid(void *ptr)
 /** @brief Checks that the address of every character in the string is a valid
  *		   address
  *
+ *  //TODO test this function and see if it catches stuff
+ *
  *	The maximum permitted string length is USER_STR_LEN, including '\0'
  *	terminating character. Therefore the longest possible user string will
  *	have at most USER_STR_LEN - 1 non-NULL characters.
@@ -369,6 +371,8 @@ is_valid_user_string( char *s )
 
 /** @brief Checks address of every char * in argvec, argvec has max length
  *		   of < NUM_USER_ARGS
+ *
+ *  //TODO test this function and see if it catches stuff
  *
  *	@param execname Executable name
  *	@param argvec Argument vector
@@ -600,6 +604,10 @@ vm_set_pd( void *pd )
 
 
 /** @brief Frees a page table along with all physical frames
+ *
+ *
+ *  //TODO do we free the page tables less than USER_MEM_START or do we
+ *  keep them global for aliasing?
  *
  *  @param pt Page table to be freed
  */
