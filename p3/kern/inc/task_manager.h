@@ -17,6 +17,8 @@ typedef enum status status_t;
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
+#define STACK_ALIGNED(address) ((uint32_t) address % 4 == 0)
+
 /* Functions for task and thread creation */
 void task_manager_init( void );
 int create_pcb( uint32_t *pid, void *pd );

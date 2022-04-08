@@ -117,7 +117,7 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory.
 #
-STUDENTTESTS = test_suite
+STUDENTTESTS = test_suite exec_args_test exec_args_test_helper
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk

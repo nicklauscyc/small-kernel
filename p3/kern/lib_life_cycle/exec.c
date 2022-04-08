@@ -21,7 +21,7 @@
  *	@return Void.
  */
 static void
-log_exec_args( char *execname, char **argvec)
+log_exec_args( char *execname, char **argvec )
 {
 	log("exec name is '%s'", execname);
 	int i = 0;
@@ -74,7 +74,6 @@ exec( char *execname, char **argvec )
 		return -1;
 	}
 	// TODO ensure no software exception handler registered
-	log_exec_args(execname, argvec);
 
 	/* Transfer execname to kernel stack so unaffected by page directory */
 	char kern_stack_execname[USER_STR_LEN];
@@ -97,6 +96,8 @@ exec( char *execname, char **argvec )
 		kern_stack_argvec[i] = kern_stack_args + offset;
 		offset += USER_STR_LEN;
 	}
+	log_exec_args(kern_stack_execname, kern_stack_argvec);
+
 	/* Execute */
 	if (execute_user_program(kern_stack_execname, argc, kern_stack_argvec)
 		< 0) {

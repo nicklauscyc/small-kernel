@@ -25,12 +25,12 @@
 #include <exec2obj.h>   /* exec2obj_TOC */
 #include <elf_410.h>    /* simple_elf_t, elf_load_helper */
 #include <stdint.h>     /* UINT32_MAX */
-#include <task_manager.h>   /* task_new, task_prepare, task_set */
+#include <task_manager.h>   /* task_new, task_prepare, task_set, STACK_ALIGNED*/
 #include <memory_manager.h> /* {disable,enable}_write_protection */
 #include <logger.h>     /* log_warn() */
 #include <scheduler.h> /* get_running_tid() */
 #include <assert.h> /* assert() */
-
+#include <simics.h>
 /* --- Local function prototypes --- */
 
 /* first_task is 1 if there is currently no user task running, so
@@ -140,50 +140,109 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *
  *  This entrypoint is defined in 410user/crt0.c and is used by all user
  *  programs.
- *  */
+ *
+ *  Requires that argc and argv are validated
+ */
 //TODO does not set up stack properly for main
 //void _main(int argc, char *argv[], void *stack_high, void *stack_low)
 //
 static uint32_t *
 configure_stack( int argc, char **argv )
 {
-    /* TODO: Consider writing this with asm, as it might be simpler. */
+	/* Set highest addressable byte on stack */
+	char *stack_high = (char *) UINT32_MAX;
+	assert((uint32_t) stack_high == 0xFFFFFFFF);
 
-    /* TODO: In the future, when "receiver" function is implemented, loader
-     * should also add entry point, user registers and data segment selectors
-     * on the stack. For registers, just initialize most to 0 or something. */
+	/* Set lowest addressable byte on stack */
+	char *stack_low = stack_high - PAGE_SIZE + 1;
+	assert(PAGE_ALIGNED(stack_low));
 
-    /* As a pointer to uint32_t, it must point to the lowest address of
-     * the value. */
-    uint32_t *esp = (uint32_t *)(UINT32_MAX - (sizeof(uint32_t) - 1));
-	assert((uint32_t) esp % 4 == 0);
+	char *esp_char = stack_high - sizeof(uint32_t) + 1;
 
-    *esp = argc;
+	/* Transfer argv onto user stack */
+	char *user_stack_argv[argc];
+	memset(user_stack_argv, 0, argc * sizeof(char *));
 
-    if (argc == 0) {
-        *(--esp) = 0;
-		assert((uint32_t) esp % 4 == 0);
-        return esp;
-    }
+	/* Put the char * onto the user stack */
+	for (int i = 0; i < argc; ++i) {
+		esp_char -= USER_STR_LEN;
+		log("string of argv at address:%p", esp_char);
+		assert(STACK_ALIGNED(esp_char));
+		memset(esp_char, 0, USER_STR_LEN);
+		memcpy(esp_char, argv[argc - 1 - i], strlen(argv[argc - 1 - i]));
+		user_stack_argv[argc - 1 - i] = esp_char;
+	}
+	uint32_t *esp = (uint32_t *) esp_char;
 
-    esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
-	assert((uint32_t) esp % 4 == 0);
-	// TODO what if argv has a string
-    memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
-    esp--;
-	assert((uint32_t) esp % 4 == 0);
+    /* Put the null terminated char ** onto the user stack */
+	*(--esp) = 0;
+	for (int i = 0; i < argc; ++i) {
+		*(--esp) = (uint32_t) user_stack_argv[argc - 1 - i];
+	}
+	/* Save value of char **argv */
+	char **argv_arg = (char **) esp;
 
-    *(esp--) = UINT32_MAX; /* Put stack_high on stack */
-	assert((uint32_t) esp % 4 == 0);
+	/* Put stack_low onto stack */
+	*(--esp) = (uint32_t) stack_low;
 
-    *(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
+	/* Put stack_high onto stack */
+	*(--esp) = (uint32_t) stack_high;
+
+    /* Put argv_arg onto the user stack */
+	*(--esp) = (uint32_t) argv_arg;
+
+	/* Put argc onto stack */
+	*(--esp) = argc;
 
     /* Functions expect esp to point to return address on entry.
      * Therefore we just point it to some garbage, since _main
      * is never supposed to return. */
     esp--;
-	assert((uint32_t) esp % 4 == 0);
+
+	log("stack top:%p", esp);
+	log("argc:%d", *(esp + 1));
+	log("argv[0]:%s", (char *) **((char ***)esp + 2));
+	log("stack_hi:%p", (char *) *(esp + 3));
+	log("stack_lo:%p", (char *) *(esp + 4));
+
 	return esp;
+
+
+
+
+    ///* TODO: Consider writing this with asm, as it might be simpler. */
+
+    ///* TODO: In the future, when "receiver" function is implemented, loader
+    // * should also add entry point, user registers and data segment selectors
+    // * on the stack. For registers, just initialize most to 0 or something. */
+
+    ///* As a pointer to uint32_t, it must point to the lowest address of
+    // * the value. */
+    //uint32_t *esp = (uint32_t *)(UINT32_MAX - (sizeof(uint32_t) - 1));
+	//assert((uint32_t) esp % 4 == 0);
+
+    //*esp = argc;
+
+    //if (argc == 0) {
+    //    *(--esp) = 0;
+	//	assert((uint32_t) esp % 4 == 0);
+    //    return esp;
+    //}
+
+    //esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
+	//assert((uint32_t) esp % 4 == 0);
+	//// TODO what if argv has a string
+    //memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
+    //esp--;
+	//assert((uint32_t) esp % 4 == 0);
+
+    //*(esp--) = UINT32_MAX; /* Put stack_high on stack */
+	//assert((uint32_t) esp % 4 == 0);
+
+    //*(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
+
+	//assert((uint32_t) esp % 4 == 0);
+	//return esp;
 }
 
 /** @brief Run a user program indicated by fname.
@@ -241,17 +300,20 @@ execute_user_program( const char *fname, int argc, char **argv)
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
+
     if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
 	}
 
     uint32_t *esp = configure_stack(argc, argv);
 
+
 	/* If this is the first task we must activate it */
 	if (first_task) {
 		task_set_active(tid);
 	}
 	first_task = 0;
+
 
 	/* Start the task */
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
