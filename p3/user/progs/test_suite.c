@@ -3,6 +3,7 @@
 #include <stdlib.h>  /* for exit */
 #include <syscall.h> /* for gettid */
 #include "test.h"
+#include <assert.h>
 
 #define MULT_FORK_TEST 0
 #define MUTEX_TEST 1
@@ -85,13 +86,33 @@ int yield_test() {
 	return 0;
 }
 
+int new_pages_test(){
+
+	char *name = (char *) (0x1000000 + 7*PAGE_SIZE);
+	int len = 2 * PAGE_SIZE;
+	int res = new_pages(name, len);
+	assert(res == 0);
+	assert(new_pages(name, len) < 0);
+	lprintf("new_pages allocated");
+
+	/* Test writing to name */
+	char c = *name;
+	lprintf("c:%c", c); // reading this works
+	char a = 'a';
+	lprintf("a address:%p", &a);
+	*name = a;
+	lprintf("new_pages test passed");
+	return 0;
+}
 
 int main() {
-    if (sleep_test() < 0 ||
+    if (new_pages_test() < 0 ||
+		sleep_test() < 0 ||
 		mutex_test() < 0 ||
 		yield_test() < 0 ||
-        multiple_fork_test() < 0)
-        return -1;
+        multiple_fork_test() < 0
+		)
+		return -1;
 
 	lprintf("ALL TESTS PASSED!");
     return 0;

@@ -203,6 +203,14 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3) < 0) {
 		return -1;
 	}
+	/* Lib memory management */
+	if (install_handler(NEW_PAGES_INT, call_new_pages, DPL_3) < 0) {
+		return -1;
+	}
+	if (install_handler(REMOVE_PAGES_INT, call_remove_pages, DPL_3) < 0) {
+		return -1;
+	}
+
 
 	return 0;
 }

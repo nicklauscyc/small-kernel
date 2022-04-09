@@ -101,7 +101,8 @@ init_physalloc( void )
     /* Crash kernel if we can't initialize phys frame allocator */
     affirm(reuse_stack.data);
 
-	max_free_address = USER_MEM_START;
+	/* USER_MEM_START is the system wide 0 frame */
+	max_free_address = USER_MEM_START + PAGE_SIZE;
 	mutex_init(&mux);
 	physalloc_init = 1;
 }

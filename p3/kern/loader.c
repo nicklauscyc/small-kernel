@@ -103,7 +103,7 @@ transplant_program_memory( simple_elf_t *se_hdr )
 {
     /* Disable write-protection temporarily so we may
      * copy data into read-only regions. */
-    disable_write_protection();
+   // disable_write_protection();
 
     // FIXME: This error checking is kinda hacky
     int i = 0;
@@ -130,7 +130,7 @@ transplant_program_memory( simple_elf_t *se_hdr )
 	        (char *) se_hdr->e_rodatstart);
 
     /* Re-enable write-protection bit. */
-    enable_write_protection();
+    //enable_write_protection();
 
 	assert(is_valid_pd((void *)get_cr3()));
 	return i;

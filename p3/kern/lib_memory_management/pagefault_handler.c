@@ -6,6 +6,7 @@
 #include <assert.h> /* panic() */
 #include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/cr.h> /* get_cr2() */
+#include <memory_manager.h>
 
 /** @brief Installs the pagefault_handler() interrupt handler
  *
@@ -23,6 +24,7 @@ install_pf_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 	return res;
 }
 
+
 /** @brief Prints out the offending address on and calls panic()
  *
  *  @return Void.
@@ -31,5 +33,10 @@ void
 pagefault_handler( void )
 {
 	uint32_t faulting_vm_address = get_cr2();
+
+	if (zero_page_pf_handler(faulting_vm_address) == 0) {
+
+		return;
+	}
 	panic("Page fault at vm address:0x%lx!", faulting_vm_address);
 }
