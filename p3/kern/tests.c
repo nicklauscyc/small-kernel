@@ -2,16 +2,19 @@
  *  Set of tests for user/kern interactions */
 
 #include <tests.h>
-#include <assert.h>
-#include <lib_thread_management/mutex.h>
-#include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
+
 #include <asm.h> /* outb() */
+#include <assert.h>
 #include <simics.h>
 #include <logger.h>
+#include <physalloc.h>	/* physalloc_test() */
+#include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
+#include <lib_thread_management/mutex.h>
 
-#define MULT_FORK_TEST 0
-#define MUTEX_TEST 1
-#define YIELD_TEST 2
+/* These definitions have to match the ones in user/progs/test_suite.c */
+#define MULT_FORK_TEST	0
+#define MUTEX_TEST		1
+#define PHYSALLOC_TEST	2
 
 static volatile int total_sum = 0;
 static mutex_t mux;
@@ -56,15 +59,6 @@ mutex_test()
 }
 
 int
-yield_test()
-{
-    log_info("Running yield_test");
-
-    log_info("SUCCESS, yield_test");
-	return 0;
-}
-
-int
 test_int_handler( int test_num )
 {
     /* Acknowledge interrupt and return */
@@ -77,9 +71,9 @@ test_int_handler( int test_num )
         case MUTEX_TEST:
             return mutex_test();
             break;
-		case YIELD_TEST:
-			return yield_test();
-			break;
+		case PHYSALLOC_TEST:
+			test_physalloc();
+			return 0;
     }
 
     return 0;

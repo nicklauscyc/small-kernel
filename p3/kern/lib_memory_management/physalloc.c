@@ -187,7 +187,7 @@ physfree(uint32_t phys_address)
 void
 test_physalloc( void )
 {
-	log("Testing physalloc(), physfree()");
+	log_info("Testing physalloc(), physfree()");
 	uint32_t a, b, c;
 	/* Quick test for alignment, we allocate in consecutive order */
 	a = physalloc();
@@ -272,6 +272,6 @@ test_physalloc( void )
 		physfree(x);
 		x -= PAGE_SIZE;
 	}
-	log("Tests passed!");
+	log_info("Tests passed!");
 }
 

@@ -20,21 +20,19 @@
 #include <multiboot.h>              /* boot_info */
 
 /* x86 specific includes */
-#include <x86/asm.h>                /* enable_interrupts() */
-
-#include <x86/cr.h> /* get_cr3() */
+#include <cr.h>		/* get_cr3() */
+#include <asm.h>	/* enable_interrupts() */
 
 #include <exec2obj.h> /* MAX_EXECNAME_LEN */
 
-#include <loader.h>     /* execute_user_program() */
-#include <console.h>    /* clear_console(), putbytes() */
-#include <malloc.h>     /*malloc() */
-#include <physalloc.h>  /* test_physalloc() */
-#include <scheduler.h>  /* scheduler_on_tick() */
-#include <logger.h>		/* log_info() */
+#include <logger.h>			/* log_info() */
+#include <limits.h>			/* UINT_MAX */
+#include <loader.h>			/* execute_user_program() */
+#include <console.h>    	/* init_console() */
+#include <scheduler.h>  	/* scheduler_on_tick() */
 #include <task_manager.h>	/* task_manager_init() */
 #include <keybd_driver.h>	/* readline() */
-#include <lib_thread_management/sleep.h>		/* sleep_on_tick() */
+#include <lib_thread_management/sleep.h>	/* sleep_on_tick() */
 
 
 volatile static int __kernel_all_done = 0;
@@ -47,9 +45,17 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 1;
+int log_level = 2;
 
 void tick(unsigned int numTicks) {
+	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow
+	 * and break a lot of things. Let the user know they should be more polite
+	 * and restart their computer every other month! */
+	if (numTicks == UINT_MAX) {
+		panic("System has been running for too long. Please reboot earlier "
+				"next time.");
+	}
+
 	/* The amount of work done before scheduler tick handler should be
 	 * small, as it will consume time from the thread being context switched
 	 * to (in most cases). */
@@ -85,7 +91,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	}
 	enable_interrupts();
 
-	clear_console();
+	init_console();
 
 	task_manager_init();
 	//test_physalloc(); // TODO put in test suite

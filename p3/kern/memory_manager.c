@@ -315,25 +315,22 @@ is_user_pointer_valid(void *ptr)
 	return 1;
 }
 
+
 /** @brief Checks that the address of every character in the string is a valid
  *		   address
  *
- *	The maximum permitted string length is USER_STR_LEN, including '\0'
- *	terminating character. Therefore the longest possible user string will
- *	have at most USER_STR_LEN - 1 non-NULL characters.
- *
- *	This does not check for the existence of a user executable with this
- *	name. That is done when we try to fill in the ELF header.
- *
  *	@param s String to be checked
+ *	@param len Length of string
+ *	@param null_terminated	Whether the string should be checked
+ *							for null-termination
  *	@return 1 if valid user string, 0 otherwise
  */
-int
-is_valid_user_string( char *s )
+static int
+is_valid_user_string_helper( char *s, int len, int null_terminated )
 {
 	/* Check address of every character in s */
 	int i;
-	for (i = 0; i < USER_STR_LEN; ++i) {
+	for (i = 0; i < len; ++i) {
 
 		if (!is_user_pointer_valid(s + i)) {
 			log_warn("invalid address %p at index %d of user string %s",
@@ -349,11 +346,44 @@ is_valid_user_string( char *s )
 		}
 	}
 	/* Check length of s */
-	if (i == USER_STR_LEN) {
+	if (i == len && null_terminated) {
 		log_warn("user string of length >= USER_STR_LEN");
 		return 0;
 	}
 	return 1;
+}
+
+/** @brief Checks that the address of every character in the string is a valid
+ *		   address
+ *
+ *	The maximum permitted string length is max_len, including '\0'
+ *	terminating character. Therefore the longest possible user string will
+ *	have at most max_len - 1 non-NULL characters.
+ *
+ *	This does not check for the existence of a user executable with this
+ *	name. That is done when we try to fill in the ELF header.
+ *
+ *	@param s String to be checked
+ *	@param len Length of string
+ *	@return 1 if valid user string, 0 otherwise
+ */
+int
+is_valid_null_terminated_user_string( char *s, int len )
+{
+	return is_valid_user_string_helper(s, len, 1);
+}
+
+/** @brief Checks that the address of every character in the string is a valid
+ *		   address
+ *
+ *	@param s String to be checked
+ *	@param len Length of string
+ *	@return 1 if valid user string, 0 otherwise
+ */
+int
+is_valid_user_string( char *s, int len )
+{
+	return is_valid_user_string_helper(s, len, 0);
 }
 
 /** @brief Checks address of every char * in argvec, argvec has max length
@@ -383,7 +413,8 @@ is_valid_user_argvec( char *execname,  char **argvec )
 				break;
 			}
 			/* Check if valid string */
-			if (!is_valid_user_string(argvec[i])) {
+			if (!is_valid_null_terminated_user_string(argvec[i],
+						USER_STR_LEN)) {
 				log_warn("invalid address user string %s at index %d of argvec",
 						 argvec[i], i);
 				return 0;

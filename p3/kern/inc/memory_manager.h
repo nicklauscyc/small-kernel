@@ -16,7 +16,8 @@ void disable_write_protection( void );
 int vm_new_pages ( void *ptd, void *base, int len );
 int is_valid_pd( void *pd );
 int is_user_pointer_valid( void *ptr );
-int is_valid_user_string( char *s );
+int is_valid_user_string( char *s, int max_len );
+int is_valid_null_terminated_user_string( char *s, int max_len );
 int is_valid_user_argvec( char *execname,  char **argvec );
 void free_pd_memory( void *pd );
 

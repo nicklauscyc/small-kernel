@@ -77,10 +77,10 @@ getbytes( const char *filename, int offset, int size, char *buf )
         return -1;
     }
 
-    ///* FIXME: Spec is unclear. Should we copy as much as we can, or should
-    // * only copy if there are enough bytes in the executable? */
-    //if (offset + size >= exec2obj_userapp_TOC[i].execlen)
-    //    return -1; /* Asking for more bytes than are available */
+	if (offset > exec2obj_userapp_TOC[i].execlen) {
+		log_warn("Loader [getbytes]: Offset is greater than executable size");
+		return -1;
+	}
 
     int bytes_to_copy = MIN(size, exec2obj_userapp_TOC[i].execlen - offset);
 

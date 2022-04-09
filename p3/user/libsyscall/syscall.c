@@ -112,16 +112,16 @@ int readline(int size, char *buf)
 //	return -1;
 //}
 
-void halt(void)
-{
-	while (1)
-		++placate_the_compiler;
-}
+//void halt(void)
+//{
+//	while (1)
+//		++placate_the_compiler;
+//}
 
-int readfile(char *filename, char *buf, int count, int offset)
-{
-	return -1;
-}
+//int readfile(char *filename, char *buf, int count, int offset)
+//{
+//	return -1;
+//}
 
 void task_vanish(int status)
 {

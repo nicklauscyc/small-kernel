@@ -154,6 +154,7 @@ THREAD_OBJS = malloc.o panic.o
 SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
+			   readfile.o halt.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -177,13 +178,13 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  asm_interrupt_handler.o context_switch.o \
 			  scheduler.o logger.o tests.o \
 			  \
+			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/gettid.o \
 			  lib_thread_management/get_ticks.o \
 			  lib_thread_management/yield.o \
 			  lib_thread_management/make_runnable.o \
 			  lib_thread_management/deschedule.o \
 			  lib_thread_management/sleep.o \
-			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/hashmap.o \
 			  lib_thread_management/add_one_atomic.o \
 			  lib_thread_management/mutex.o \
@@ -193,9 +194,19 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_life_cycle/exec.o \
 			  lib_life_cycle/save_child_regs.o \
 			  \
-			  lib_memory_management/physalloc.o \
 			  lib_memory_management/asm_memory_management_handlers.o \
-			  lib_memory_management/pagefault_handler.o
+			  lib_memory_management/physalloc.o \
+			  lib_memory_management/pagefault_handler.o \
+			  \
+			  lib_console/asm_console_handlers.o \
+			  lib_console/print.o \
+			  lib_console/get_cursor_pos.o \
+			  lib_console/set_cursor_pos.o \
+			  lib_console/set_term_color.o \
+			  \
+			  lib_misc/asm_misc_handlers.o \
+			  lib_misc/readfile.o \
+			  lib_misc/halt.o
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your
