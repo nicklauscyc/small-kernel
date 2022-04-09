@@ -78,7 +78,8 @@ getbytes( const char *filename, int offset, int size, char *buf )
     }
 
 	if (offset > exec2obj_userapp_TOC[i].execlen) {
-		log_warn("Loader [getbytes]: Offset is greater than executable size");
+		log_warn("Loader [getbytes]: Offset (%d) is greater than executable "
+				 "size (%d)", offset, exec2obj_userapp_TOC[i].execlen);
 		return -1;
 	}
 

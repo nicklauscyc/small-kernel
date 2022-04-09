@@ -133,7 +133,7 @@ STUDENTTESTS = test_suite
 # A list of the data files you want built in from the user/files
 # directory.
 #
-STUDENTFILES =
+STUDENTFILES = readfile_test_data
 
 ###########################################################################
 # Object files for your thread library

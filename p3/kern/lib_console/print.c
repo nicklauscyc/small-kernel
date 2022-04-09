@@ -11,7 +11,7 @@
 
 static mutex_t print_mux;
 
-/* 0 if uninitialized, 1 if initialized, -1 if failed to initialize */
+/* 0 if uninitialized, 1 if initialized */
 static int print_initialized = 0;
 
 static void
@@ -39,10 +39,11 @@ print( int len, char *buf )
 
 	mutex_lock(&print_mux);
 
+	// Check here that print_mux has actually been locked, maybe print on mux_lock or smth
+
 	putbytes(buf, len);
 
 	mutex_unlock(&print_mux);
 
-	/* Should we return len instead? */
 	return 0;
 }

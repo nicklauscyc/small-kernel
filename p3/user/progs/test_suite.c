@@ -2,6 +2,7 @@
 #include <simics.h>		/* for lprintf */
 #include <stdlib.h> 	/* for exit */
 #include <syscall.h>	/* for gettid */
+#include <string.h>		/* strncmp */
 #include "test.h"
 
 #define TEST_EARLY_EXIT -2
@@ -12,13 +13,96 @@
 #define PHYSALLOC_TEST	2
 
 // TODO: Introduce tests for new syscalls
-// TODO: Test for physalloc
+
 
 int physalloc_test() {
 	if (gettid() != 0) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 
 	return run_test(PHYSALLOC_TEST);
+}
+
+/* This shouldn't be used in the test suite! */
+void halt_test() {
+	halt();
+
+	panic("FAIL, halt_test");
+}
+
+int readfile_test() {
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
+
+	lprintf("Running readfile test");
+	/* Read hello, then read world */
+	char buf1[5]; // <- Hello
+	char buf2[6]; // <- world!
+
+	readfile("readfile_test_data", buf1, 5, 0);
+	readfile("readfile_test_data", buf2, 6, 6);
+
+	if (strncmp(buf1, "Hello", 5) || strncmp(buf2, "world!", 6)) {
+		lprintf("FAIL, readfile_test");
+		return -1;
+	}
+
+	lprintf("SUCCESS, readfile_test");
+	return 0;
+}
+
+int print_test() {
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
+
+	lprintf("Running print test. Equal characters should not be interleaved");
+
+    int pid1 = fork();
+    int pid2 = fork();
+
+	char A[] = "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+			   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA";
+
+	char B[] = "Bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+			   "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbB";
+
+	char C[] = "Ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+			   "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccC";
+
+	char D[] = "Ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+			   "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddD";
+
+	if (!pid1 && !pid2)
+		print(sizeof(A)/sizeof(char), A);
+
+	if (pid1 && !pid2)
+		print(sizeof(B)/sizeof(char), B);
+
+	if (!pid1 && pid2)
+		print(sizeof(C)/sizeof(char), C);
+
+	if (pid1 && pid2)
+		print(sizeof(D)/sizeof(char), D);
+
+	return 0;
+}
+
+int cursor_test() {
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
+
+	lprintf("Running cursor_test");
+	set_cursor_pos(0,0);
+	int row;
+	int col;
+	get_cursor_pos(&row, &col);
+
+	if (row || col) {
+		lprintf("FAIL, cursor_test");
+		return -1;
+	}
+
+	lprintf("SUCCESS, cursor_test");
+	return 0;
 }
 
 int multiple_fork_test() {
@@ -102,6 +186,9 @@ int yield_test() {
 
 int main() {
 	if (//physalloc_test() < 0 || // FIXME: for some reason not passing
+		readfile_test() < 0 ||
+		cursor_test() < 0 ||
+		print_test() < 0 ||
 		sleep_test() < 0 ||
  		mutex_test() < 0 ||
 		yield_test() < 0 ||

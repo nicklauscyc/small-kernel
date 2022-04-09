@@ -108,11 +108,14 @@ yield_execution( status_t store_status, int tid,
 				panic("DEADLOCK, scheduler has no one to run!");
 			}
 		}
-		assert(get_tcb_status(tcb) == RUNNABLE);
+		/* Any thread in runnable queue is either running (and also
+		 * in runnable queue because of a yield), or is just runnable. */
+		assert(get_tcb_status(tcb) == RUNNABLE ||
+				get_tcb_status(tcb) == RUNNING);
 
 	} else {
 		/* find_tcb() is already guarded by a mutex */
-		tcb = find_tcb(tid);
+		tcb = find_tcb(tid); // FIXME: Could this cause an issue? Recursion or smth
 		if (!tcb) {
 			log_warn("Trying to yield_execution to non-existent"
 					 " thread with tid %d", tid);
@@ -122,6 +125,7 @@ yield_execution( status_t store_status, int tid,
 		if (get_tcb_status(tcb) != RUNNABLE) {
 			log_warn("Trying to yield_execution to non-runnable"
 					 " thread with tid %d", tid);
+			enable_interrupts();
 			return -1;
 		}
 	}

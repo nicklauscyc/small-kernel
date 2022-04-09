@@ -8,11 +8,14 @@
 #include <memory_manager.h>		/* is_valid_user_pointer/string */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 
+// TODO: REMOVE ME
+#include <logger.h>
+
 /** @brief Handler for readfile syscall. */
 int
 readfile( char *filename, char *buf, int count, int offset )
 {
-    /* Acknowledge interrupt */
+	/* Acknowledge interrupt */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	if (!is_valid_user_string(filename, MAX_EXECNAME_LEN))
