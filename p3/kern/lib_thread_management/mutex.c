@@ -13,9 +13,6 @@
 #include <logger.h>     /* log */
 #include <task_manager_internal.h> /* Q MACRO for tcb */
 
-// TODO: REMOVE ME AND MAGIC_BREAK
-#include <simics.h>
-
 static void store_tcb_in_mutex_queue( tcb_t *tcb, void *data );
 
 /** @brief Initialize a mutex
@@ -82,21 +79,18 @@ mutex_lock( mutex_t *mp )
         mp->owned = 1;
         mp->owner_tid = get_running_tid();
         enable_interrupts(); /* } */
-		log_info("Got lock %p (!mp->owned)", mp);
         goto mutex_exit;
     }
-    log_info("Waiting on lock. mp->owned %d, mp->owner_tid %d",
-			mp->owned, mp->owner_tid);
+    log("Waiting on lock %p. mp->owned %d, mp->owner_tid %d",
+			mp, mp->owned, mp->owner_tid);
 
 	enable_interrupts();
 
     assert(yield_execution(BLOCKED, -1, store_tcb_in_mutex_queue, mp) == 0);
 
 mutex_exit:
-	//assert(mp->owned);
-	//assert(mp->owner_tid == get_running_tid());
-	if (mp->owner_tid != get_running_tid())
-		MAGIC_BREAK;
+	assert(mp->owned);
+	assert(mp->owner_tid == get_running_tid());
 }
 
 /** @brief Unlock mutex.
@@ -111,10 +105,7 @@ mutex_unlock( mutex_t *mp )
     /* Ensure lock is valid, locked and owned by this thread*/
     assert(mp && mp->initialized);
     assert(mp->owned);
-	//assert(mp->owner_tid == get_running_tid());
-	if (mp->owner_tid != get_running_tid()) {
-		MAGIC_BREAK;
-	}
+	assert(mp->owner_tid == get_running_tid());
 
 	/* If scheduler is not initialized we must have a single
 	 * thread, so no one to make runnable. */
@@ -132,7 +123,6 @@ mutex_unlock( mutex_t *mp )
         mp->owner_tid = to_run->tid;
 		enable_interrupts();
         make_thread_runnable(to_run->tid);
-		log_info("Giving lock %p to %d", mp, to_run->tid);
     } else {
         mp->owned = 0;
     }
@@ -147,6 +137,5 @@ store_tcb_in_mutex_queue( tcb_t *tcb, void *data )
 	affirm(tcb && data && tcb->status == BLOCKED);
 	/* Since thread not running, might as well use the scheduler queue link! */
 	mutex_t *mp = (mutex_t *)data;
-	Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INSERT_TAIL(&mp->waiters_queue, tcb, scheduler_queue);
 }

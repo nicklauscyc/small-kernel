@@ -29,7 +29,7 @@ init_tests( void )
 int
 mult_fork_test()
 {
-    log_info("Running mult_fork_test");
+	log_info("Running mult_fork_test");
 
     /* Give threads enough time to context switch */
     for (int i=0; i < 1 << 24; ++i)

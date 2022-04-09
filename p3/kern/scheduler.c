@@ -99,6 +99,18 @@ yield_execution( status_t store_status, int tid,
 	if (tid == -1) {
 		disable_interrupts();
 		tcb = Q_GET_FRONT(&runnable_q);
+
+		/* If we are coincidentally at the front of the queue,
+		 * we only want to yield to ourselves if we want to remain
+		 * runnable. */
+		if (tcb->tid == get_running_tid()) {
+			/* If store_status is not Runnable find someone else. If no one else, crash */
+			if (store_status != RUNNABLE) {
+				Q_REMOVE(&runnable_q, tcb, scheduler_queue);
+				tcb = Q_GET_FRONT(&runnable_q);
+			}
+		}
+
 		if (!tcb) {
 			if (store_status == RUNNABLE) {
 				enable_interrupts();
@@ -108,6 +120,7 @@ yield_execution( status_t store_status, int tid,
 				panic("DEADLOCK, scheduler has no one to run!");
 			}
 		}
+
 		/* Any thread in runnable queue is either running (and also
 		 * in runnable queue because of a yield), or is just runnable. */
 		assert(get_tcb_status(tcb) == RUNNABLE ||
@@ -304,6 +317,7 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 
 	/* No-op if we swap with ourselves */
 	if (to_run->tid == running_thread->tid) {
+		affirm(store_status == RUNNABLE);
 		enable_interrupts();
 		return;
 	}
@@ -329,18 +343,21 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 			break;
 	}
 
+	assert(running_thread->status == RUNNING);
+
 	tcb_t *running = running_thread;
 	running->status = store_status;
 	/* Data structure for other statuses are managed by their own components,
 	 * scheduler is only responsible for managing runnable/running threads. */
-	if (store_status == RUNNABLE)
+	/* If running thread is already in runnable queue, don't insert again */
+	if (store_status == RUNNABLE && !Q_IN_SOME_QUEUE(running, scheduler_queue))
 		Q_INSERT_TAIL(&runnable_q, running, scheduler_queue);
 	else if (callback) {
 		callback(running, data);
 	}
 
-	running_thread = to_run;
 	to_run->status = RUNNING;
+	running_thread = to_run;
 
 	enable_interrupts();
 

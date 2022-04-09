@@ -46,6 +46,8 @@ int readfile_test() {
 		return -1;
 	}
 
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
 	lprintf("SUCCESS, readfile_test");
 	return 0;
 }
@@ -83,13 +85,12 @@ int print_test() {
 	if (pid1 && pid2)
 		print(sizeof(D)/sizeof(char), D);
 
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
 	return 0;
 }
 
 int cursor_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
-		return TEST_EARLY_EXIT;
-
 	lprintf("Running cursor_test");
 	set_cursor_pos(0,0);
 	int row;
@@ -101,14 +102,13 @@ int cursor_test() {
 		return -1;
 	}
 
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
 	lprintf("SUCCESS, cursor_test");
 	return 0;
 }
 
 int multiple_fork_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
-		return TEST_EARLY_EXIT;
-
     int pid1 = fork();
     int pid2 = fork();
 
@@ -121,13 +121,14 @@ int multiple_fork_test() {
     //if (pid1 || pid2)
     //    vanish();
 
+
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
+
     return result;
 }
 
 int mutex_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
-		return TEST_EARLY_EXIT;
-
     int pid = fork();
 
     (void)pid;
@@ -138,13 +139,12 @@ int mutex_test() {
     //if (pid)
     //    vanish();
 
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
     return result;
 }
 
 int sleep_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
-		return TEST_EARLY_EXIT;
-
 	/* Need to fork or we get deadlock, currently no idle task. */
 
 	int ticks = 10000;
@@ -156,21 +156,21 @@ int sleep_test() {
 		lprintf("Passed sleep_test. Now at tick %d", get_ticks());
 	}
 
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
+
 	return 0;
 }
 
 int yield_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
-		return TEST_EARLY_EXIT;
-
 	lprintf("Running yield_test");
 
     int pid = fork();
 
-	if (pid)
-		return 0;
+	if (!pid)
+		return -1;
 
-	if (yield(pid) != 0 || yield(-1) != 0 || yield(pid + 10) == 0) {
+	if (yield(pid) != 0 || yield(-1) != 0 || yield(786234) == 0) {
 		lprintf("FAILURE, yield_test");
 		return -1;
 	}
@@ -179,14 +179,16 @@ int yield_test() {
     //if (pid)
     //    vanish();
 
+	if (gettid() != 0) // Hack until vanish is implemented
+		return TEST_EARLY_EXIT;
 	lprintf("SUCCESS, yield_test");
 	return 0;
 }
 
 
 int main() {
-	if (//physalloc_test() < 0 || // FIXME: for some reason not passing
-		readfile_test() < 0 ||
+	// physalloc_test() works only during startup, will fail here, TODO: fix it
+	if (readfile_test() < 0 ||
 		cursor_test() < 0 ||
 		print_test() < 0 ||
 		sleep_test() < 0 ||
@@ -195,5 +197,6 @@ int main() {
 		multiple_fork_test() < 0)
 		return -1;
 
+	lprintf("ALL TESTS PASSED!");
     return 0;
 }
