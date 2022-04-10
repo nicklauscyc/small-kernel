@@ -50,19 +50,19 @@
  *  @bug No known bugs
  */
 
-#include <x86/keyhelp.h> /* process_scancode() */
-#include <x86/video_defines.h> /* CONSOLE_HEIGHT, CONSOLE_WIDTH */
-#include <malloc.h> /* calloc */
-#include <stddef.h> /* NULL */
-#include <assert.h> /* assert() */
-#include <console.h> /* putbyte() */
-#include <string.h> /* memcpy() */
-#include <x86/asm.h> /* process_scancode() */
-#include <x86/interrupt_defines.h> /* INT_CTL_PORT */
-#include <ctype.h> /* isprint() */
-#include "./console_driver.h" /* _putebyte() */
-#include "./keybd_driver.h" /* uba */
-#include <variable_buffer.h> /* generic buffer macros */
+#include <keybd_driver.h>
+
+#include <asm.h>				/* process_scancode() */
+#include <keyhelp.h>			/* process_scancode() */
+#include <video_defines.h>		/* CONSOLE_HEIGHT, CONSOLE_WIDTH */
+#include <malloc.h>				/* calloc */
+#include <stddef.h>				/* NULL */
+#include <assert.h>				/* assert() */
+#include <console.h>			/* putbyte() */
+#include <string.h>				/* memcpy() */
+#include <interrupt_defines.h>	/* INT_CTL_PORT */
+#include <ctype.h>				/* isprint() */
+#include <variable_buffer.h>	/* generic buffer macros */
 
 /* Keyboard buffer */
 new_buf(keyboard_buffer_t, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);

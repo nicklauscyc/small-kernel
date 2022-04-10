@@ -7,26 +7,28 @@
 
 #include <install_handler.h>
 
-#include <asm.h>    /* idt_base() */
-#include <assert.h> /* assert() */
-#include <interrupt_defines.h>
-#include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <asm.h>			/* idt_base() */
+#include <idt.h>			/* IDT_PF */
 #include <seg.h>            /* SEGSEL_KERNEL_CS */
-#include <keyhelp.h>
+#include <assert.h>			/* assert() */
 #include <stddef.h>         /* NULL */
-#include "./asm_interrupt_handler.h" /* call_timer_int_handler(),
-                                        call_keybd_int_handler() */
-#include <timer_driver.h>           /* init_timer() */
-#include <keybd_driver.h>           /* init_keybd() */
-
-#include <asm_thread_management_handlers.h>     /* call_gettid() */
-#include <asm_life_cycle_handlers.h>            /* call_fork() */
-#include <asm_memory_management_handlers.h>		/* call_pf_handler() */
-#include <tests.h>                              /* install_test_handler() */
+#include <keyhelp.h>		// FIXME: ????
+#include <timer_driver.h>   /* init_timer() */
+#include <keybd_driver.h>   /* init_keybd() */
+#include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <interrupt_defines.h>
+#include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
+												call_keybd_int_handler() */
+#include <asm_misc_handlers.h>
+#include <asm_fault_handlers.h>
+#include <asm_console_handlers.h>
+#include <asm_life_cycle_handlers.h>
+#include <asm_thread_management_handlers.h>
+#include <asm_memory_management_handlers.h>
+#include <tests.h>                          /* install_test_handler() */
 
 #include <syscall_int.h> /* *_INT */
 
-#include <x86/idt.h> /* IDT_PF for page fault handler */
 
 #define TEST_INT SYSCALL_RESERVED_0
 
@@ -185,7 +187,8 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
-	if (install_handler(MAKE_RUNNABLE_INT, call_make_runnable, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(MAKE_RUNNABLE_INT, call_make_runnable, DPL_3,
+		D32_TRAP) < 0) {
 		return -1;
 	}
 
@@ -201,19 +204,105 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(EXEC_INT, call_exec, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-
-	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3, D32_INTERRUPT) < 0) {
-		return -1;
-	}
 	/* Lib memory management */
 	if (install_handler(NEW_PAGES_INT, call_new_pages, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(REMOVE_PAGES_INT, call_remove_pages, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(REMOVE_PAGES_INT, call_remove_pages, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+	/* Lib console */
+	if (install_handler(PRINT_INT, call_print, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
 
+	if (install_handler(GET_CURSOR_POS_INT, call_get_cursor_pos, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
 
+	if (install_handler(SET_CURSOR_POS_INT, call_set_cursor_pos, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(SET_TERM_COLOR_INT, call_set_term_color_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	/* Lib misc */
+	if (install_handler(READFILE_INT, call_readfile, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(HALT_INT, call_halt, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	/* Fault handlers */
+	if (install_handler(IDT_DE, call_divide_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_DB, call_debug_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_BP, call_breakpoint_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_OF, call_overflow_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_BR, call_bound_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_UD, call_invalid_opcode_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NM, call_float_handler, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NP, call_segment_not_present_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_SS, call_stack_fault_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_GP, call_general_protection_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_AC, call_alignment_check_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NMI, call_non_maskable_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_MC, call_machine_check_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
 	return 0;
 }
 

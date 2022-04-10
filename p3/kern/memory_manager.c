@@ -28,6 +28,8 @@
 #define PAGING_FLAG (1 << 31)
 #define WRITE_PROTECT_FLAG (1 << 16)
 
+#define PAGE_GLOBAL_ENABLE_FLAG (1 << 7)
+
 #define PAGE_DIRECTORY_INDEX 0xFFC00000
 #define PAGE_TABLE_INDEX 0x003FF000
 #define PAGE_OFFSET 0x00000FFF
@@ -65,12 +67,8 @@ static int vm_init = 0;
 /* [USER_MEM_START, USER_MEM_START + PAGE_SIZE) is all zeroes */
 //static uint32_t system_zero_frame = USER_MEM_START;
 
-/** Whether page is read only or also writable. */
-typedef enum write_mode write_mode_t;
-enum write_mode { READ_ONLY, READ_WRITE };
 
 static void *get_new_pd( void );
-
 static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
                           write_mode_t write_mode );
@@ -394,9 +392,10 @@ vm_new_pages ( void *pd, void *base, int len )
  *	user memory and is in an allocated memory region.
  *
  *	@param ptr Pointer to check
+ *	@param read_write Whether to check for write permission
  *	@return 1 if valid, 0 if not */
 int
-is_user_pointer_valid(void *ptr)
+is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 {
 	/* Check not kern memory and non-NULL */
 	if ((uint32_t)ptr < USER_MEM_START)
@@ -404,11 +403,20 @@ is_user_pointer_valid(void *ptr)
 
 	/* Check if allocated */
 	if (!is_user_pointer_allocated(ptr)) {
-		return -1;
+		return 0;
 	}
+	/* Check for correct write_mode */
+	uint32_t **pd = (uint32_t **)TABLE_ADDRESS(get_cr3());
+	uint32_t pd_index = PD_INDEX(ptr);
+	uint32_t pt_index = PT_INDEX(ptr);
+	uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
+	if (write_mode == READ_WRITE && !(pt[pt_index] & RW_FLAG))
+		return 0;
+
 
 	return 1;
 }
+
 int
 is_user_pointer_allocated( void *ptr )
 {
@@ -440,18 +448,22 @@ is_user_pointer_allocated( void *ptr )
  *
  *	This does not check for the existence of a user executable with this
  *	name. That is done when we try to fill in the ELF header.
+ *		   address. Does not check for write permissions!
  *
  *	@param s String to be checked
+ *	@param len Length of string
+ *	@param null_terminated	Whether the string should be checked
+ *							for null-termination
  *	@return 1 if valid user string, 0 otherwise
  */
-int
-is_valid_user_string( char *s )
+static int
+is_valid_user_string_helper( char *s, int len, int null_terminated)
 {
 	/* Check address of every character in s */
 	int i;
-	for (i = 0; i < USER_STR_LEN; ++i) {
+	for (i = 0; i < len; ++i) {
 
-		if (!is_user_pointer_valid(s + i)) {
+		if (!is_valid_user_pointer(s + i, READ_ONLY)) {
 			log_warn("invalid address %p at index %d of user string %s",
 					 s + i, i, s);
 			return 0;
@@ -465,11 +477,44 @@ is_valid_user_string( char *s )
 		}
 	}
 	/* Check length of s */
-	if (i == USER_STR_LEN) {
+	if (i == len && null_terminated) {
 		log_warn("user string of length >= USER_STR_LEN");
 		return 0;
 	}
 	return 1;
+}
+
+/** @brief Checks that the address of every character in the string is a valid
+ *		   address. Does not check for write permissions!
+ *
+ *	The maximum permitted string length is max_len, including '\0'
+ *	terminating character. Therefore the longest possible user string will
+ *	have at most max_len - 1 non-NULL characters.
+ *
+ *	This does not check for the existence of a user executable with this
+ *	name. That is done when we try to fill in the ELF header.
+ *
+ *	@param s String to be checked
+ *	@param len Length of string
+ *	@return 1 if valid user string, 0 otherwise
+ */
+int
+is_valid_null_terminated_user_string( char *s, int len )
+{
+	return is_valid_user_string_helper(s, len, 1);
+}
+
+/** @brief Checks that the address of every character in the string is a valid
+ *		   address. Does not check for write permissions!
+ *
+ *	@param s String to be checked
+ *	@param len Length of string
+ *	@return 1 if valid user string, 0 otherwise
+ */
+int
+is_valid_user_string( char *s, int len )
+{
+	return is_valid_user_string_helper(s, len, 0);
 }
 
 /** @brief Checks address of every char * in argvec, argvec has max length
@@ -489,7 +534,7 @@ is_valid_user_argvec( char *execname,  char **argvec )
 	for (i = 0; i < NUM_USER_ARGS; ++i) {
 
 		/* Invalid char ** */
-		if (!is_user_pointer_valid(argvec + i)) {
+		if (!is_valid_user_pointer(argvec + i, READ_ONLY)) {
 			log_warn("invalid address %p at index %d of argvec", argvec + i, i);
 			return 0;
 
@@ -501,7 +546,8 @@ is_valid_user_argvec( char *execname,  char **argvec )
 				break;
 			}
 			/* Check if valid string */
-			if (!is_valid_user_string(argvec[i])) {
+			if (!is_valid_null_terminated_user_string(argvec[i],
+						USER_STR_LEN)) {
 				log_warn("invalid address user string %s at index %d of argvec",
 						 argvec[i], i);
 				return 0;
@@ -807,8 +853,14 @@ valid_memory_regions( simple_elf_t *elf )
 static void
 enable_paging( void )
 {
+	/* Enable paging flag */
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+
+	/* Enable page global flag to avoid flushing kernel pages */
+	uint32_t current_cr4 = get_cr4();
+	set_cr4(current_cr4 | PAGE_GLOBAL_ENABLE_FLAG);
+
 	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
 	vm_enabled = 1;
 }
