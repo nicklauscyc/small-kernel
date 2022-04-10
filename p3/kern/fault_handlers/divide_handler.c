@@ -9,7 +9,15 @@
  *  @return Void.
  */
 void
-divide_handler( void )
+divide_handler( int cs, int eip )
 {
-	// TODO
+	if (cs == KERNEL_CODE_SEGSEL) {
+		panic("[Kernel mode] Divide by 0 exception at 0x%x."
+				"Please contact kernel developers.", eip);
+	}
+
+	/* TODO: acknowledge signal and call user handler  */
+
+
+	panic("Divide by 0 exception at instruction 0x%x", eip);
 }

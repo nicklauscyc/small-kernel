@@ -123,8 +123,27 @@ call_ ## HANDLER_NAME ## :;\
 		addl $4, %esp;      /* ignore argument */\
 	))
 
+/** @define CALL_FAULT_HANDLER(HANDLER_NAME)
+ *  @brief Assembly wrapper for a fault handler that takes in error code.
+ *
+ *  Error code is put on stack by processor before calling fault handler
+ *
+ *  @param HANDLER_NAME handler name to call
+ */
+#define CALL_FAULT_HANDLER(HANDLER_NAME)\
+\
+/* Declare and define asm function call_HANDLER_NAME */\
+.globl call_##HANDLER_NAME;\
+call_ ## HANDLER_NAME ## :;\
+\
+	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	(\
+		pushl 4(%ebp);		/* push eip onto stack */\
+		pushl 8(%ebp);		/* push cs onto stack */\
+		call HANDLER_NAME;  /* calls syscall handler */\
+		addl $8, %esp;		/* ignore arguments */\
+	))
 
-// TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 /** @define CALL_FAULT_HANDLER_W_ERROR_CODE(HANDLER_NAME)
  *  @brief Assembly wrapper for a fault handler that takes in error code.
  *
@@ -140,9 +159,11 @@ call_ ## HANDLER_NAME ## :;\
 \
 	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
-		pushl 4(%ebp);      /* push argument onto stack */\
+		pushl 4(%ebp);		/* push error code onto stack  */\
+		pushl 8(%ebp);		/* push eip onto stack */\
+		pushl 12(%ebp);     /* push cs onto stack */\
 		call HANDLER_NAME;  /* calls syscall handler */\
-		addl $4, %esp;      /* ignore argument */\
+		addl $12, %esp;     /* ignore arguments */\
 	))
 
 /** @def CALL_W_DOUBLE_ARG(HANDLER_NAME)
