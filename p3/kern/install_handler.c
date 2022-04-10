@@ -227,7 +227,7 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
-	if (install_handler(HALT_INT, call_readfile, DPL_3) < 0) {
+	if (install_handler(HALT_INT, call_halt, DPL_3) < 0) {
 		return -1;
 	}
 

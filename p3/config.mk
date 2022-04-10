@@ -206,7 +206,8 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  \
 			  lib_misc/asm_misc_handlers.o \
 			  lib_misc/readfile.o \
-			  lib_misc/halt.o
+			  lib_misc/halt.o \
+			  lib_misc/call_halt.o
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your
