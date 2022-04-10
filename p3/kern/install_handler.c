@@ -20,6 +20,7 @@
 #include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
 												call_keybd_int_handler() */
 #include <asm_misc_handlers.h>
+#include <asm_fault_handlers.h>
 #include <asm_console_handlers.h>
 #include <asm_life_cycle_handlers.h>
 #include <asm_thread_management_handlers.h>
@@ -201,10 +202,6 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
-	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3) < 0) {
-		return -1;
-	}
-
 	/* Lib console */
 	if (install_handler(PRINT_INT, call_print, DPL_3) < 0) {
 		return -1;
@@ -230,6 +227,64 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(HALT_INT, call_halt, DPL_3) < 0) {
 		return -1;
 	}
+
+	/* Fault handlers */
+	if (install_handler(IDT_DE, call_divide_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_DB, call_debug_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_BP, call_breakpoint_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_OF, call_overflow_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_BR, call_bound_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_UD, call_invalid_opcode_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NM, call_float_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NP, call_segment_not_present_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_SS, call_stack_fault_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_GP, call_general_protection_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_AC, call_alignment_check_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NMI, call_non_maskable_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_MC, call_machine_check_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3) < 0) {
+		return -1;
+	}
+
 
 	return 0;
 }

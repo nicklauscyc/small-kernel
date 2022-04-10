@@ -207,7 +207,23 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_misc/asm_misc_handlers.o \
 			  lib_misc/readfile.o \
 			  lib_misc/halt.o \
-			  lib_misc/call_halt.o
+			  lib_misc/call_halt.o \
+			  \
+			  fault_handlers/asm_fault_handlers.o \
+			  fault_handlers/divide_handler.o \
+			  fault_handlers/debug_handler.o \
+			  fault_handlers/breakpoint_handler.o \
+			  fault_handlers/overflow_handler.o \
+			  fault_handlers/bound_handler.o \
+			  fault_handlers/invalid_opcode_handler.o \
+			  fault_handlers/float_handler.o \
+			  fault_handlers/segment_not_present_handler.o \
+			  fault_handlers/stack_fault_handler.o \
+			  fault_handlers/general_protection_handler.o \
+			  fault_handlers/alignment_check_handler.o \
+			  fault_handlers/non_maskable_handler.o \
+			  fault_handlers/machine_check_handler.o
+
 
 ###########################################################################
 # WARNING: Do not put **test** programs into the REQPROGS variables.  Your
