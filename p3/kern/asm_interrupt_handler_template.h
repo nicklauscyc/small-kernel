@@ -39,6 +39,39 @@ call_ ## HANDLER_NAME ## :;\
 	popa; /* Restores all registers onto the stack */\
 	iret; /* Return to procedure before interrupt */
 
+#define CALL_FAULT_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)\
+\
+	/* Save all registers */\
+	pusha; /* Pushes all registers onto the stack */\
+\
+	/* Save all segment registers on the stack */\
+	pushl %ds;\
+	pushl %es;\
+	pushl %fs;\
+	pushl %gs;\
+\
+	/* set the new values for ds, es, fs, gs */\
+	/* TODO fix so clang does not complain */\
+	movl %ss, %ax;\
+	movl %ax, %ds;\
+	movl %ax, %es;\
+	movl %ax, %fs;\
+	movl %ax, %gs;\
+\
+	HANDLER_SPECIFIC_CODE\
+\
+	/* Restores all segment registers from the stack */\
+	popl %gs;\
+	popl %fs;\
+	popl %es;\
+	popl %ds;\
+\
+	/* Restores all callee save registers from the stack */\
+	popa;\
+\
+	/* Return to procedure before interrupt */\
+	iret;
+
 /** @define CALL_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)
  *  @brief Wrapper code for syscall assembly wrappers that saves and restores
  *         general and segment registers.
@@ -136,7 +169,7 @@ call_ ## HANDLER_NAME ## :;\
 .globl call_##HANDLER_NAME;\
 call_ ## HANDLER_NAME ## :;\
 \
-	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	CALL_FAULT_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
 		pushl 8(%ebp);		/* push cs onto stack */\
 		pushl 4(%ebp);		/* push eip onto stack */\
@@ -157,7 +190,7 @@ call_ ## HANDLER_NAME ## :;\
 .globl call_##HANDLER_NAME;\
 call_ ## HANDLER_NAME ## :;\
 \
-	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	CALL_FAULT_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
 		pushl 12(%ebp);     /* push cs onto stack */\
 		pushl 8(%ebp);		/* push eip onto stack */\
@@ -172,7 +205,7 @@ call_ ## HANDLER_NAME ## :;\
 .globl call_##HANDLER_NAME;\
 call_ ## HANDLER_NAME ## :;\
 \
-	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	CALL_FAULT_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
 		pushl %ebp;		    /* push ebp onto stack */\
 		call HANDLER_NAME;  /* calls syscall handler */\
