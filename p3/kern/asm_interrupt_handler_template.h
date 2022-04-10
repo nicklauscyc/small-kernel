@@ -139,8 +139,27 @@ call_ ## HANDLER_NAME ## :;\
 		pushl 4(%esi);      /* push 2nd argument onto stack */\
 		pushl (%esi);       /* push 1st argument onto stack */\
 		call HANDLER_NAME;  /* calls syscall handler */\
-		addl $8, %esp;      /* ignore argument */\
+		addl $8, %esp;      /* ignore arguments */\
 	))
 
 
-
+/** @def CALL_W_FOUR_ARG(HANDLER_NAME)
+ *  @brief Macro for assembly wrapper for calling a syscall with 4 arguments
+ *
+ *  @param HANDLER_NAME handler name to call
+ */
+#define CALL_W_FOUR_ARG(HANDLER_NAME)\
+\
+/* Declare and define asm function call_HANDLER_NAME */\
+.globl call_##HANDLER_NAME;\
+call_ ## HANDLER_NAME ## :;\
+\
+	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	(\
+		pushl 12(%esi);     /* push 4th argument onto stack */\
+		pushl 8(%esi);      /* push 3rd argument onto stack */\
+		pushl 4(%esi);      /* push 2nd argument onto stack */\
+		pushl (%esi);       /* push 1st argument onto stack */\
+		call HANDLER_NAME;  /* calls syscall handler */\
+		addl $16, %esp;     /* ignore arguments */\
+	))

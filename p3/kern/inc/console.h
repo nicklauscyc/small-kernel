@@ -30,6 +30,8 @@
 
 #include <video_defines.h>
 
+void init_console( void );
+
 /** @brief Prints character ch at the current location
  *         of the cursor.
  *

@@ -7,26 +7,27 @@
 
 #include <install_handler.h>
 
-#include <asm.h>    /* idt_base() */
-#include <assert.h> /* assert() */
-#include <interrupt_defines.h>
-#include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <asm.h>			/* idt_base() */
+#include <idt.h>			/* IDT_PF */
 #include <seg.h>            /* SEGSEL_KERNEL_CS */
-#include <keyhelp.h>
+#include <assert.h>			/* assert() */
 #include <stddef.h>         /* NULL */
-#include "./asm_interrupt_handler.h" /* call_timer_int_handler(),
-                                        call_keybd_int_handler() */
-#include <timer_driver.h>           /* init_timer() */
-#include <keybd_driver.h>           /* init_keybd() */
-
-#include <asm_thread_management_handlers.h>     /* call_gettid() */
-#include <asm_life_cycle_handlers.h>            /* call_fork() */
-#include <asm_memory_management_handlers.h>		/* call_pf_handler() */
-#include <tests.h>                              /* install_test_handler() */
+#include <keyhelp.h>		// FIXME: ????
+#include <timer_driver.h>   /* init_timer() */
+#include <keybd_driver.h>   /* init_keybd() */
+#include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <interrupt_defines.h>
+#include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
+												call_keybd_int_handler() */
+#include <asm_misc_handlers.h>
+#include <asm_console_handlers.h>
+#include <asm_life_cycle_handlers.h>
+#include <asm_thread_management_handlers.h>
+#include <asm_memory_management_handlers.h>
+#include <tests.h>                          /* install_test_handler() */
 
 #include <syscall_int.h> /* *_INT */
 
-#include <x86/idt.h> /* IDT_PF for page fault handler */
 
 #define TEST_INT SYSCALL_RESERVED_0
 
@@ -201,6 +202,32 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	/* Lib console */
+	if (install_handler(PRINT_INT, call_print, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(GET_CURSOR_POS_INT, call_get_cursor_pos, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(SET_CURSOR_POS_INT, call_set_cursor_pos, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(SET_TERM_COLOR_INT, call_set_term_color_handler, DPL_3) < 0) {
+		return -1;
+	}
+
+	/* Lib misc */
+	if (install_handler(READFILE_INT, call_readfile, DPL_3) < 0) {
+		return -1;
+	}
+
+	if (install_handler(HALT_INT, call_readfile, DPL_3) < 0) {
 		return -1;
 	}
 

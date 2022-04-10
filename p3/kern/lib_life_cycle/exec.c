@@ -65,7 +65,7 @@ exec( char *execname, char **argvec )
 	assert(num_threads == 1);
 
 	/* Validate execname */
-	if (!is_valid_user_string(execname)) {
+	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
 		return -1;
 	}
 	/* Validate argvec */
