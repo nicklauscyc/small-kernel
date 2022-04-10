@@ -58,10 +58,6 @@
 /* 1 if VM is enabled, 0 otherwise */
 static int vm_enabled = 0;
 
-/** Whether page is read only or also writable. */
-typedef enum write_mode write_mode_t;
-enum write_mode { READ_ONLY, READ_WRITE };
-
 static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd,
         uint32_t virtual_address, write_mode_t write_mode );
@@ -296,9 +292,10 @@ vm_new_pages ( void *pd, void *base, int len )
  *	user memory and is in an allocated memory region.
  *
  *	@param ptr Pointer to check
+ *	@param read_write Whether to check for write permission
  *	@return 1 if valid, 0 if not */
 int
-is_user_pointer_valid(void *ptr)
+is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 {
 	/* Check not kern memory and non-NULL */
 	if ((uint32_t)ptr < USER_MEM_START)
@@ -312,12 +309,15 @@ is_user_pointer_valid(void *ptr)
 	if (!(pt[PT_INDEX((uint32_t)ptr)] & PRESENT_FLAG))
 		return 0;
 
+	if (write_mode == READ_WRITE && !(pt[PT_INDEX((uint32_t)ptr)] & RW_FLAG))
+		return 0;
+
 	return 1;
 }
 
 
 /** @brief Checks that the address of every character in the string is a valid
- *		   address
+ *		   address. Does not check for write permissions!
  *
  *	@param s String to be checked
  *	@param len Length of string
@@ -326,13 +326,13 @@ is_user_pointer_valid(void *ptr)
  *	@return 1 if valid user string, 0 otherwise
  */
 static int
-is_valid_user_string_helper( char *s, int len, int null_terminated )
+is_valid_user_string_helper( char *s, int len, int null_terminated)
 {
 	/* Check address of every character in s */
 	int i;
 	for (i = 0; i < len; ++i) {
 
-		if (!is_user_pointer_valid(s + i)) {
+		if (!is_valid_user_pointer(s + i, READ_ONLY)) {
 			log_warn("invalid address %p at index %d of user string %s",
 					 s + i, i, s);
 			return 0;
@@ -354,7 +354,7 @@ is_valid_user_string_helper( char *s, int len, int null_terminated )
 }
 
 /** @brief Checks that the address of every character in the string is a valid
- *		   address
+ *		   address. Does not check for write permissions!
  *
  *	The maximum permitted string length is max_len, including '\0'
  *	terminating character. Therefore the longest possible user string will
@@ -374,7 +374,7 @@ is_valid_null_terminated_user_string( char *s, int len )
 }
 
 /** @brief Checks that the address of every character in the string is a valid
- *		   address
+ *		   address. Does not check for write permissions!
  *
  *	@param s String to be checked
  *	@param len Length of string
@@ -401,7 +401,7 @@ is_valid_user_argvec( char *execname,  char **argvec )
 	for (i = 0; i < NUM_USER_ARGS; ++i) {
 
 		/* Invalid char ** */
-		if (!is_user_pointer_valid(argvec + i)) {
+		if (!is_valid_user_pointer(argvec + i, READ_ONLY)) {
 			log_warn("invalid address %p at index %d of argvec", argvec + i, i);
 			return 0;
 
