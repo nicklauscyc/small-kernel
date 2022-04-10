@@ -225,8 +225,15 @@ make_thread_runnable(uint32_t tid)
 		tcbp->status = RUNNING;
 		running_thread = tcbp;
 	} else {
-		tcbp->status = RUNNABLE;
-		Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
+		if (tcbp->status == UNINITIALIZED) {
+			tcbp->status = RUNNABLE;
+			Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
+		} else {
+			/* "Improve" preemptibility by immediately swapping to thread
+			 * being made runnable. To avoid doing so for newly registered
+			 * threads, only swap immediately if status != UNINITIALIZED. */
+			swap_running_thread(tcbp, RUNNABLE, NULL, NULL);
+		}
 	}
 	enable_interrupts();
 
