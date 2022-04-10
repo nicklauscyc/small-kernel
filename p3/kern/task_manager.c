@@ -56,7 +56,6 @@ get_tcb_tid(tcb_t *tcb)
 /** @brief Initializes task manager's resources
  *
  *	 @return Void
- *
  */
 void
 task_manager_init ( void )

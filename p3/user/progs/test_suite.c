@@ -52,6 +52,13 @@ int readfile_test() {
 	return 0;
 }
 
+void pagefault_test() {
+	lprintf("Writing into read-only address - should crash.");
+	void *a = readfile_test;
+	*(int *)a = 1;
+}
+
+
 int print_test() {
 	if (gettid() != 0) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;

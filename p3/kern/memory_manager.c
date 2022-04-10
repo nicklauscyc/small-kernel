@@ -27,6 +27,8 @@
 #define PAGING_FLAG (1 << 31)
 #define WRITE_PROTECT_FLAG (1 << 16)
 
+#define PAGE_GLOBAL_ENABLE_FLAG (1 << 7)
+
 #define PAGE_DIRECTORY_INDEX 0xFFC00000
 #define PAGE_TABLE_INDEX 0x003FF000
 #define PAGE_OFFSET 0x00000FFF
@@ -600,8 +602,14 @@ valid_memory_regions( simple_elf_t *elf )
 static void
 enable_paging( void )
 {
+	/* Enable paging flag */
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
+
+	/* Enable page global flag to avoid flushing kernel pages */
+	uint32_t current_cr4 = get_cr4();
+	set_cr4(current_cr4 | PAGE_GLOBAL_ENABLE_FLAG);
+
 	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
 	vm_enabled = 1;
 }
