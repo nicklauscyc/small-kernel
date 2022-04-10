@@ -1,7 +1,8 @@
 /** @file memory_manager.c
  *  @brief Functions to initialize and manage virtual memory
  *
- *
+ *  Note that page directory and page table consistency/validity checks are
+ *  expensive and thus carried out in assertions.
  *
  *  TODO need to figure out when to free physical pages, probably when
  *  cleaning up thread resources ?
@@ -67,7 +68,7 @@ enum write_mode { READ_ONLY, READ_WRITE };
 static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
                           write_mode_t write_mode );
-static int allocate_region( void *pd, void *start, uint32_t len,
+static int allocate_region( uint32_t **pd, void *start, uint32_t len,
                            write_mode_t write_mode );
 static void enable_paging( void );
 static int valid_memory_regions( simple_elf_t *elf );
@@ -77,7 +78,8 @@ static void free_pt_memory( uint32_t *pt, int pd_index );
 /* TODO do we need this? */
 uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index );
 static int is_valid_pt( uint32_t *pt, int pd_index );
-void *get_new_pd( void );
+void *allocate_new_pd( void );
+static int add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address );
 
 
 uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index )
@@ -103,13 +105,29 @@ uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index )
 void *
 new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
-	/* Get a new pd that is zero filled */
-    void *pd = get_new_pd();
+	/* Allocate new pd that is zero filled */
+    uint32_t **pd = allocate_new_pd();
 	if (!pd) {
         return NULL;
 	}
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
+
+		/* Add new page table every time page directory entry is NULL */
+		uint32_t pd_index = PD_INDEX(addr);
+		if (pd[pd_index] == NULL) {
+
+			/* Since we are going in increasing virtual addresses, this holds */
+			assert((addr & ((1 << PAGE_DIRECTORY_SHIFT) - 1)) == 0);
+			if (add_new_pt_to_pd(pd, addr) < 0) {
+				log_warn("new_pd_from_elf(): "
+				         "unable to allocate new page table in pd:%p for "
+						 "virtual_address: 0x%08lx", pd, addr);
+				return NULL;
+				//TODO clean up
+			}
+		}
+		/* Now get a pointer to the corresponding page table entry */
         uint32_t *ptep = get_ptep(pd, addr);
 
 		/* If NULL is returned, free all resources in page directory */
@@ -126,7 +144,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
         }
 		assert(*ptep < USER_MEM_START);
     }
-	log("new_pd_from_elf() direct map ended");
+	log("new_pd_from_elf(): direct map ended");
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
     int i = 0;
@@ -434,7 +452,7 @@ is_valid_user_argvec( char *execname,  char **argvec )
  *  @return Pointer in kernel VM of page table if successful, 0 otherwise
  */
 void *
-get_new_pt( void )
+allocate_new_pt( void )
 {
 	/* Allocate memory for a new page table */
 	void *pt = smemalign(PAGE_SIZE, PAGE_SIZE);
@@ -455,7 +473,7 @@ get_new_pt( void )
  *  @return Pointer in kernel VM of page directory if successfule, 0 otherwise
  */
 void *
-get_new_pd( void )
+allocate_new_pd( void )
 {
 	/* Allocate memory for a new page directory */
 	void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
@@ -469,6 +487,70 @@ get_new_pd( void )
 	memset(pd, 0, PAGE_SIZE);
 
 	return pd;
+}
+
+/** @brief Allocates a new page table and adds it to a page directory entry and
+ *         initializes the page directory entry lower 12 bits to correct values.
+ *
+ *  @param pd Page directory pointer to add the page table to.
+ *  @param virtual_address VM address corressponding to index 0 of the page
+ *         table to be created and added to the page directory.
+ *  @return 0 on success, -1 on error.
+ */
+static int
+add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
+{
+	log("add_new_pt_to_pd()"
+	    "adding new pt in pd:%p for virtual_address:0x%08lx", pd,
+	    virtual_address);
+
+	/* Page directory should be valid */
+	assert(is_valid_pd(pd));
+
+	/* pd cannot be NULL */
+	if (!pd) {
+		log_warn("add_new_pt_to_pd(): "
+		         "pd cannot be NULL!");
+		return -1;
+	}
+	/* Get page directory and page table index */
+    uint32_t pd_index = PD_INDEX(virtual_address);
+    //uint32_t pt_index = PT_INDEX(virtual_address);
+
+	/* pt_index must be 0 */
+	//if (pt_index != 0) {
+	//	log_warn("add_new_pt_to_pd(): "
+	//	         "pt_index must be 0 for virtual_address:0x%08lx",
+	//			 virtual_address);
+	//	assert(0);
+	//	return -1;
+	//}
+	/* Nothing must be currently in the pd entry we're adding the new pt */
+	if (pd[pd_index] != NULL) {
+		log_warn("add_new_pt_to_pd(): "
+		         "index to insert pd must be NULL!, instead pd[pd_index]:%p",
+				 pd[pd_index]);
+		return -1;
+	}
+	/* Allocate a new empty page table, set it to page table index */
+	void *pt = allocate_new_pt();
+	if (!pt) {
+		log_warn("add_new_pt_to_pd(): "
+		         "unable to allocate new page table!");
+		return -1;
+	}
+	pd[pd_index] = pt;
+
+	/* Page table should be valid */
+	assert(is_valid_pt(pt, pd_index));
+
+	/* Set all page directory entries as writable, determine
+	 * whether truly writable in page table entry. */
+	pd[pd_index] = (uint32_t *)((uint32_t)pd[pd_index] | PE_USER_WRITABLE);
+
+	/* Page directory should be valid */
+	assert(is_valid_pd(pd));
+	return 0;
 }
 
 
@@ -488,28 +570,31 @@ get_ptep( uint32_t **pd, uint32_t virtual_address )
 
 	/* NULL pd, so abort and return NULL */
 	if (!pd) {
+		log_warn("get_ptep(): "
+		         "pd cannot be NULL!");
 		return NULL;
 	}
 	/* Get page directory and page table index */
     uint32_t pd_index = PD_INDEX(virtual_address);
     uint32_t pt_index = PT_INDEX(virtual_address);
 
-	/* If page table has not been allocated, allocate a new one */
-    if (!((uint32_t)pd[pd_index] & PRESENT_FLAG)) {
-		void *pt = get_new_pt();
-		if (!pt) {
-			return 0;
-		}
-		/* Page table should be valid */
-		assert(is_valid_pt(pt, pd_index));
-        pd[pd_index] = pt;
-
-        /* Set all page directory entries as writable, determine
-         * whether truly writable in page table entry. */
-        pd[pd_index] = (uint32_t *)((uint32_t)pd[pd_index] | PE_USER_WRITABLE);
-    }
+	/* Page directory cannot have NULL entry at corresponding page table */
+	if (!pd[pd_index]) {
+		log_warn("get_ptep(): "
+		         "pd:%p, virtual_address:0x%08lx, pd[pd_index] cannot be "
+				 "NULL!", pd, virtual_address);
+		assert(0);
+		return NULL;
+	}
+	/* Page table must have correct flag bits set */
+    if (((uint32_t) pd[pd_index] & PE_USER_WRITABLE) != PE_USER_WRITABLE) {
+		log_warn("get_ptep(): "
+		         "pd[pd_index]:%p does not have PE_USER_WRITABLE bits set!",
+				 pd[pd_index]);
+		return NULL;
+	}
     /* Page table entry pointer zeroes out bottom 12 bits */
-    uint32_t *ptep = (uint32_t *)((uint32_t)pd[pd_index] & ~(PAGE_SIZE - 1));
+    uint32_t *ptep = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
 
 	/* Return pointer to appropriate index */
 	return ptep + pt_index;
@@ -597,7 +682,7 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
  *  @return 0 on success, negative value on failure.
  *  */
 static int
-allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
+allocate_region( uint32_t **pd, void *start, uint32_t len, write_mode_t write_mode )
 {
     uint32_t pages_to_alloc = (len + PAGE_SIZE - 1) / PAGE_SIZE;
 
@@ -614,7 +699,19 @@ allocate_region( void *pd, void *start, uint32_t len, write_mode_t write_mode )
 
     /* Allocate 1 frame at a time. */
     for (int i = 0; i < pages_to_alloc; ++i) {
-        int res = allocate_frame((uint32_t **)pd, u_start + PAGE_SIZE * i,
+		uint32_t virtual_address = u_start + PAGE_SIZE * i;
+		uint32_t pd_index = PD_INDEX(virtual_address);
+
+		/* Get a new page table every time page directory entry is NULL */
+		if (pd[pd_index] == NULL) {
+			if (add_new_pt_to_pd(pd, virtual_address) < 0) {
+				log_warn("allocate_region(): "
+				         "unable to allocate new page table in pd:%p for "
+						 "virtual_address: 0x%08lx", pd, virtual_address);
+				return -1;
+			}
+		}
+        int res = allocate_frame((uint32_t **)pd, virtual_address,
 								 write_mode);
 		if (res < 0) {
 			// TODO CLEAN UP ALL PREVIOUSLY ALLOCATED PHYS FRAMES
