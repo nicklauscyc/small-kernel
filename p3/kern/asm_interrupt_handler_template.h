@@ -166,6 +166,19 @@ call_ ## HANDLER_NAME ## :;\
 		addl $12, %esp;     /* ignore arguments */\
 	))
 
+#define CALL_VAR_ARGS_FAULT_HANDLER(HANDLER_NAME)\
+\
+/* Declare and define asm function call_HANDLER_NAME */\
+.globl call_##HANDLER_NAME;\
+call_ ## HANDLER_NAME ## :;\
+\
+	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	(\
+		pushl %ebp;		    /* push ebp onto stack */\
+		call HANDLER_NAME;  /* calls syscall handler */\
+		addl $4, %esp;		/* ignore arguments */\
+	))
+
 /** @def CALL_W_DOUBLE_ARG(HANDLER_NAME)
  *  @brief Macro for assembly wrapper for calling a syscall with 2 arguments
  *
@@ -206,3 +219,5 @@ call_ ## HANDLER_NAME ## :;\
 		call HANDLER_NAME;  /* calls syscall handler */\
 		addl $16, %esp;     /* ignore arguments */\
 	))
+
+
