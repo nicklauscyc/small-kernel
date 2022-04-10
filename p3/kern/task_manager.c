@@ -350,12 +350,15 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	 */
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid, tcb->kernel_stack_lo);
+	log("create_tcb(): tcb->stack_lo:%p", tcb->kernel_stack_lo);
+	// FIXME faults here
 
 	tcb->kernel_esp = tcb->kernel_stack_lo;
 	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
 			  PAGE_SIZE - sizeof(uint32_t));
 	tcb->kernel_stack_hi = tcb->kernel_esp;
+	log("create_tcb(): tcb->kernel_stack_hi:%p", tcb->kernel_stack_hi);
+
 
 	return 0;
 }

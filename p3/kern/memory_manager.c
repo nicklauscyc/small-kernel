@@ -65,7 +65,7 @@ static int vm_enabled = 0;
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
 
-static uint32_t *get_ptep( uint32_t **pd, uint32_t virtual_address );
+static uint32_t *get_ptep( const uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
                           write_mode_t write_mode );
 static int allocate_region( uint32_t **pd, void *start, uint32_t len,
@@ -128,7 +128,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 			}
 		}
 		/* Now get a pointer to the corresponding page table entry */
-        uint32_t *ptep = get_ptep(pd, addr);
+        uint32_t *ptep = get_ptep((const uint32_t **) pd, addr);
 
 		/* If NULL is returned, free all resources in page directory */
 		if (!ptep) {
@@ -470,7 +470,7 @@ allocate_new_pt( void )
 
 /** @brief Allocate memory for a new page directory and zero all entries
  *
- *  @return Pointer in kernel VM of page directory if successfule, 0 otherwise
+ *  @return Pointer in kernel VM of page directory if successful, NULL otherwise
  */
 void *
 allocate_new_pd( void )
@@ -478,9 +478,12 @@ allocate_new_pd( void )
 	/* Allocate memory for a new page directory */
 	void *pd = smemalign(PAGE_SIZE, PAGE_SIZE);
 	if (!pd) {
-		return 0;
+		log_warn("allocate_new_pd(): "
+		         "unable to allocate new page directory");
+		return NULL;
 	}
-	log("new pd at address %p", pd);
+	log("allocate_new_pd(): "
+	    "new pd at address %p", pd);
 	assert(PAGE_ALIGNED((uint32_t) pd));
 
 	/* Initialize all page table entries as non-present */
@@ -489,21 +492,18 @@ allocate_new_pd( void )
 	return pd;
 }
 
+//done
 /** @brief Allocates a new page table and adds it to a page directory entry and
- *         initializes the page directory entry lower 12 bits to correct values.
+ *         initializes the page directory entry lower 12 bits to correct flags.
  *
  *  @param pd Page directory pointer to add the page table to.
- *  @param virtual_address VM address corressponding to index 0 of the page
+ *  @param virtual_address VM address corresponding to the page
  *         table to be created and added to the page directory.
  *  @return 0 on success, -1 on error.
  */
 static int
 add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
 {
-	log("add_new_pt_to_pd()"
-	    "adding new pt in pd:%p for virtual_address:0x%08lx", pd,
-	    virtual_address);
-
 	/* Page directory should be valid */
 	assert(is_valid_pd(pd));
 
@@ -513,30 +513,24 @@ add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
 		         "pd cannot be NULL!");
 		return -1;
 	}
-	/* Get page directory and page table index */
+	/* Get page directory index */
     uint32_t pd_index = PD_INDEX(virtual_address);
-    //uint32_t pt_index = PT_INDEX(virtual_address);
 
-	/* pt_index must be 0 */
-	//if (pt_index != 0) {
-	//	log_warn("add_new_pt_to_pd(): "
-	//	         "pt_index must be 0 for virtual_address:0x%08lx",
-	//			 virtual_address);
-	//	assert(0);
-	//	return -1;
-	//}
-	/* Nothing must be currently in the pd entry we're adding the new pt */
+	/* pd entry we're adding the new page table must be NULL */
 	if (pd[pd_index] != NULL) {
 		log_warn("add_new_pt_to_pd(): "
-		         "index to insert pd must be NULL!, instead pd[pd_index]:%p",
-				 pd[pd_index]);
+		         "pd_index:0x%08lx to insert into pd:%p for "
+				 "virtual_address:0x%08lx must be NULL!, instead "
+				 "pd[pd_index]:%p",
+				 pd_index, pd, virtual_address, pd[pd_index]);
 		return -1;
 	}
 	/* Allocate a new empty page table, set it to page table index */
 	void *pt = allocate_new_pt();
 	if (!pt) {
 		log_warn("add_new_pt_to_pd(): "
-		         "unable to allocate new page table!");
+		         "unable to allocate new page table in pd:%p for "
+				 "virtual_address:0x%08lx", pd, virtual_address);
 		return -1;
 	}
 	pd[pd_index] = pt;
@@ -544,7 +538,7 @@ add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
 	/* Page table should be valid */
 	assert(is_valid_pt(pt, pd_index));
 
-	/* Set all page directory entries as writable, determine
+	/* Set all page directory entries as kernel writable, determine
 	 * whether truly writable in page table entry. */
 	pd[pd_index] = (uint32_t *)((uint32_t)pd[pd_index] | PE_USER_WRITABLE);
 
@@ -563,7 +557,7 @@ add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
  *          a physical address, NULL on failure.
  */
 static uint32_t *
-get_ptep( uint32_t **pd, uint32_t virtual_address )
+get_ptep( const uint32_t **pd, uint32_t virtual_address )
 {
 	/* Checking if a pd is valid is expensive, hence an assert() */
 	assert(is_valid_pd(pd));
@@ -597,7 +591,9 @@ get_ptep( uint32_t **pd, uint32_t virtual_address )
     uint32_t *ptep = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
 
 	/* Return pointer to appropriate index */
-	return ptep + pt_index;
+	ptep += pt_index;
+	affirm_msg(STACK_ALIGNED(ptep), "ptep:%p not stack aligned!", ptep);
+	return ptep;
 }
 
 /** @brief Allocate new frame at given virtual memory address.
@@ -621,7 +617,7 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 		return -1;
 	}
 	/* Find page table entry corresponding to virtual address */
-    uint32_t *ptep = get_ptep(pd, virtual_address);
+	uint32_t *ptep = get_ptep((const uint32_t **) pd, virtual_address);
 	if (!ptep) {
 		return -1;
 	}
