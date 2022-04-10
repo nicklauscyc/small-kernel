@@ -17,8 +17,11 @@
  *  @return Void.
  */
 void
-pagefault_handler( int error_code )
+pagefault_handler( int cs, int eip, int error_code )
 {
+	(void)cs;
+	(void)eip;
+
 	/* TODO: acknowledge signal and call user handler  */
 
 	uint32_t faulting_vm_address = get_cr2();
