@@ -44,10 +44,10 @@
     ((PAGE_TABLE_INDEX & ((uint32_t)(addr))) >> PAGE_TABLE_SHIFT)
 
 /* Flags for page directory and page table entries */
-#define PRESENT_FLAG 1 << 0
-#define RW_FLAG      1 << 1
-#define USER_FLAG    1 << 2
-#define GLOBAL_FLAG  1 << 8
+#define PRESENT_FLAG (1 << 0)
+#define RW_FLAG      (1 << 1)
+#define USER_FLAG    (1 << 2)
+#define GLOBAL_FLAG  (1 << 8)
 
 #define PE_USER_READABLE (PRESENT_FLAG | USER_FLAG )
 #define PE_USER_WRITABLE (PE_USER_READABLE | RW_FLAG)
@@ -144,6 +144,7 @@ zero_page_pf_handler( uint32_t faulting_address )
 	int res = allocate_frame(pd, faulting_address, READ_WRITE);
 	log("alloced physframe is 0x%08lx", *get_ptep(pd, faulting_address));
 	log("res:%d", res);
+	MAGIC_BREAK;
 	return res;
 }
 
@@ -353,6 +354,9 @@ vm_enable_task( void *pd )
     vm_set_pd(pd);
 	if (!vm_enabled) {
 		enable_paging();
+
+		/* Set PGE flag in cr4 so kernel mappings not flushed on context switch */
+		set_cr4(CR4_PGE | get_cr4());
 	}
 }
 

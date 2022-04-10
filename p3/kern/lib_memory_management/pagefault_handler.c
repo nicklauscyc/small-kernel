@@ -7,23 +7,9 @@
 #include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/cr.h> /* get_cr2() */
 #include <memory_manager.h>
-
-/** @brief Installs the pagefault_handler() interrupt handler
- *
- *  @param idt_entry Index in IDT to install to
- *  @param asm_wrapper Assembly wrapper to call pagefault_handler
- *  @return 0 on success, -1 on error.
- */
-int
-install_pf_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
-{
-	if (!asm_wrapper) {
-		return -1;
-	}
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_0);
-	return res;
-}
-
+#include <simics.h>
+#include <x86/asm.h>   /* outb() */
+#include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
 /** @brief Prints out the offending address on and calls panic()
  *
@@ -32,10 +18,13 @@ install_pf_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 void
 pagefault_handler( void )
 {
+	/* Acknowledge interrupt immediately */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
 	uint32_t faulting_vm_address = get_cr2();
 
 	if (zero_page_pf_handler(faulting_vm_address) == 0) {
-
+		MAGIC_BREAK;
 		return;
 	}
 	panic("Page fault at vm address:0x%lx!", faulting_vm_address);

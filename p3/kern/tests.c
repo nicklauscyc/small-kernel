@@ -94,7 +94,7 @@ install_test_handler( int idt_entry, asm_wrapper_t *asm_wrapper )
 		return -1;
 	}
 	init_tests();
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
+	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3, D32_TRAP);
 	return res;
 }
 
