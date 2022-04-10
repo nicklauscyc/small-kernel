@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-stack_fault_handler( int cs, int eip, int error_code )
+stack_fault_handler( int error_code, int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Stack fault encountered at 0x%x "

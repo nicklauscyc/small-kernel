@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-breakpoint_handler( int cs, int eip )
+breakpoint_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Breakpoint encountered at 0x%x."

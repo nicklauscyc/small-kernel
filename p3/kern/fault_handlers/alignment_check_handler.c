@@ -6,7 +6,7 @@
 #include <simics.h>
 
 void
-alignment_check_handler( int error_code, int cs, int eip )
+alignment_check_handler( int error_code, int eip, int cs )
 {
 	assert(error_code == 0);
 	if (cs == SEGSEL_KERNEL_CS) {

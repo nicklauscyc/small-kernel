@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-debug_handler( int cs, int eip )
+debug_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Debug condition encountered at 0x%x."

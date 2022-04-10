@@ -138,8 +138,8 @@ call_ ## HANDLER_NAME ## :;\
 \
 	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
-		pushl 4(%ebp);		/* push eip onto stack */\
 		pushl 8(%ebp);		/* push cs onto stack */\
+		pushl 4(%ebp);		/* push eip onto stack */\
 		call HANDLER_NAME;  /* calls syscall handler */\
 		addl $8, %esp;		/* ignore arguments */\
 	))
@@ -159,9 +159,9 @@ call_ ## HANDLER_NAME ## :;\
 \
 	CALL_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
-		pushl 4(%ebp);		/* push error code onto stack  */\
-		pushl 8(%ebp);		/* push eip onto stack */\
 		pushl 12(%ebp);     /* push cs onto stack */\
+		pushl 8(%ebp);		/* push eip onto stack */\
+		pushl 4(%ebp);		/* push error code onto stack  */\
 		call HANDLER_NAME;  /* calls syscall handler */\
 		addl $12, %esp;     /* ignore arguments */\
 	))

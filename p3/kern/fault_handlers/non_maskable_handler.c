@@ -6,7 +6,7 @@
 #include <simics.h>
 
 void
-non_maskable_handler( int cs, int eip )
+non_maskable_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		lprintf("[Kernel mode] NMI encountered at 0x%x.", eip);

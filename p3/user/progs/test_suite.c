@@ -194,7 +194,7 @@ int yield_test() {
 
 
 int main() {
-	pagefault_test();
+	//pagefault_test();
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
 	if (readfile_test() < 0 ||

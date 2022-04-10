@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-invalid_opcode_handler( int cs, int eip )
+invalid_opcode_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Invalid opcode fault encountered at 0x%x."

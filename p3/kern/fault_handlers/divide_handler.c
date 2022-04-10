@@ -9,7 +9,7 @@
  *  @return Void.
  */
 void
-divide_handler( int cs, int eip )
+divide_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Divide by 0 exception at 0x%x."

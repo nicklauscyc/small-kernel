@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-float_handler( int cs, int eip )
+float_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Floating point operation encountered at 0x%x."

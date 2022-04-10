@@ -6,7 +6,7 @@
 #include <simics.h>
 
 void
-machine_check_handler( int cs, int eip )
+machine_check_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		lprintf("[Kernel mode] Machine check error encountered at 0x%x.", eip);

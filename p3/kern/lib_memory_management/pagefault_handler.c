@@ -6,6 +6,7 @@
 #include <assert.h> /* panic() */
 #include <install_handler.h> /* install_handler_in_idt() */
 #include <x86/cr.h> /* get_cr2() */
+#include <logger.h> /* log() */
 
 #define PRESENT_BIT			(1 << 0)
 #define READ_WRITE_BIT		(1 << 1)
@@ -17,10 +18,12 @@
  *  @return Void.
  */
 void
-pagefault_handler( int cs, int eip, int error_code )
+pagefault_handler( int error_code, int eip, int cs )
 {
 	(void)cs;
 	(void)eip;
+	log_info("pagefault_handler(): error_code:0x%x, eip:0x%x, cs:0x%x", error_code,
+	    eip, cs);
 
 	/* TODO: acknowledge signal and call user handler  */
 

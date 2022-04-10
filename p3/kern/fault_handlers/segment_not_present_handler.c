@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-segment_not_present_handler( int cs, int eip, int error_code )
+segment_not_present_handler( int error_code, int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Segment not present fault encountered at 0x%x "

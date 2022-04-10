@@ -6,7 +6,7 @@
 #include <simics.h>
 
 void
-overflow_handler( int cs, int eip )
+overflow_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		lprintf("[Kernel mode] Overflow encountered at 0x%x.", eip);

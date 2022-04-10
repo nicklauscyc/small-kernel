@@ -5,7 +5,7 @@
 #include <assert.h> /* panic() */
 
 void
-bound_handler( int cs, int eip )
+bound_handler( int eip, int cs)
 {
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Bound-range-exceeded fault encountered at 0x%x."
