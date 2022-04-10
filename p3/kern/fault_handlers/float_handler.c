@@ -1,5 +1,5 @@
 /** @file float_handler.c
- *  @brief Functions for handling devince not avaiable faults
+ *  @brief Functions for handling device not available faults
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
 #include <assert.h> /* panic() */
@@ -16,6 +16,6 @@ float_handler( int cs, int eip )
 	 * OR
 	 * acknowledge signal and just kill user thread? */
 
-	panic("Unhandled devince not available fault (due to floating-point op)"
+	panic("Unhandled device not available fault (due to floating-point op)"
 			" at instruction 0x%x", eip);
 }
