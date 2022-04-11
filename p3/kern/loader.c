@@ -31,6 +31,8 @@
 #include <scheduler.h> /* get_running_tid() */
 #include <assert.h> /* assert() */
 #include <simics.h>
+#include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
+
 /* --- Local function prototypes --- */
 
 /* first_task is 1 if there is currently no user task running, so
@@ -78,10 +80,11 @@ getbytes( const char *filename, int offset, int size, char *buf )
         return -1;
     }
 
-    ///* FIXME: Spec is unclear. Should we copy as much as we can, or should
-    // * only copy if there are enough bytes in the executable? */
-    //if (offset + size >= exec2obj_userapp_TOC[i].execlen)
-    //    return -1; /* Asking for more bytes than are available */
+	if (offset > exec2obj_userapp_TOC[i].execlen) {
+		log_warn("Loader [getbytes]: Offset (%d) is greater than executable "
+				 "size (%d)", offset, exec2obj_userapp_TOC[i].execlen);
+		return -1;
+	}
 
     int bytes_to_copy = MIN(size, exec2obj_userapp_TOC[i].execlen - offset);
 
@@ -101,9 +104,13 @@ getbytes( const char *filename, int offset, int size, char *buf )
 static int
 transplant_program_memory( simple_elf_t *se_hdr )
 {
+	/* TODO: Swap cr0 on context switch, for now just disabling
+	 * interrupts. */
+	disable_interrupts();
+
     /* Disable write-protection temporarily so we may
      * copy data into read-only regions. */
-    disable_write_protection();
+	disable_write_protection();
 
     // FIXME: This error checking is kinda hacky
     int i = 0;
@@ -131,6 +138,8 @@ transplant_program_memory( simple_elf_t *se_hdr )
 
     /* Re-enable write-protection bit. */
     enable_write_protection();
+
+	enable_interrupts();
 
 	assert(is_valid_pd((void *)get_cr3()));
 	return i;

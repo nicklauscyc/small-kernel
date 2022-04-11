@@ -18,17 +18,6 @@ gettid( void )
     return get_running_tid();
 }
 
-/** @brief Installs the gettid() interrupt handler
- */
-int
-install_gettid_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
-{
-	if (!asm_wrapper) {
-		return -1;
-	}
-	int res = install_handler_in_idt(idt_entry, asm_wrapper, DPL_3);
-	return res;
-}
 
 
 

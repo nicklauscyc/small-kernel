@@ -1,0 +1,15 @@
+#include <asm_interrupt_handler_template.h>
+
+CALL_FAULT_HANDLER(divide_handler)
+CALL_FAULT_HANDLER(debug_handler)
+CALL_FAULT_HANDLER(breakpoint_handler)
+CALL_FAULT_HANDLER(overflow_handler)
+CALL_FAULT_HANDLER(bound_handler)
+CALL_FAULT_HANDLER(invalid_opcode_handler)
+CALL_FAULT_HANDLER(float_handler)
+CALL_FAULT_HANDLER_W_ERROR_CODE(segment_not_present_handler)
+CALL_FAULT_HANDLER_W_ERROR_CODE(stack_fault_handler)
+CALL_VAR_ARGS_FAULT_HANDLER_W_ERROR(general_protection_handler)
+CALL_FAULT_HANDLER_W_ERROR_CODE(alignment_check_handler)
+CALL_FAULT_HANDLER(non_maskable_handler)
+CALL_FAULT_HANDLER(machine_check_handler)

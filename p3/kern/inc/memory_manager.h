@@ -7,6 +7,10 @@
 #include <stdint.h> /* uint32_t */
 
 void init_vm( void );
+/** Whether page is read only or also writable. */
+typedef enum write_mode write_mode_t;
+enum write_mode { READ_ONLY, READ_WRITE };
+
 void *new_pd_from_elf( simple_elf_t *elf,
         uint32_t stack_lo, uint32_t stack_len );
 void *new_pd_from_parent( void *parent_pd );
@@ -15,10 +19,12 @@ void enable_write_protection( void );
 void disable_write_protection( void );
 int vm_new_pages ( void *ptd, void *base, int len );
 int is_valid_pd( void *pd );
-int is_user_pointer_valid( void *ptr );
+
 int is_user_pointer_allocated( void *ptr );
 
-int is_valid_user_string( char *s );
+int is_valid_user_pointer( void *ptr, write_mode_t write_mode );
+int is_valid_user_string( char *s, int max_len );
+int is_valid_null_terminated_user_string( char *s, int max_len );
 int is_valid_user_argvec( char *execname,  char **argvec );
 void free_pd_memory( void *pd );
 

@@ -74,7 +74,7 @@ exec( char *execname, char **argvec )
 	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Validate execname */
-	if (!is_valid_user_string(execname)) {
+	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
 		return -1;
 	}
 	assert(is_valid_pd(get_tcb_pd(get_running_thread())));

@@ -9,7 +9,11 @@
 
 /** @brief Assembly wrapper for calling pagefault_handler() interrupt handler
  */
-void call_pagefault_handler(void);
+void call_pagefault_handler( void );
+
+void call_new_pages( void );
+
+void call_remove_pages( void );
 
 #endif /* ASM_MEMORY_MANAGEMENT_HANDLERS_H_ */
 

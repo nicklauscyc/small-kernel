@@ -29,8 +29,6 @@
 
 #define ELF_IF (1 << 9);
 
-#define STACK_ALIGNED(address) ((uint32_t) address % 4 == 0)
-
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
 static uint32_t get_user_eflags( void );
@@ -62,7 +60,6 @@ get_tcb_tid(tcb_t *tcb)
 /** @brief Initializes task manager's resources
  *
  *	 @return Void
- *
  */
 void
 task_manager_init ( void )

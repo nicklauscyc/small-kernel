@@ -12,11 +12,15 @@
  *	@author Nicklaus Choo (nchoo)
  */
 
-#include <console.h> /* All console function prototypes */
-#include <video_defines.h> /* CONSOLE_HEIGHT, CONSOLE_WIDTH */
-#include <string.h> /* memmove () */
-#include <assert.h> /* assert(), affirm() */
-#include <x86/asm.h> /* outb() */
+#include <console.h>
+#include <asm.h>			/* outb() */
+#include <string.h>			/* memmove () */
+#include <assert.h>			/* assert(), affirm() */
+#include <video_defines.h>	/* CONSOLE_HEIGHT, CONSOLE_WIDTH */
+#include <lib_thread_management/mutex.h> /* mutex_t */
+
+static mutex_t draw_char_mux;
+static mutex_t cursor_mux;
 
 /* Default global console color. */
 static int console_color = BGND_BLACK | FGND_WHITE;
@@ -32,6 +36,16 @@ static int cursor_hidden = 0;
 
 /* Background color mask to extract invalid set bits in color. FFFF FF00 */
 #define INVALID_COLOR 0xFFFFFF00
+
+
+void
+init_console( void )
+{
+	mutex_init(&draw_char_mux);
+	mutex_init(&cursor_mux);
+	clear_console();
+}
+
 
 /** @brief Helper function to check if (row, col) is onscreen
  *
@@ -245,6 +259,9 @@ putbytes( const char *s, int len )
  *
  *  If the color code is invalid, the function has no effect.
  *
+ *  NOTE: No need for synchronization here, since it's just
+ *  a blind write over the current color
+ *
  *  @param color The new color code.
  *  @return 0 on success or integer error code less than 0 if
  *          color code is invalid.
@@ -299,6 +316,7 @@ get_term_color( int* color )
 int
 set_cursor( int row, int col )
 {
+	mutex_lock(&cursor_mux);
 	assert(onscreen(cursor_row, cursor_col));
 	/* set logical cursor */
 	if (onscreen(row, col)) {
@@ -310,10 +328,12 @@ set_cursor( int row, int col )
 			set_hardware_cursor(row, col);
 		}
 		assert(onscreen(cursor_row, cursor_col));
+		mutex_unlock(&cursor_mux);
 		return 0;
 	}
 	/* cursor location is invalid, do nothing and return -1 */
 	assert(onscreen(cursor_row, cursor_col));
+	mutex_unlock(&cursor_mux);
 	return -1;
 }
 
@@ -334,10 +354,12 @@ set_cursor( int row, int col )
 void
 get_cursor( int* row, int* col )
 {
+	mutex_lock(&cursor_mux);
 	affirm(row);
 	affirm(col);
 	*row = cursor_row;
 	*col = cursor_col;
+	mutex_unlock(&cursor_mux);
 }
 
 /** @brief Shows the cursor.
@@ -412,18 +434,22 @@ clear_console( void )
 void
 draw_char( int row, int col, int ch, int color )
 {
+	mutex_lock(&draw_char_mux);
 	/* If row or col out of range, invalid row, no effect. */
 	if (!onscreen(row, col)) {
-		return;
+		goto draw_char_cleanup;
 	}
 	/* If background color not supported, invalid color, no effect. */
 	if (color & INVALID_COLOR) {
-		return;
+		goto draw_char_cleanup;
 	}
 	/* All arguments valid, draw character with specified color */
 	char *chp = (char *)(CONSOLE_MEM_BASE + 2*(row * CONSOLE_WIDTH + col));
 	*chp = ch;
 	*(chp + 1) = color;
+
+draw_char_cleanup:
+	mutex_unlock(&draw_char_mux);
 }
 
 /** @brief Returns the character displayed at position (row, col).
