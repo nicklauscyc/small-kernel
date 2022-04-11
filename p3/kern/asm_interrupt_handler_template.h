@@ -39,6 +39,96 @@ call_ ## HANDLER_NAME ## :;\
 	popa; /* Restores all registers onto the stack */\
 	iret; /* Return to procedure before interrupt */
 
+/* TODO: Clean this up */
+#define CALL_FAULT_HANDLER_W_ERROR_CODE(HANDLER_NAME)\
+\
+	/* Save all callee save registers */\
+	pushl %ebp;\
+	movl %esp, %ebp;\
+	pushl %edi;\
+	pushl %ebx;\
+	pushl %esi;\
+\
+	/* Save all segment registers on the stack */\
+	pushl %ds;\
+	pushl %es;\
+	pushl %fs;\
+	pushl %gs;\
+\
+	/* set the new values for ds, es, fs, gs */\
+	/* TODO fix so clang does not complain */\
+	movl %ss, %ax;\
+	movl %ax, %ds;\
+	movl %ax, %es;\
+	movl %ax, %fs;\
+	movl %ax, %gs;\
+\
+	pushl 12(%ebp);     /* push cs onto stack */\
+	pushl 8(%ebp);		/* push eip onto stack */\
+	pushl 4(%ebp);		/* push error code onto stack  */\
+	call HANDLER_NAME;  /* calls syscall handler */\
+	addl $12, %esp;     /* ignore arguments */\
+\
+	/* Restores all segment registers from the stack */\
+	popl %gs;\
+	popl %fs;\
+	popl %es;\
+	popl %ds;\
+\
+	/* Restores all callee save registers from the stack */\
+	popl %esi;\
+	popl %ebx;\
+	popl %edi;\
+	popl %ebp;\
+\
+	addl $4, %esp; /* Skip error code */\
+	/* Return to procedure before interrupt */\
+	iret;
+
+#define CALL_FAULT_HANDLER_W_ERROR_CODE_W_EBP(HANDLER_NAME)\
+\
+	/* Save all callee save registers */\
+	pushl %ebp;\
+	movl %esp, %ebp;\
+	pushl %edi;\
+	pushl %ebx;\
+	pushl %esi;\
+\
+	/* Save all segment registers on the stack */\
+	pushl %ds;\
+	pushl %es;\
+	pushl %fs;\
+	pushl %gs;\
+\
+	/* set the new values for ds, es, fs, gs */\
+	/* TODO fix so clang does not complain */\
+	movl %ss, %ax;\
+	movl %ax, %ds;\
+	movl %ax, %es;\
+	movl %ax, %fs;\
+	movl %ax, %gs;\
+\
+	pushl %ebp;		    /* push ebp onto stack */\
+	call HANDLER_NAME;  /* calls syscall handler */\
+	addl $4, %esp;		/* ignore arguments */\
+\
+	/* Restores all segment registers from the stack */\
+	popl %gs;\
+	popl %fs;\
+	popl %es;\
+	popl %ds;\
+\
+	/* Restores all callee save registers from the stack */\
+	popl %esi;\
+	popl %ebx;\
+	popl %edi;\
+	popl %ebp;\
+\
+	addl $4, %esp; /* Skip error code */\
+	/* Return to procedure before interrupt */\
+	iret;
+
+
 /** @define CALL_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)
  *  @brief Wrapper code for syscall assembly wrappers that saves and restores
  *         general and segment registers.
@@ -151,7 +241,7 @@ call_ ## HANDLER_NAME ## :;\
  *
  *  @param HANDLER_NAME handler name to call
  */
-#define CALL_FAULT_HANDLER_W_ERROR_CODE(HANDLER_NAME)\
+#define CALL_FAULT_HANDLER_W_ERROR_CODE_OLD(HANDLER_NAME)\
 \
 /* Declare and define asm function call_HANDLER_NAME */\
 .globl call_##HANDLER_NAME;\
@@ -166,7 +256,7 @@ call_ ## HANDLER_NAME ## :;\
 		addl $12, %esp;     /* ignore arguments */\
 	))
 
-#define CALL_VAR_ARGS_FAULT_HANDLER(HANDLER_NAME)\
+#define CALL_VAR_ARGS_FAULT_HANDLER_OLD(HANDLER_NAME)\
 \
 /* Declare and define asm function call_HANDLER_NAME */\
 .globl call_##HANDLER_NAME;\
