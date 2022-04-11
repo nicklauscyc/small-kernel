@@ -99,7 +99,7 @@ get_pd( void )
 	affirm_msg(pd, "unable to get page directory");
 	affirm_msg(PAGE_ALIGNED(pd), "page directory not page aligned!");
 	affirm_msg((uint32_t) pd < USER_MEM_START,
-	           "page directory > USER_MEM_START");
+			   "page directory > USER_MEM_START");
 
 	/* Expensive check, hence the assertion */
 	assert(is_valid_pd(pd));
@@ -119,7 +119,7 @@ zero_page_pf_handler( uint32_t faulting_address )
 	/* Page table entry cannot be NULL frame */
 	if (!ptep) {
 		log_warn("page table entry for vm 0x%08lx is NULL!",
-		         faulting_address);
+				 faulting_address);
 		return -1;
 	}
 	uint32_t pt_entry = *ptep;
@@ -127,7 +127,7 @@ zero_page_pf_handler( uint32_t faulting_address )
 	/* Page table entry must hold the system wide zero frame */
     if (TABLE_ADDRESS(pt_entry) != sys_zero_frame) {
 		log_warn("page table entry for vm 0x%08lx is not zero frame",
-		         faulting_address);
+				 faulting_address);
 		MAGIC_BREAK;
 		return -1;
 	}
@@ -785,11 +785,11 @@ unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address)
 
 	/* If page table entry contains a non-NULL address */
     affirm_msg(TABLE_ADDRESS(pt_entry) == sys_zero_frame,
-	           "should be a zero frame allocated here!");
+			   "should be a zero frame allocated here!");
 
 	/* zero frame should be marked as READ_ONLY for users */
     affirm_msg((pt_entry & PE_USER_READABLE) == PE_USER_READABLE,
-	           "zero frame should be PE_USER_READABLE");
+			   "zero frame should be PE_USER_READABLE");
 
 	/* Unallocate new physical frame */
 	*ptep = 0;
@@ -857,10 +857,6 @@ enable_paging( void )
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
 
-	/* Enable page global flag to avoid flushing kernel pages */
-	uint32_t current_cr4 = get_cr4();
-	set_cr4(current_cr4 | PAGE_GLOBAL_ENABLE_FLAG);
-
 	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
 	vm_enabled = 1;
 }
@@ -898,7 +894,7 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 			uint32_t pt_entry = pt[i];
 			if (pt_entry & PRESENT_FLAG) {
 				affirm_msg(TABLE_ADDRESS(pt_entry) != 0, "pt_entry:0x%08lx",
-				           pt_entry);
+						   pt_entry);
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 				physfree(phys_address);
 			}
@@ -986,7 +982,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 				/* Frame must be a valid physical address by physalloc */
 				if (!is_physframe(phys_address)) {
 					log_warn("pt at address: %p has invalid frame physical "
-					         "address: %p with pt_entry: 0x%08lx at "
+							 "address: %p with pt_entry: 0x%08lx at "
 							 "index: 0x%08lx",
 							 pt, (uint32_t *) phys_address, pt_entry, i);
 					return 0;
@@ -997,7 +993,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 				/* Frame must be < USER_MEM_START */
 				if (phys_address >= USER_MEM_START) {
 					log_warn("pt at address: %p has invalid frame physical "
-					         "address: %p >= USER_MEM_START with pt_entry: "
+							 "address: %p >= USER_MEM_START with pt_entry: "
 							 "0x%08lx at index: 0x%08lx",
 							 pt, (uint32_t *) phys_address, pt_entry, i);
 					return 0;
@@ -1044,15 +1040,15 @@ is_valid_pd( void *pd )
 			/* Present bit must be set */
 			if (!((uint32_t) pd_entry & PRESENT_FLAG)) {
 				log_warn("pd at address: %p has non-present pt at address: %p "
-				         "with pd_entry: 0x%08lx at index: 0x%08lx",
-				         pd, pt, pd_entry, i);
+						 "with pd_entry: 0x%08lx at index: 0x%08lx",
+						 pd, pt, pd_entry, i);
 				return 0;
 			}
 			/* Page table at address must be valid */
 			if (!is_valid_pt(pt, i)) {
 				log_warn("pd at address: %p has invalid pt at address: %p "
-			             "with pd_entry: 0x%08lx at index: 0x%08lx",
-				         pd, pt, pd_entry, i);
+						 "with pd_entry: 0x%08lx at index: 0x%08lx",
+						 pd, pt, pd_entry, i);
 				return 0;
 			}
 		}
