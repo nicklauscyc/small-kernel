@@ -21,7 +21,7 @@
  *	@return Void.
  */
 static void
-log_exec_args( char *execname, char **argvec)
+log_exec_args( char *execname, char **argvec )
 {
 	log("exec name is '%s'", execname);
 	int i = 0;
@@ -50,44 +50,60 @@ log_exec_args( char *execname, char **argvec)
 int
 exec( char *execname, char **argvec )
 {
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Only allow exec of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+
 	assert(parent_tcb);
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	log("Exec() task with number of threads:%ld", num_threads);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+
 	if (num_threads > 1) {
 		return -1;
 	}
 	assert(num_threads == 1);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Validate execname */
 	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
 		return -1;
 	}
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 	/* Validate argvec */
 	int argc = 0;
 	if (!(argc = is_valid_user_argvec(execname, argvec))) {
 		return -1;
 	}
 	// TODO ensure no software exception handler registered
-	log_exec_args(execname, argvec);
+
+
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Transfer execname to kernel stack so unaffected by page directory */
 	char kern_stack_execname[USER_STR_LEN];
 	memset(kern_stack_execname, 0, USER_STR_LEN);
 	memcpy(kern_stack_execname, execname, strlen(execname));
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* char array to store each argvec string on kernel stack */
 	char kern_stack_args[NUM_USER_ARGS * USER_STR_LEN];
 	memset(kern_stack_args, 0, NUM_USER_ARGS * USER_STR_LEN);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+
 
 	/* char * array for argvec on kernel stack */
 	char *kern_stack_argvec[NUM_USER_ARGS];
 	memset(kern_stack_argvec, 0, NUM_USER_ARGS);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Transfer argvec to kernel stack so unaffected by page directory */
 	int offset = 0;
@@ -97,6 +113,9 @@ exec( char *execname, char **argvec )
 		kern_stack_argvec[i] = kern_stack_args + offset;
 		offset += USER_STR_LEN;
 	}
+	log_exec_args(kern_stack_execname, kern_stack_argvec);
+	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+
 	/* Execute */
 	if (execute_user_program(kern_stack_execname, argc, kern_stack_argvec)
 		< 0) {

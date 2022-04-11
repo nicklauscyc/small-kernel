@@ -47,6 +47,12 @@ static uint32_t next_pid = 0;
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
 static uint32_t next_tid = 0;
 
+void *
+get_tcb_pd(tcb_t *tcb)
+{
+	return tcb->owning_task->pd;
+}
+
 uint32_t
 get_tcb_tid(tcb_t *tcb)
 {

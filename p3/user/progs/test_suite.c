@@ -4,6 +4,7 @@
 #include <syscall.h>	/* for gettid */
 #include <string.h>		/* strncmp */
 #include "test.h"
+#include <assert.h>
 
 #define TEST_EARLY_EXIT -2
 
@@ -192,12 +193,31 @@ int yield_test() {
 	return 0;
 }
 
+int new_pages_test(){
+
+	char *name = (char *) (0x1000000 + 7*PAGE_SIZE);
+	int len = 2 * PAGE_SIZE;
+	int res = new_pages(name, len);
+	assert(res == 0);
+	assert(new_pages(name, len) < 0);
+	lprintf("new_pages allocated");
+
+	/* Test writing to name */
+	char c = *name;
+	lprintf("c:%c", c); // reading this works
+	char a = 'a';
+	lprintf("a address:%p", &a);
+	*name = a;
+	lprintf("new_pages test passed");
+	return 0;
+}
 
 int main() {
 	//pagefault_test();
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
-	if (readfile_test() < 0 ||
+	if (new_pages_test() < 0 ||
+		readfile_test() < 0 ||
 		cursor_test() < 0 ||
 		print_test() < 0 ||
 		sleep_test() < 0 ||

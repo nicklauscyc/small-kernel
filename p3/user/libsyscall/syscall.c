@@ -133,15 +133,15 @@ void task_vanish(int status)
 		++placate_the_compiler;
 }
 
-int new_pages(void *addr, int len)
-{
-	return -1;
-}
+//int new_pages(void *addr, int len)
+//{
+//	return -1;
+//}
 
-int remove_pages(void *addr)
-{
-	return -1;
-}
+//int remove_pages(void *addr)
+//{
+//	return -1;
+//}
 
 //unsigned int get_ticks(void)
 //{

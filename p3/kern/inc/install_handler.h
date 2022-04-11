@@ -20,7 +20,9 @@
 #define DPL_3               (0x00000003 << 13)
 
 #define D16                 0x00000700
-#define D32                 0x00000F00
+#define D32_TRAP (0xF << 8)
+#define D32_INTERRUPT (0xE << 8)
+
 #define RESERVED_UPPER_MASK 0x0000000F
 
 /* Hander installation error codes */
@@ -31,8 +33,10 @@
 typedef void asm_wrapper_t(void);
 
 int handler_install(void (*tick)(unsigned int));
-int install_handler_in_idt( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl );
-int install_handler( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl );
+int install_handler_in_idt( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
+                            int gate_type );
+int install_handler( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
+                     int gate_type );
 
 
 #endif
