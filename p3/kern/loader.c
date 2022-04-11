@@ -273,12 +273,36 @@ execute_user_program( const char *fname, int argc, char **argv)
 {
 	log_info("Executing: %s", fname);
 
+    /* Transfer execname to kernel stack so unaffected by page directory */
+	char kern_stack_execname[USER_STR_LEN];
+	memset(kern_stack_execname, 0, USER_STR_LEN);
+	memcpy(kern_stack_execname, fname, strlen(fname));
+
+	/* char array to store each argvec string on kernel stack */
+	char *kern_stack_args = smalloc(NUM_USER_ARGS * USER_STR_LEN);
+    if (!kern_stack_args) {
+        return -1;
+    }
+	memset(kern_stack_args, 0, NUM_USER_ARGS * USER_STR_LEN);
+
+	/* char * array for argvec on kernel stack */
+	char *kern_stack_argvec[NUM_USER_ARGS];
+	memset(kern_stack_argvec, 0, NUM_USER_ARGS);
+
+	/* Transfer argvec to kernel memory so unaffected by page directory */
+	int offset = 0;
+	for (int i = 0; argv[i]; ++i) {
+		char *arg = argv[i];
+		memcpy(kern_stack_args + offset, arg, strlen(arg));
+		kern_stack_argvec[i] = kern_stack_args + offset;
+		offset += USER_STR_LEN;
+	}
 	/* Load user program information */
 	simple_elf_t se_hdr;
-    if (elf_check_header(fname) == ELF_NOTELF) {
+    if (elf_check_header(kern_stack_execname) == ELF_NOTELF) {
         return -1;
 	}
-    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
+    if (elf_load_helper(&se_hdr, kern_stack_execname) == ELF_NOTELF) {
         return -1;
 	}
     uint32_t pid, tid;
@@ -301,44 +325,28 @@ execute_user_program( const char *fname, int argc, char **argv)
 			return -1;
 		}
 		void *old_pd = swap_task_pd(new_pd);
-		//assert(is_valid_pd(old_pd));
+		assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 	}
-
-
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
     if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
 	}
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-
-    uint32_t *esp = configure_stack(argc, argv);
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-
+    uint32_t *esp = configure_stack(argc, kern_stack_argvec);
 
 	/* If this is the first task we must activate it */
 	if (first_task) {
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-
+        assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
 		task_set_active(tid);
 	}
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-
 	first_task = 0;
 
 	/* Start the task */
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
-
 
 	panic("execute_user_program does not return");
 	return -1;

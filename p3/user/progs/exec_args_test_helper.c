@@ -20,6 +20,7 @@ int main( int argc, char **argv )
 		lprintf("argv[%d]:'%s'", i, argv[i]);
 		++i;
 	}
+    lprintf("exec_args_test_helper done!");
 	return 0;
 }
 
