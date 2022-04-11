@@ -16,7 +16,8 @@
 #define MUTEX_TEST		1
 #define PHYSALLOC_TEST	2
 
-static volatile int total_sum = 0;
+static volatile int total_sum_fork = 0;
+static volatile int total_sum_mux = 0;
 static mutex_t mux;
 
 /* Init is run once, before any syscalls can be made */
@@ -33,7 +34,7 @@ mult_fork_test()
 
     /* Give threads enough time to context switch */
     for (int i=0; i < 1 << 24; ++i)
-        total_sum++;
+        total_sum_fork++;
 
     log_info("SUCCESS, mult_fork_test");
     return 0;
@@ -45,11 +46,11 @@ mutex_test()
     log_info("Running mutex_test");
 
     mutex_lock(&mux);
-    int old_total_sum = total_sum;
+    int old_total_sum = total_sum_mux;
     for (int i=0; i < 1 << 24; ++i)
-        total_sum++;
-    if (total_sum != old_total_sum + (1 << 24)) {
-        log_info("FAIL, mutex_test");
+        total_sum_mux++;
+    if (total_sum_mux != old_total_sum + (1 << 24)) {
+        log_info("FAIL, mutex_test.");
         return -1;
     }
     mutex_unlock(&mux);

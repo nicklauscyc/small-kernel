@@ -13,7 +13,8 @@ get_cursor_pos( int *row, int *col )
     /* Acknowledge interrupt */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-	if (!is_user_pointer_valid(row) || !is_user_pointer_valid(col))
+	if (!is_valid_user_pointer(row, READ_WRITE)
+			|| !is_valid_user_pointer(col, READ_WRITE))
 		return -1;
 
 	get_cursor(row, col);

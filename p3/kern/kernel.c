@@ -20,7 +20,7 @@
 #include <multiboot.h>              /* boot_info */
 
 /* x86 specific includes */
-#include <cr.h>		/* get_cr3() */
+#include <cr.h>		/* get/set_cr0() */
 #include <asm.h>	/* enable_interrupts() */
 
 #include <exec2obj.h> /* MAX_EXECNAME_LEN */
@@ -34,9 +34,9 @@
 #include <keybd_driver.h>	/* readline() */
 #include <lib_thread_management/sleep.h>	/* sleep_on_tick() */
 
-
 volatile static int __kernel_all_done = 0;
 
+#define PROTECTION_ENABLE_FLAG (1 << 0)
 
 /* Level of logging, set to 4 to turn logging off,
  * 1 to print logs for log priorities lo, med, hi
@@ -52,8 +52,8 @@ void tick(unsigned int numTicks) {
 	 * and break a lot of things. Let the user know they should be more polite
 	 * and restart their computer every other month! */
 	if (numTicks == UINT_MAX) {
-		panic("System has been running for too long. Please reboot earlier "
-				"next time.");
+		panic("System has been running for too long. Please reboot every "
+				"other month!");
 	}
 
 	/* The amount of work done before scheduler tick handler should be
@@ -70,7 +70,6 @@ void hard_code_test( char *s )
 	char *user_argv = (char *)s;
 	execute_user_program(s, 1, &user_argv);
 }
-
 
 /** @brief Kernel entrypoint.
  *

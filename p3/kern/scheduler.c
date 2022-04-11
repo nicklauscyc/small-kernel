@@ -95,6 +95,7 @@ yield_execution( status_t store_status, int tid,
 		return 0; // yielding to self
 	}
 
+	/* Get tcb to swap to */
 	tcb_t *tcb;
 	if (tid == -1) {
 		disable_interrupts();
@@ -104,7 +105,7 @@ yield_execution( status_t store_status, int tid,
 		 * we only want to yield to ourselves if we want to remain
 		 * runnable. */
 		if (tcb->tid == get_running_tid()) {
-			/* If store_status is not Runnable find someone else. If no one else, crash */
+			/* If store_status is not runnable find someone else. */
 			if (store_status != RUNNABLE) {
 				Q_REMOVE(&runnable_q, tcb, scheduler_queue);
 				tcb = Q_GET_FRONT(&runnable_q);
@@ -211,9 +212,6 @@ make_thread_runnable(uint32_t tid)
 	if (!tcbp)
 		return -1;
 
-	//TODO scheduler breaks interface
-	//TODO the problem is task_set_active() calls this function and exec()
-	//     calls task_set_active() and so this is going to fail
 	/* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
@@ -227,8 +225,15 @@ make_thread_runnable(uint32_t tid)
 		tcbp->status = RUNNING;
 		running_thread = tcbp;
 	} else {
-		tcbp->status = RUNNABLE;
-		Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
+		if (tcbp->status == UNINITIALIZED) {
+			tcbp->status = RUNNABLE;
+			Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
+		} else {
+			/* "Improve" preemptibility by immediately swapping to thread
+			 * being made runnable. To avoid doing so for newly registered
+			 * threads, only swap immediately if status != UNINITIALIZED. */
+			swap_running_thread(tcbp, RUNNABLE, NULL, NULL);
+		}
 	}
 	enable_interrupts();
 
@@ -236,38 +241,6 @@ make_thread_runnable(uint32_t tid)
 
 	return 0;
 }
-
-//int
-//schedule_thread(uint32_t tid)
-//{
-//	tcb_t *tcbp = find_tcb(tid);
-//	if (!tcbp)
-//		return -1;
-//
-//	disable_interrupts();
-//	if (tcbp->status != DESCHEDULED) {
-//		log_warn("Trying to schedule thread %d which is not descheduled", tid);
-//		enable_interrupts();
-//		return -1;
-//	}
-//
-//	/* TODO: Unimplemented. Any ops on currently running
-//	 * thread must check runnable queue as well */
-//int
-//block_thread(uint32_t tid)
-//{
-//	/* TODO: Unimplemented. Any ops on currently running
-//	 * thread must check runnable queue as well */
-//	return -1;
-//}
-//
-//int
-//unblock_thread(uint32_t tid)
-//{
-//	/* TODO: Unimplemented. Any ops on currently running
-//	 * thread must check runnable queue as well */
-//	return -1;
-//}
 
 void
 scheduler_on_tick( unsigned int num_ticks )

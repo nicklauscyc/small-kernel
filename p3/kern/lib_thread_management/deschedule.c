@@ -7,7 +7,7 @@
 #include <asm.h>				/* outb() */
 #include <stddef.h>				/* NULL */
 #include <scheduler.h>			/* yield_execution() */
-#include <memory_manager.h>		/* is_user_pointer_valid() */
+#include <memory_manager.h>		/* is_valid_user_pointer() */
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 
@@ -22,7 +22,7 @@ deschedule( int *reject )
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-	if (!is_user_pointer_valid(reject))
+	if (!is_valid_user_pointer(reject, READ_ONLY))
 		return -1;
 
 	if (*reject == 0)

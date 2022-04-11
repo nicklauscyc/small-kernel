@@ -68,7 +68,12 @@ sleep_on_tick( unsigned int total_ticks )
 	earliest_expiry_date = UINT_MAX;
 
 	tcb_t *curr = Q_GET_FRONT(&sleep_q);
+	tcb_t *next;
 	while (curr) {
+		/* After curr is removed from the sleep queue and is made runnable, we
+		 * can no longer safely operated on its scheduler_queue link. As such,
+		 * we must get the next member of the queue before making it runnable.*/
+		next = Q_GET_NEXT(curr, scheduler_queue);
 		if (curr->sleep_expiry_date <= total_ticks) {
 			Q_REMOVE(&sleep_q, curr, scheduler_queue);
 			make_thread_runnable(curr->tid);
@@ -76,7 +81,7 @@ sleep_on_tick( unsigned int total_ticks )
 			if (curr->sleep_expiry_date < earliest_expiry_date)
 				earliest_expiry_date = curr->sleep_expiry_date;
 		}
-		curr = Q_GET_NEXT(curr, scheduler_queue);
+		curr = next;
 	}
 
 	mutex_unlock(&sleep_mux);
