@@ -10,11 +10,15 @@
 #include <physalloc.h>	/* physalloc_test() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <lib_thread_management/mutex.h>
+#include <memory_manager.h>
+#include <x86/cr.h>
+#include <x86/page.h>
 
 /* These definitions have to match the ones in user/progs/test_suite.c */
 #define MULT_FORK_TEST	0
 #define MUTEX_TEST		1
 #define PHYSALLOC_TEST	2
+#define PD_CONSISTENCY  3
 
 static volatile int total_sum_fork = 0;
 static volatile int total_sum_mux = 0;
@@ -59,6 +63,14 @@ mutex_test()
     return 0;
 }
 
+void
+test_pd_consistency( void )
+{
+    lprintf("testing pd_consistency");
+	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
+}
+
+
 int
 test_int_handler( int test_num )
 {
@@ -75,6 +87,9 @@ test_int_handler( int test_num )
 		case PHYSALLOC_TEST:
 			test_physalloc();
 			return 0;
+        case PD_CONSISTENCY:
+            test_pd_consistency();
+            return 0;
     }
 
     return 0;

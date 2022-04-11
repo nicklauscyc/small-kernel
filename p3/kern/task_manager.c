@@ -221,6 +221,7 @@ task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	 * however, we should go to some "receiver" function which appropriately
 	 * sets user registers and segment selectors, and lastly RETs to
 	 * the entry_point. */
+	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 	iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
 		esp, SEGSEL_USER_DS);
 

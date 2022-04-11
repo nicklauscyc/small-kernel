@@ -50,6 +50,8 @@ log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 int
 fork( void )
 {
+	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
+
 	/* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
