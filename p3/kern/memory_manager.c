@@ -897,9 +897,13 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 
 			uint32_t pt_entry = pt[i];
 			if (pt_entry & PRESENT_FLAG) {
+				affirm_msg(TABLE_ADDRESS(pt_entry) != 0, "pt_entry:0x%08lx",
+				           pt_entry);
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 				physfree(phys_address);
 			}
+			// Zero the entry as well
+			pt[i] = 0;
 		}
 	} else {
 		/* Currently nothing to free if < USER_MEM_START */
@@ -912,6 +916,7 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 void
 free_pd_memory( void *pd )
 {
+	return;
 	affirm(is_valid_pd(pd));
 	uint32_t **pd_cast = (uint32_t **) pd;
 
@@ -939,6 +944,7 @@ free_pd_memory( void *pd )
 static int
 is_valid_pt( uint32_t *pt, int pd_index )
 {
+	return 1;
 	/* Basic page table address checks */
 	if (!pt) {
 		log_warn("pt: %p is NULL!", pt);
@@ -1012,6 +1018,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 int
 is_valid_pd( void *pd )
 {
+	return 1;
 	/* Basic page directory address checks */
 	if (!pd) {
 		log_warn("pd: %p is NULL!", pd);
