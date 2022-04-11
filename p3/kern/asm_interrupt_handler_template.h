@@ -42,6 +42,10 @@ call_ ## HANDLER_NAME ## :;\
 /* TODO: Clean this up */
 #define CALL_FAULT_HANDLER_W_ERROR_CODE(HANDLER_NAME)\
 \
+.globl call_##HANDLER_NAME; /* create the asm function call_HANDLER_NAME */\
+\
+call_ ## HANDLER_NAME ## :;\
+\
 	/* Save all callee save registers */\
 	pushl %ebp;\
 	movl %esp, %ebp;\
@@ -86,6 +90,10 @@ call_ ## HANDLER_NAME ## :;\
 	iret;
 
 #define CALL_FAULT_HANDLER_W_ERROR_CODE_W_EBP(HANDLER_NAME)\
+\
+.globl call_##HANDLER_NAME; /* create the asm function call_HANDLER_NAME */\
+\
+call_ ## HANDLER_NAME ## :;\
 \
 	/* Save all callee save registers */\
 	pushl %ebp;\
