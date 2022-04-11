@@ -41,8 +41,12 @@ call_ ## HANDLER_NAME ## :;\
 
 #define CALL_FAULT_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)\
 \
+	/* Make use of ebp for argument access */\
+	pushl %ebp;\
+	movl %esp, %ebp;\
+\
 	/* Save all registers */\
-	pusha; /* Pushes all registers onto the stack */\
+	pusha;\
 \
 	/* Save all segment registers on the stack */\
 	pushl %ds;\
@@ -69,7 +73,51 @@ call_ ## HANDLER_NAME ## :;\
 	/* Restores all callee save registers from the stack */\
 	popa;\
 \
+	/* Restore ebp */\
+	popl %ebp;\
+\
 	/* Return to procedure before interrupt */\
+	iret;
+
+#define CALL_FAULT_HANDLER_TEMPLATE_W_ERROR(HANDLER_SPECIFIC_CODE)\
+\
+	/* Make use of ebp for argument access */\
+	pushl %ebp;\
+	movl %esp, %ebp;\
+\
+	/* Save all registers */\
+	pusha;\
+\
+	/* Save all segment registers on the stack */\
+	pushl %ds;\
+	pushl %es;\
+	pushl %fs;\
+	pushl %gs;\
+\
+	/* set the new values for ds, es, fs, gs */\
+	/* TODO fix so clang does not complain */\
+	movl %ss, %ax;\
+	movl %ax, %ds;\
+	movl %ax, %es;\
+	movl %ax, %fs;\
+	movl %ax, %gs;\
+\
+	HANDLER_SPECIFIC_CODE\
+\
+	/* Restores all segment registers from the stack */\
+	popl %gs;\
+	popl %fs;\
+	popl %es;\
+	popl %ds;\
+\
+	/* Restores all callee save registers from the stack */\
+	popa;\
+\
+	/* Restore ebp */\
+	popl %ebp;\
+\
+	/* Return to procedure before interrupt */\
+	addl $4, %esp;\
 	iret;
 
 /** @define CALL_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)
@@ -190,7 +238,7 @@ call_ ## HANDLER_NAME ## :;\
 .globl call_##HANDLER_NAME;\
 call_ ## HANDLER_NAME ## :;\
 \
-	CALL_FAULT_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	CALL_FAULT_HANDLER_TEMPLATE_W_ERROR(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
 		pushl 12(%ebp);     /* push cs onto stack */\
 		pushl 8(%ebp);		/* push eip onto stack */\
@@ -211,6 +259,20 @@ call_ ## HANDLER_NAME ## :;\
 		call HANDLER_NAME;  /* calls syscall handler */\
 		addl $4, %esp;		/* ignore arguments */\
 	))
+
+#define CALL_VAR_ARGS_FAULT_HANDLER_W_ERROR(HANDLER_NAME)\
+\
+/* Declare and define asm function call_HANDLER_NAME */\
+.globl call_##HANDLER_NAME;\
+call_ ## HANDLER_NAME ## :;\
+\
+	CALL_FAULT_HANDLER_TEMPLATE_W_ERROR(SINGLE_MACRO_ARG_W_COMMAS\
+	(\
+		pushl %ebp;		    /* push ebp onto stack */\
+		call HANDLER_NAME;  /* calls syscall handler */\
+		addl $4, %esp;		/* ignore arguments */\
+	))
+
 
 /** @def CALL_W_DOUBLE_ARG(HANDLER_NAME)
  *  @brief Macro for assembly wrapper for calling a syscall with 2 arguments
