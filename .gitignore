@@ -50,5 +50,6 @@
 *.swp
 *.a
 
-# ignore all . dot files
+# ignore all . dot files, except .editorconfig
 .*
+!/.editorconfig
