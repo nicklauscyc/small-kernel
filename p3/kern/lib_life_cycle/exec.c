@@ -87,37 +87,9 @@ exec( char *execname, char **argvec )
 		return -1;
 	}
 	// TODO ensure no software exception handler registered
-
-
 	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-	///* Transfer execname to kernel stack so unaffected by page directory */
-	//char kern_stack_execname[USER_STR_LEN];
-	//memset(kern_stack_execname, 0, USER_STR_LEN);
-	//memcpy(kern_stack_execname, execname, strlen(execname));
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
-	///* char array to store each argvec string on kernel stack */
-	//char kern_stack_args[NUM_USER_ARGS * USER_STR_LEN];
-	//memset(kern_stack_args, 0, NUM_USER_ARGS * USER_STR_LEN);
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
-
-	///* char * array for argvec on kernel stack */
-	//char *kern_stack_argvec[NUM_USER_ARGS];
-	//memset(kern_stack_argvec, 0, NUM_USER_ARGS);
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
-	///* Transfer argvec to kernel stack so unaffected by page directory */
-	//int offset = 0;
-	//for (int i = 0; argvec[i]; ++i) {
-	//	char *arg = argvec[i];
-	//	memcpy(kern_stack_args + offset, arg, strlen(arg));
-	//	kern_stack_argvec[i] = kern_stack_args + offset;
-	//	offset += USER_STR_LEN;
-	//}
 	log_exec_args(execname, argvec);
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Execute */
 	if (execute_user_program(execname, argc, argvec)

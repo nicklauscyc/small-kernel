@@ -297,7 +297,6 @@ execute_user_program( const char *fname, int argc, char **argv)
 		kern_stack_argvec[i] = kern_stack_args + offset;
 		offset += USER_STR_LEN;
 	}
-
 	/* Load user program information */
 	simple_elf_t se_hdr;
     if (elf_check_header(kern_stack_execname) == ELF_NOTELF) {
@@ -334,30 +333,20 @@ execute_user_program( const char *fname, int argc, char **argv)
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
     if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
 	}
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-
     uint32_t *esp = configure_stack(argc, kern_stack_argvec);
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
 
 	/* If this is the first task we must activate it */
 	if (first_task) {
         assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
 		task_set_active(tid);
 	}
-	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-
 	first_task = 0;
 
 	/* Start the task */
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
-
 
 	panic("execute_user_program does not return");
 	return -1;
