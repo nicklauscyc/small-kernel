@@ -17,5 +17,6 @@ int mutex_init( mutex_t *mp );
 void mutex_destroy( mutex_t *mp );
 void mutex_lock( mutex_t *mp );
 void mutex_unlock( mutex_t *mp );
+void switch_safe_mutex_unlock( mutex_t *mp );
 
 #endif /* MUTEX_H_ */

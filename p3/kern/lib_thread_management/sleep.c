@@ -12,10 +12,6 @@
 #include <task_manager_internal.h> /* Q MACROS on tcb */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
 
-// FIXME: REMOVE
-#include <logger.h>
-#include <simics.h>
-
 /* Using linked list as a naive priority queue implementation.
  * TODO: Use a heap instead! (or something else, like fibonnaci heaps...)
  * */
@@ -71,6 +67,9 @@ sleep_on_tick( unsigned int total_ticks )
 	 * remove earliest expired thread(s) */
 	earliest_expiry_date = UINT_MAX;
 
+	// FIXME: what if we context swap and someone calls
+	// sleep, therefore modifying the sleep_q halfway
+	// through our read
 	tcb_t *curr = Q_GET_FRONT(&sleep_q);
 	tcb_t *next;
 	while (curr) {
@@ -112,6 +111,10 @@ sleep( int ticks )
 	tcb_t *me = get_running_thread();
 	me->sleep_expiry_date = get_total_ticks() + ticks;
 
+	/* TODO:
+	 * We could lock the sleep_q mux here and release it through the callback?
+	 * This should ensure no conflicts with the sleep q stuff */
+	mutex_lock(&sleep_mux);
 	affirm(yield_execution(BLOCKED, -1, store_tcb_in_sleep_queue, NULL) == 0);
 
 	return 0;
@@ -122,12 +125,11 @@ sleep( int ticks )
 static void
 store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
 {
-	log_info("[Store_tcb_in_sleep_queue] Called with tcb %p and data %p", tcb, data);
 	affirm(tcb && tcb->status == BLOCKED);
 	if (tcb->sleep_expiry_date < earliest_expiry_date)
 		earliest_expiry_date = tcb->sleep_expiry_date;
 	/* Since thread not running, might as well use the scheduler queue link! */
 	Q_INIT_ELEM(tcb, scheduler_queue);
-	log_info("[Store_tcb_in_sleep_queue] Storing into sleep_q at %p", &sleep_q);
 	Q_INSERT_TAIL(&sleep_q, tcb, scheduler_queue);
+	switch_safe_mutex_unlock(&sleep_mux);
 }

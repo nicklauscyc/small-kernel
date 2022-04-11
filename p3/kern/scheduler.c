@@ -196,15 +196,8 @@ init_scheduler( void )
 	return 0;
 }
 
-/** @brief Registers thread with scheduler. After this call,
- *		   the thread may be executed by the scheduler.
- *
- *	@param tid Id of thread to register
- *
- *	@return 0 on success, negative value on error */
-/* TODO: Think of synchronization here*/
-int
-make_thread_runnable(uint32_t tid)
+static int
+make_thread_runnable_helper( uint32_t tid, int switch_safe )
 {
 	log("Making thread %d runnable", tid);
 
@@ -216,7 +209,8 @@ make_thread_runnable(uint32_t tid)
 	disable_interrupts();
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
 		log_warn("Trying to make runnable thread %d runnable again", tid);
-		enable_interrupts();
+		if (!switch_safe)
+			enable_interrupts();
 		return -1;
 	}
 
@@ -225,7 +219,7 @@ make_thread_runnable(uint32_t tid)
 		tcbp->status = RUNNING;
 		running_thread = tcbp;
 	} else {
-		if (tcbp->status == UNINITIALIZED) {
+		if (tcbp->status == UNINITIALIZED || switch_safe) {
 			tcbp->status = RUNNABLE;
 			Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
 		} else {
@@ -235,11 +229,30 @@ make_thread_runnable(uint32_t tid)
 			swap_running_thread(tcbp, RUNNABLE, NULL, NULL);
 		}
 	}
-	enable_interrupts();
 
-	log("Succesfully registered thread %d", tid);
+	if (!switch_safe)
+		enable_interrupts();
 
 	return 0;
+}
+
+int
+switch_safe_make_thread_runnable( uint32_t tid )
+{
+	return make_thread_runnable_helper(tid, 1);
+}
+
+/** @brief Registers thread with scheduler. After this call,
+ *		   the thread may be executed by the scheduler.
+ *
+ *	@param tid Id of thread to register
+ *
+ *	@return 0 on success, negative value on error */
+/* TODO: Think of synchronization here*/
+int
+make_thread_runnable( uint32_t tid )
+{
+	return make_thread_runnable_helper(tid, 0);
 }
 
 void
