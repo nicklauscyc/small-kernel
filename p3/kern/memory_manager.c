@@ -1022,7 +1022,6 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 void
 free_pd_memory( void *pd )
 {
-	return;
 	affirm(is_valid_pd(pd));
 	uint32_t **pd_cast = (uint32_t **) pd;
 
@@ -1072,7 +1071,11 @@ is_valid_pt( uint32_t *pt, int pd_index )
 		//if (pd_index == 0x3ff) {
 		//	if (pt_entry) log("pt_entry:0x%08lx", pt_entry);
 		//}
-        assert(TABLE_ENTRY_INVARIANT(pt_entry));
+        assert((((pt_entry) != 0) && (TABLE_ADDRESS(pt_entry) != 0))
+	           || (pt_entry == 0));
+
+
+        //TABLE_ENTRY_INVARIANT(pt_entry));
 
 		/* Check only if entry is non-NULL, ignoring bottom 12 bits */
 		if (TABLE_ADDRESS(pt_entry)) {
