@@ -314,6 +314,10 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	*tid = get_unique_tid();
 	tcb->tid = *tid;
 
+    /* If debug mode is set, we let each kernel stack be PAGE_SIZE of usable
+     * memory, followed by PAGE_SIZE of unusable memory to prevent kernel
+     * stacks from overlapping onto each other during execution.
+     */
 #ifdef DEBUG
 	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
@@ -321,12 +325,10 @@ create_tcb( uint32_t pid, uint32_t *tid )
 		return -1;
 	}
 	uint32_t **parent_pd = owning_task->pd;
-	uint32_t *parent_pt = parent_pd[PD_INDEX(tcb->kernel_stack_lo)];
-
-	lprintf("Setting %p (pt index %ld) to 0 in PT", tcb->kernel_stack_lo,
-			PT_INDEX(tcb->kernel_stack_lo));
-	parent_pt[PT_INDEX(tcb->kernel_stack_lo)] = 0x0;
-
+    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
+	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
+    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
+	parent_pt[pt_index] = 0x0;
 	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
 #else
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
