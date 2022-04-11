@@ -320,20 +320,21 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 
 	tcb_t *running = running_thread;
 	running->status = store_status;
+
+	to_run->status = RUNNING;
+	running_thread = to_run;
+
 	/* Data structure for other statuses are managed by their own components,
 	 * scheduler is only responsible for managing runnable/running threads. */
 	/* If running thread is already in runnable queue, don't insert again */
 	if (store_status == RUNNABLE && !Q_IN_SOME_QUEUE(running, scheduler_queue))
 		Q_INSERT_TAIL(&runnable_q, running, scheduler_queue);
 	else if (callback) {
+		/* FIXME: What happens if the callback calls a yield_execution? */
 		callback(running, data);
 	}
 
-	to_run->status = RUNNING;
-	running_thread = to_run;
-
-	enable_interrupts();
-
+	/* Interrupts are enabled inside context switch, once it's safe to do so. */
 	switch_threads(running, to_run);
 
 	/* Nothing which must run should be placed after switch_threads as,
