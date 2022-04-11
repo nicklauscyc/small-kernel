@@ -34,8 +34,8 @@ new_pages( void *base, int len )
 		log_warn("base not page aligned!");
 		return -1;
 	}
-	if (len < 0) {
-		log_warn("len is negative!");
+	if (len <= 0) {
+		log_warn("len <= 0!");
 		return -1;
 	}
 	if (len % PAGE_SIZE != 0) {
