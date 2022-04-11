@@ -12,6 +12,10 @@
 #include <task_manager_internal.h> /* Q MACROS on tcb */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
 
+// FIXME: REMOVE
+#include <logger.h>
+#include <simics.h>
+
 /* Using linked list as a naive priority queue implementation.
  * TODO: Use a heap instead! (or something else, like fibonnaci heaps...)
  * */
@@ -118,10 +122,12 @@ sleep( int ticks )
 static void
 store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
 {
+	log_info("[Store_tcb_in_sleep_queue] Called with tcb %p and data %p", tcb, data);
 	affirm(tcb && tcb->status == BLOCKED);
 	if (tcb->sleep_expiry_date < earliest_expiry_date)
 		earliest_expiry_date = tcb->sleep_expiry_date;
 	/* Since thread not running, might as well use the scheduler queue link! */
 	Q_INIT_ELEM(tcb, scheduler_queue);
+	log_info("[Store_tcb_in_sleep_queue] Storing into sleep_q at %p", &sleep_q);
 	Q_INSERT_TAIL(&sleep_q, tcb, scheduler_queue);
 }

@@ -128,7 +128,6 @@ zero_page_pf_handler( uint32_t faulting_address )
 	if (TABLE_ADDRESS(pt_entry) != sys_zero_frame) {
 		log_warn("page table entry for vm 0x%08lx is not zero frame",
 				 faulting_address);
-		MAGIC_BREAK;
 		return -1;
 	}
 	/* Page table entry must be user readable since sys wide zero frame */
@@ -142,7 +141,6 @@ zero_page_pf_handler( uint32_t faulting_address )
 	int res = allocate_frame(pd, faulting_address, READ_WRITE);
 	log("alloced physframe is 0x%08lx", *get_ptep(pd, faulting_address));
 	log("res:%d", res);
-	MAGIC_BREAK;
 	return res;
 }
 

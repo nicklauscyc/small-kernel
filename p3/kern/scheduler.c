@@ -104,7 +104,7 @@ yield_execution( status_t store_status, int tid,
 		/* If we are coincidentally at the front of the queue,
 		 * we only want to yield to ourselves if we want to remain
 		 * runnable. */
-		if (tcb->tid == get_running_tid()) {
+		if (tcb && tcb->tid == get_running_tid()) {
 			/* If store_status is not runnable find someone else. */
 			if (store_status != RUNNABLE) {
 				Q_REMOVE(&runnable_q, tcb, scheduler_queue);
