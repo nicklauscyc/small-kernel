@@ -31,6 +31,8 @@
 #include <scheduler.h> /* get_running_tid() */
 #include <assert.h> /* assert() */
 #include <simics.h>
+#include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
+
 /* --- Local function prototypes --- */
 
 /* first_task is 1 if there is currently no user task running, so

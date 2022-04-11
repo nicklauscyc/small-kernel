@@ -694,10 +694,9 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 		log_warn("frame already allocated for vm:%p", (uint32_t *) virtual_address);
 		//return -1;
 
-		/* Must be present */
-		if (!(pt_entry & PRESENT_FLAG)) {
-			return -1;
-		}
+		/* Must be present else broken invariant */
+		affirm_msg(pt_entry & PRESENT_FLAG, "pt_entry must be present");
+
 		/* Ensure it's allocated with same flags. */
 		if (write_mode == READ_WRITE) {
 			if (!((pt_entry & (PAGE_SIZE - 1)) == PE_USER_WRITABLE)) {
