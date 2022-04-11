@@ -6,6 +6,20 @@
 #include <elf_410.h> /* simple_elf_t */
 #include <stdint.h> /* uint32_t */
 
+#define PAGE_DIRECTORY_INDEX 0xFFC00000
+#define PAGE_TABLE_INDEX 0x003FF000
+
+#define PAGE_DIRECTORY_SHIFT 22
+#define PAGE_TABLE_SHIFT 12
+
+/* Get page directory index from logical address */
+#define PD_INDEX(addr) \
+	((PAGE_DIRECTORY_INDEX & ((uint32_t)(addr))) >> PAGE_DIRECTORY_SHIFT)
+
+/* Get page table index from logical address */
+#define PT_INDEX(addr) \
+	((PAGE_TABLE_INDEX & ((uint32_t)(addr))) >> PAGE_TABLE_SHIFT)
+
 void init_vm( void );
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;

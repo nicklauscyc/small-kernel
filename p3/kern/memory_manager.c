@@ -31,24 +31,11 @@
 
 #define PAGE_GLOBAL_ENABLE_FLAG (1 << 7)
 
-#define PAGE_DIRECTORY_INDEX 0xFFC00000
-#define PAGE_TABLE_INDEX 0x003FF000
 #define PAGE_OFFSET 0x00000FFF
-
-#define PAGE_DIRECTORY_SHIFT 22
-#define PAGE_TABLE_SHIFT 12
 
 #define TABLE_ENTRY_INVARIANT(TABLE_ENTRY)\
 	((((uint32_t)(TABLE_ENTRY) != 0) && (TABLE_ADDRESS(TABLE_ENTRY) != 0))\
 	|| ((uint32_t)(TABLE_ENTRY) == 0))
-
-/* Get page directory index from logical address */
-#define PD_INDEX(addr) \
-	((PAGE_DIRECTORY_INDEX & ((uint32_t)(addr))) >> PAGE_DIRECTORY_SHIFT)
-
-/* Get page table index from logical address */
-#define PT_INDEX(addr) \
-	((PAGE_TABLE_INDEX & ((uint32_t)(addr))) >> PAGE_TABLE_SHIFT)
 
 /* Flags for page directory and page table entries */
 #define PRESENT_FLAG (1 << 0)

@@ -313,11 +313,28 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	*tid = get_unique_tid();
 	tcb->tid = *tid;
+
+#ifdef DEBUG
+	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
+	if (!tcb->kernel_stack_lo) {
+		sfree(tcb, sizeof(tcb_t));
+		return -1;
+	}
+	uint32_t **parent_pd = owning_task->pd;
+	uint32_t *parent_pt = parent_pd[PD_INDEX(tcb->kernel_stack_lo)];
+
+	lprintf("Setting %p (pt index %ld) to 0 in PT", tcb->kernel_stack_lo,
+			PT_INDEX(tcb->kernel_stack_lo));
+	parent_pt[PT_INDEX(tcb->kernel_stack_lo)] = 0x0;
+
+	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
+#else
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
 		return -1;
 	}
+#endif
 
 	tcb->status = UNINITIALIZED;
 
