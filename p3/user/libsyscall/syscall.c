@@ -34,10 +34,10 @@ volatile static int placate_the_compiler;
 //	return -1;
 //}
 
-void set_status(int status)
-{
-	return;
-}
+//void set_status(int status)
+//{
+//	return;
+//}
 
 //void vanish(void)
 //{
@@ -123,15 +123,15 @@ int readline(int size, char *buf)
 //	return -1;
 //}
 
-void task_vanish(int status)
-{
-	status ^= status;
-	status /= status;
-
-	/* won't get here */
-	while (1)
-		++placate_the_compiler;
-}
+//void task_vanish(int status)
+//{
+//	status ^= status;
+//	status /= status;
+//
+//	/* won't get here */
+//	while (1)
+//		++placate_the_compiler;
+//}
 
 //int new_pages(void *addr, int len)
 //{

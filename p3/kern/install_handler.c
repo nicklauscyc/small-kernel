@@ -207,6 +207,16 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(VANISH_INT, call_vanish, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
+	if (install_handler(TASK_VANISH_INT, call_task_vanish, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+	if (install_handler(SET_STATUS_INT, call_set_status, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+
 
 	/* Lib memory management */
 	if (install_handler(NEW_PAGES_INT, call_new_pages, DPL_3, D32_TRAP) < 0) {
