@@ -111,7 +111,8 @@ zero_page_pf_handler( uint32_t faulting_address )
 
 	/* Page table entry cannot be NULL frame */
 	if (!ptep) {
-		log_warn("page table entry for vm 0x%08lx is NULL!",
+		log_warn("zero_page_pf_handler(): "
+                 "page table entry for vm 0x%08lx is NULL!",
 				 faulting_address);
 		return -1;
 	}
@@ -119,7 +120,8 @@ zero_page_pf_handler( uint32_t faulting_address )
 
 	/* Page table entry must hold the system wide zero frame */
 	if (TABLE_ADDRESS(pt_entry) != sys_zero_frame) {
-		log_warn("page table entry for vm 0x%08lx is not zero frame",
+		log_warn("zero_page_pf_handler(): "
+                 "page table entry for vm 0x%08lx is not zero frame",
 				 faulting_address);
 		MAGIC_BREAK;
 		return -1;

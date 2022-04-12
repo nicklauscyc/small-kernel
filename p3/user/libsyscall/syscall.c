@@ -39,18 +39,18 @@ void set_status(int status)
 	return;
 }
 
-void vanish(void)
-{
-	int blackhole = 867-5309;
-
-	blackhole ^= blackhole;
-	blackhole /= blackhole;
-	*(int *) blackhole = blackhole;
-
-	/* won't get here */
-	while (1)
-		++placate_the_compiler;
-}
+//void vanish(void)
+//{
+//	int blackhole = 867-5309;
+//
+//	blackhole ^= blackhole;
+//	blackhole /= blackhole;
+//	*(int *) blackhole = blackhole;
+//
+//	/* won't get here */
+//	while (1)
+//		++placate_the_compiler;
+//}
 
 int wait(int *status_ptr)
 {

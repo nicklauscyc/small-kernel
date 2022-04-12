@@ -50,11 +50,6 @@ log_exec_args( char *execname, char **argvec )
 int
 exec( char *execname, char **argvec )
 {
-#include <cr.h>
-#include <page.h>
-	assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
