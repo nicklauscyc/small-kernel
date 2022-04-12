@@ -40,33 +40,33 @@ remove_pages( void *base )
         return -1;
     }
     /* Check if any portion is currently allocated in task address space */
-    char *base_char = (char *) base;
-    for (uint32_t i = 0; i < len; ++i) {
-        if (is_user_pointer_allocated(base_char + i)) {
-            log_info("remove_pages(): "
-                     "%p is already allocated!", base_char + i);
-            return -1;
-        }
-    }
-    /* Allocate a zero frame to each PAGE_SIZE region of memory */
-    int res = 0;
-    for (uint32_t i = 0; i < len / PAGE_SIZE; ++i) {
-        assert(res == 0);
-        res += allocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
-                                        (uint32_t) base + (i * PAGE_SIZE));
+    //char *base_char = (char *) base;
+    //for (uint32_t i = 0; i < len; ++i) {
+    //    if (is_user_pointer_allocated(base_char + i)) {
+    //        log_info("remove_pages(): "
+    //                 "%p is already allocated!", base_char + i);
+    //        return -1;
+    //    }
+    //}
+    ///* Allocate a zero frame to each PAGE_SIZE region of memory */
+    //int res = 0;
+    //for (uint32_t i = 0; i < len / PAGE_SIZE; ++i) {
+    //    assert(res == 0);
+    //    res += allocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
+    //                                    (uint32_t) base + (i * PAGE_SIZE));
 
-        /* If any step fails, unallocate zero frame, return -1 */
-        if (res < 0) {
-            log_info("remove_pages(): "
-                     "unable to allocate zero frame in remove_pages()");
+    //    /* If any step fails, unallocate zero frame, return -1 */
+    //    if (res < 0) {
+    //        log_info("remove_pages(): "
+    //                 "unable to allocate zero frame in remove_pages()");
 
-            /* Cleanup */
-            for (uint32_t j = 0; j < i; ++j) {
-                unallocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
-                                           (uint32_t) base + (j * PAGE_SIZE));
-            }
-            return -1;
-        }
-    }
+    //        /* Cleanup */
+    //        for (uint32_t j = 0; j < i; ++j) {
+    //            unallocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
+    //                                       (uint32_t) base + (j * PAGE_SIZE));
+    //        }
+    //        return -1;
+    //    }
+    //}
     return res;
 }
