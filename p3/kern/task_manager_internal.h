@@ -11,7 +11,7 @@
 
 #include <variable_queue.h> /* Q_NEW_LINK */
 #include <scheduler.h> /* status_t */
-
+#include <lib_thread_management/mutex.h> /* mutex_t */
 
 /* PCB owned threads queue definition */
 Q_NEW_HEAD(owned_threads_queue_t, tcb);
@@ -21,6 +21,7 @@ typedef struct tcb tcb_t;
 
 /** @brief Task control block */
 struct pcb {
+	mutex_t set_status_vanish_wait_mux;
 	//mutex_t thread_list_mux; // TODO enable mutex
 	void *pd; /* page directory */
 	owned_threads_queue_t owned_threads; /* list of owned threads */
@@ -28,6 +29,7 @@ struct pcb {
 	Q_NEW_LINK(pcb) task_link; // Embedded list of tasks
 	uint32_t pid; /* Task/process ID */
 	int prepared; /* Whether this task's VM has been initialized */
+	int exit_status; /* Task exit status */
 };
 
 /** @brief Thread control block */

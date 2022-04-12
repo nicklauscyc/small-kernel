@@ -20,6 +20,17 @@
 #define PT_INDEX(addr) \
 	((PAGE_TABLE_INDEX & ((uint32_t)(addr))) >> PAGE_TABLE_SHIFT)
 
+/* True if address if paged align, false otherwise */
+#define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
+#define USER_STR_LEN 256
+#define NUM_USER_ARGS 16
+#define TABLE_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
+
+#ifndef STACK_ALIGNED
+#define STACK_ALIGNED(address) (((uint32_t) (address)) % 4 == 0)
+#endif
+
+
 void init_vm( void );
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
@@ -32,6 +43,8 @@ void vm_enable_task( void *ptd );
 void enable_write_protection( void );
 void disable_write_protection( void );
 int vm_new_pages ( void *ptd, void *base, int len );
+
+int is_valid_pt( uint32_t *pt, int pd_index );
 int is_valid_pd( void *pd );
 
 int is_user_pointer_allocated( void *ptr );
@@ -48,15 +61,6 @@ void unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
 void *get_pd( void );
 int zero_page_pf_handler( uint32_t faulting_address );
 
-/* True if address if paged align, false otherwise */
-#define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
-#define USER_STR_LEN 256
-#define NUM_USER_ARGS 16
-#define TABLE_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
-
-#ifndef STACK_ALIGNED
-#define STACK_ALIGNED(address) (((uint32_t) (address)) % 4 == 0)
-#endif
 
 
 #endif /* _MEMORY_MANAGER_H */

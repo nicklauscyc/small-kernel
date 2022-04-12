@@ -57,6 +57,21 @@ get_tcb_tid(tcb_t *tcb)
 	return tcb->tid;
 }
 
+void
+set_task_exit_status( int status )
+{
+	tcb_t *tcb = get_running_thread();
+	affirm(tcb);
+	affirm(tcb->owning_task);
+	pcb_t *owning_task = tcb->owning_task;
+
+	/* Atomically update exit status of owning task */
+	mutex_lock(&owning_task->set_status_vanish_wait_mux);
+	tcb->owning_task->exit_status = status;
+	mutex_unlock(&owning_task->set_status_vanish_wait_mux);
+}
+
+
 /** @brief Initializes task manager's resources
  *
  *	 @return Void
@@ -282,6 +297,10 @@ create_pcb( uint32_t *pid, void *pd )
 	Q_INIT_HEAD(&(pcb->owned_threads));
 	pcb->num_threads = 0;
 
+	/* Initialize set_status_vanish_wait_mux */
+	if (mutex_init(&(pcb->set_status_vanish_wait_mux)) < 0) {
+		return -1;
+	}
 
 	/* Add to pcb linked list*/
 	mutex_lock(&pcb_list_mux);
