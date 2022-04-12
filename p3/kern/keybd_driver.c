@@ -78,13 +78,15 @@ int readchar(void);
  *  @return Void.
  */
 void keybd_int_handler(void) {
+	/* Read raw byte and put into raw character buffer */
+	uint8_t raw_byte = inb(KEYBOARD_PORT);
+	buf_insert(&key_buf, raw_byte);
 
-  /* Read raw byte and put into raw character buffer */
-  uint8_t raw_byte = inb(KEYBOARD_PORT);
-  buf_insert(&key_buf, raw_byte);
+	/* Acknowledge interrupt */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-  /* Acknowledge interrupt and return */
-  outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	/* Let readline module know new characters have arrived. */
+	readline_char_arrived_handler();
 }
 
 /** @brief Initialize the keyboard interrupt handler and associated data

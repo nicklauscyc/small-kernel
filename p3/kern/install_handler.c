@@ -135,7 +135,13 @@ install_keyboard_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
 		return -1;
 	}
     init_keybd();
-	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0, D32_TRAP);
+
+	/* The keyboard handler is made an interrupt gate. This is because if we
+	 * make it a trap gate instead, the timer interrupt could trigger a context
+	 * switch before we acknowledge the keybd interrupt signal, thereby
+	 * invalidating all user input until we context switch back to the thread
+	 * handling the keyboard interrupt. */
+	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0, D32_INTERRUPT);
 }
 
 /*********************************************************************/
