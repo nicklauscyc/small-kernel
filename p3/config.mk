@@ -203,6 +203,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_memory_management/remove_pages.o \
 			  lib_memory_management/physalloc.o \
 			  lib_memory_management/pagefault_handler.o \
+			  lib_memory_management/is_valid_pd.o \
 			  \
 			  lib_console/asm_console_handlers.o \
 			  lib_console/print.o \

@@ -4,6 +4,13 @@
  */
 
 #include <memory_manager.h>
+#include <common_kern.h>/* USER_MEM_START */
+#include <logger.h>		/* log */
+#include <page.h>		/* PAGE_SIZE */
+#include <assert.h>		/* assert, affirm */
+#include <physalloc.h>  /* is_physframe() */
+#include <simics.h>     /* MAGIC_BREAK */
+#include <memory_manager_internal.h>
 
 /** @brief Checks if paget table at index i of a page directory is valid or not.
  *
@@ -14,7 +21,7 @@
  *	@param pd_index The index this page table address was stored in the
  *		   page directory
  */
-static int
+int
 is_valid_pt( uint32_t *pt, int pd_index )
 {
 	/* Basic page table address checks */
