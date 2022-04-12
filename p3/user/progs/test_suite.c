@@ -196,12 +196,19 @@ int yield_test() {
 
 int new_pages_test(){
 
-	char *name = (char *) (0x1000000 + 7*PAGE_SIZE);
+#define ADDR 0x40000000
+
+	char *name = (char *) ADDR; //(0x1000000 + 7*PAGE_SIZE);
 	int len = 2 * PAGE_SIZE;
 	int res = new_pages(name, len);
 	assert(res == 0);
 	assert(new_pages(name, len) < 0);
 	lprintf("new_pages allocated");
+	char *p = name;
+	for (int i = 0; i < len; ++i) {
+		assert(*((char*)(p + i)) == '\0');
+	}
+
 
 	/* Test writing to name */
 	char c = *name;
@@ -212,6 +219,9 @@ int new_pages_test(){
 	lprintf("name is %s=='a'", name);
 	res = remove_pages(name);
 	assert(res == 0);
+	assert (new_pages(name, len) == 0);
+	lprintf("name is %s=='\\0'", name);
+
 	lprintf("new_pages test passed");
 	return 0;
 }
@@ -237,14 +247,15 @@ int main() {
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
 	if (remove_pages_test() < 0 ||
 		pd_test() < 0 ||
-        new_pages_test() < 0 ||
-		readfile_test() < 0 ||
-		cursor_test() < 0 ||
-		print_test() < 0 ||
-		sleep_test() < 0 ||
- 		mutex_test() < 0 ||
-		yield_test() < 0 ||
-		multiple_fork_test() < 0)
+        new_pages_test() < 0 //||
+		//readfile_test() < 0 ||
+		//cursor_test() < 0 ||
+		//print_test() < 0 ||
+		//sleep_test() < 0 ||
+ 		//mutex_test() < 0 ||
+		//yield_test() < 0 ||
+		//multiple_fork_test() < 0)
+		)
 		return -1;
 
 	lprintf("ALL TESTS PASSED!");

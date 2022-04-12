@@ -67,8 +67,8 @@ void tick(unsigned int numTicks) {
 
 void hard_code_test( char *s )
 {
-	char *user_argv = (char *)s;
-	execute_user_program(s, 1, &user_argv);
+	char *argv[] = {s, 0};
+	execute_user_program(s, 1, argv);
 }
 
 /** @brief Kernel entrypoint.
@@ -104,7 +104,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
     while (!__kernel_all_done) {
 		// Used for development to run a certain test straightaway
-		//hard_code_test("exec_basic");
+		hard_code_test("remove_pages_test2");
 
         int n = MAX_EXECNAME_LEN;
         char s[n];

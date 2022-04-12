@@ -77,5 +77,8 @@ remove_pages( void *base )
 	log_info("remove_pages(): "
 			 "unallocated base:%p, len:%d", base,
 			 curr - ((uint32_t) base));
+	/* TODO jank get and set cr3() to flush TLB entries */
+	set_cr3(get_cr3());
+
     return 0;
 }

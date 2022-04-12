@@ -30,7 +30,6 @@ pagefault_handler( int error_code, int eip, int cs )
 	uint32_t faulting_vm_address = get_cr2();
 
 	if (zero_page_pf_handler(faulting_vm_address) == 0) {
-		MAGIC_BREAK;
 		return;
 	}
 	// TODO Add the swexn() execution here

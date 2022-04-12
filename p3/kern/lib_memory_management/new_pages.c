@@ -95,5 +95,7 @@ new_pages( void *base, int len )
             return -1;
         }
     }
+	/* TODO jank get and set cr3() to flush TLB entries */
+	set_cr3(get_cr3());
     return res;
 }
