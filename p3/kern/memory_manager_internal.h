@@ -4,6 +4,19 @@
  */
 
 
+/* System programmer flags.
+ * Bits 9, 10, 11 are used together to offer 8 possible flags that cannot
+ * be bit-ORed with one another
+ */
+#define NEW_PAGE_BASE_FLAG (1 << 9)
+#define NEW_PAGE_CONTINUE_FROM_BASE_FLAG (2 << 9)
+
+/* 7 is 111 in binary, and we bitshift << 9 to only keep bits 9, 10, 11 in the
+ * address
+ */
+#define SYS_PROG_FLAG(ADDRESS)\
+	(((uint32_t)(ADDRESS)) & (7 << 9))
+
 #define PAGING_FLAG (1 << 31)
 #define WRITE_PROTECT_FLAG (1 << 16)
 
@@ -28,4 +41,8 @@
 #define TABLE_ENTRY_INVARIANT(TABLE_ENTRY)\
 	((((uint32_t)(TABLE_ENTRY) != 0) && (TABLE_ADDRESS(TABLE_ENTRY) != 0))\
 	|| ((uint32_t)(TABLE_ENTRY) == 0))
+
+uint32_t *get_ptep( const uint32_t **pd, uint32_t virtual_address );
+int is_valid_sys_prog_flag( uint32_t sys_prog_flag );
+void unallocate_frame( uint32_t **pd, uint32_t virtual_address );
 

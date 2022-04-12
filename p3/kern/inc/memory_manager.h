@@ -47,6 +47,7 @@ int vm_new_pages ( void *ptd, void *base, int len );
 int is_valid_pt( uint32_t *pt, int pd_index );
 int is_valid_pd( void *pd );
 
+
 int is_user_pointer_allocated( void *ptr );
 
 int is_valid_user_pointer( void *ptr, write_mode_t write_mode );
@@ -55,7 +56,8 @@ int is_valid_null_terminated_user_string( char *s, int max_len );
 int is_valid_user_argvec( char *execname,  char **argvec );
 void free_pd_memory( void *pd );
 
-int allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
+int allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
+							  uint32_t sys_prog_flag );
 void unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
 
 void *get_pd( void );

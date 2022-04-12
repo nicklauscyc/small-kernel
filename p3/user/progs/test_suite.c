@@ -209,6 +209,9 @@ int new_pages_test(){
 	char a = 'a';
 	lprintf("a address:%p", &a);
 	*name = a;
+	lprintf("name is %s=='a'", name);
+	res = remove_pages(name);
+	assert(res == 0);
 	lprintf("new_pages test passed");
 	return 0;
 }
@@ -219,11 +222,21 @@ pd_test( void )
     return run_test(PD_CONSISTENCY);
 }
 
+int remove_pages_test( void )
+{
+	assert(remove_pages((int *) 0x4) < 0);
+	assert(remove_pages((int *) 0xdeadd00d) < 0);
+	assert(remove_pages((int *) 0xffffe000) < 0);
+	assert(remove_pages((int *) 0xfffff000) < 0);
+	lprintf("remove_pages_test() passed!");
+	return 0;
+}
 int main() {
 	//pagefault_test();
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
-	if (pd_test() < 0 ||
+	if (remove_pages_test() < 0 ||
+		pd_test() < 0 ||
         new_pages_test() < 0 ||
 		readfile_test() < 0 ||
 		cursor_test() < 0 ||
