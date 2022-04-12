@@ -21,6 +21,8 @@
 #include <task_manager_internal.h> /* struct tcb */
 #include <lib_thread_management/mutex.h> /* mutex_t */
 
+#include <simics.h>
+
 static void add_to_readline_queue( tcb_t *tcb, void *data );
 static void mark_curr_blocked( tcb_t *tcb, void *data );
 static int readchar( void );
@@ -59,8 +61,10 @@ init_readline( void )
  *  @param buf Buffer in which to write characters
  *  @param len Max number of characters to write in buf */
 int
-readline( char *buf, int len )
+readline( int len, char *buf )
 {
+	lprintf("len %d", len);
+	lprintf("buf %p", buf);
 	if (len < 0) return -1;
 	if (len == 0) return 0;
 	if (len > CONSOLE_WIDTH * CONSOLE_HEIGHT) return -1;
@@ -68,6 +72,8 @@ readline( char *buf, int len )
 		if (!is_valid_user_pointer(buf + i, READ_WRITE))
 			return -1;
 	}
+
+	lprintf("Passed validity checks");
 
 	/* Acquire readline mux. Put ourselves at the back of the queue. */
 	mutex_lock(&readline_mux);
@@ -206,25 +212,6 @@ mark_curr_blocked( tcb_t *tcb, void *data )
 	assert(readline_curr == tcb);
 	curr_blocked = 1;
 }
-
-
-static int
-get_next_aug_char( aug_char *next_char )
-{
-	disable_interrupts();
-	if (buf_empty(&key_buf)) {
-		enable_interrupts();
-		return -1;
-	}
-	uint8_t next_byte;
-	buf_remove(&key_buf, &next_byte);
-	is_buf(&key_buf);
-	enable_interrupts();
-
-	*next_char = process_scancode(next_byte);
-	return 0;
-}
-
 
 static int
 readchar( void )

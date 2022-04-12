@@ -1,4 +1,4 @@
-.globl CAS
+.globl compare_and_swap_atomic
 .globl add_one_atomic
 
 /* int add_one_atomic( int *at ) */
@@ -9,7 +9,7 @@ add_one_atomic:
     ret
 
 /* int CAS( int *at, int expect, int new_val ) */
-CAS:
+compare_and_swap_atomic:
 	mov 8(%esp), %eax			/* Get expect into ax */
 	mov 12(%esp), %ecx			/* Get new_val into cx */
 	lock cmpxchg %ecx, 4(%esp)	/* Atomically: if (expect == *addr)

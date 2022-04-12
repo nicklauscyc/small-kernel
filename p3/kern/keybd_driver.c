@@ -128,7 +128,7 @@ char get_next_char(void) {
 /*                                                                   */
 /*********************************************************************/
 
-static int
+int
 get_next_aug_char( aug_char *next_char )
 {
 	disable_interrupts();
