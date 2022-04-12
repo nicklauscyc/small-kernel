@@ -30,29 +30,29 @@ new_pages( void *base, int len )
         "base:%p, len:0x%08lx", base, len);
 
     if ((uint32_t)base < USER_MEM_START) {
-        log_warn("new_pages(): "
+        log_info("new_pages(): "
                  "base < USER_MEM_START");
         return -1;
     }
     if (!PAGE_ALIGNED(base)) {
-        log_warn("new_pages(): "
+        log_info("new_pages(): "
                  "base not page aligned!");
         return -1;
     }
     if (len <= 0) {
-        log_warn("new_pages(): "
+        log_info("new_pages(): "
                  "len <= 0!");
         return -1;
     }
     if (len % PAGE_SIZE != 0) {
-        log_warn("new_pages(): "
+        log_info("new_pages(): "
                  "len is not a multiple of PAGE_SIZE!");
         return -1;
     }
     /* Check if enough frames to fulfill request */
     uint32_t pages_to_alloc = len / PAGE_SIZE;
     if (num_free_phys_frames() < pages_to_alloc) {
-        log_warn("new_pages(): "
+        log_info("new_pages(): "
                  "not enough free frames to satisfy request!");
         MAGIC_BREAK;
         return -1;
@@ -61,7 +61,7 @@ new_pages( void *base, int len )
     char *base_char = (char *) base;
     for (uint32_t i = 0; i < len; ++i) {
         if (is_user_pointer_allocated(base_char + i)) {
-            log_warn("new_pages(): "
+            log_info("new_pages(): "
                      "%p is already allocated!", base_char + i);
             return -1;
         }
@@ -75,7 +75,7 @@ new_pages( void *base, int len )
 
         /* If any step fails, unallocate zero frame, return -1 */
         if (res < 0) {
-            log_warn("new_pages(): "
+            log_info("new_pages(): "
                      "unable to allocate zero frame in new_pages()");
 
             /* Cleanup */
