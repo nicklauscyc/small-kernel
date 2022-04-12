@@ -4,58 +4,107 @@
  */
 #include <asm.h>	/* outb */
 #include <assert.h>	/* affirm */
+#include <atomic_utils.h> /* compare_and_swap_atomic */
+
+// TODO: Add our readline_char_received_handler or whatever it was called
+// to keybd_int_handler
+
+/* Wakeup (aka, make_thread_runnable) first thread and let it process
+ * as many characters as it can. As soon as it can no longer process
+ * characters, it deschedules itself and puts itself into the front
+ * of the readline queue. */
+
+// How about keeping a pointer to first guy? Then just call make_runnable
+// on him? Can probably avoid race conditions that way. Issue is if
+// first guy has already been serviced and is off doing something else.
+// Maybe disable/enable interrupts around sections determining next?
 
 
-// TODO: readline_char_arrived_handler() inside keybd_int_handler
-//void
-//init_keybd( void )
-//{
-//	init_buf(&key_buf, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
-//	is_buf(&key_buf);
-//	return;
-//}
-//
-//void
-//keybd_int_handler( void )
-//{
-//
-//	/* Read raw byte and put into raw character buffer */
-//  	uint8_t raw_byte = inb(KEYBOARD_PORT);
-//  	buf_insert(&key_buf, raw_byte);
-//
-//  	/* Acknowledge interrupt */
-//  	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-//		// FIXME: Any race conditions here? What if two people run this
-//		for the same one character? What happens? How can we prevent it?
-//  	/* Let readline know it has received a new character */
-//		readline_char_arrived_handler();
-//}
+static void add_to_readline_queue( tcb_t *tcb, void *data );
+static void mark_curr_blocked( tcb_t *tcb, void *data );
+static int readchar( void );
+static char get_next_char( void );
 
-static queue_t readline_queue;
-static mutex_t readline_mux;
+/** @brief Queue of threads blocked on readline call. */
+static queue_t	readline_queue;
+
+/** @brief Thread being served. Can be blocked, running or runnable. */
+static tcb_t   *readline_curr;
+
+/** @brief Whether thread being served is blocked.
+ *
+ *	Readline_curr may blind write to this, keybd int handler
+ *	should atomically compare-and-swap to avoid race conditions. */
+static int		curr_blocked;
+
+/** @brief Mutex for readline_curr and readline_queue. */
+static mutex_t	readline_mux;
 
 void
 init_readline( void )
 {
 	Q_INIT_HEAD(&readline_queue);
 	mutex_init(&readline_mux);
+	readline_curr = NULL;
+	curr_blocked = 0;
 }
+
 
 int
 readline( char *buf, int len )
 {
+	/* Acquire readline mux. Put ourselves at the back of the queue. */
+	mutex_lock(&readline_mux);
 
-	/* If no one in queue, and line of input available, service request.
-	 * Otherwise place thread in readline_wait queue. */
+	if (readline_curr) {
+		// add_to_readline_queue will release the mux
+		yield_execution(BLOCKED, -1, add_to_readline_queue, NULL);
+	} else {
+		readline_curr = get_running_thread(); // aka, me
+		mutex_unlock(&readline_mux);
+	}
 
-	/* Whenever the user types \n we know that we can wake someone up
-	 * to service their request. Whatever bytes are not consumed will
-	 * be given to the next reader whenever the user types \n again. */
+	assert(readline_curr == get_running_thread());
+	assert(curr_blocked == 0);
 
-
+	/* Loop on get_next_char, should be just the usual impl now */
 }
 
-int
+/* TODO: Call within keybd interrupt handler */
+void
+readline_char_arrived_handler( void )
+{
+	/* If curr blocked, readline_char_arrived_handler
+	 * is the only one who can operate on curr blocked and
+	 * readline curr. However, we can get another keybd interrupt.
+	 *
+	 * A simple way to ensure make_runnable is called only once
+	 * is a CAS on curr blocked.
+	 * */
+	if (compare_and_swap_atomic(&curr_blocked, 1, 0)) {
+		switch_safe_make_thread_runnable(readline_curr);
+	}
+}
+
+/* --- HELPERS --- */
+
+static void
+add_to_readline_queue( tcb_t *tcb, void *data )
+{
+	Q_INSERT_TAIL(&readline_q, tcb, scheduler_queue);
+	switch_safe_mutex_unlock(&readline_mux);
+}
+
+
+static void
+mark_curr_blocked( tcb_t *tcb, void *data )
+{
+	assert(readline_curr == tcb);
+	curr_blocked = 1;
+}
+
+
+static int
 readchar( void )
 {
 	aug_char next_char;
@@ -68,41 +117,19 @@ readchar( void )
 	return -1;
 }
 
-static void
-store_at_front_read_queue( tcb_t *tcb, void *data )
+
+static char
+get_next_char( void )
 {
-	Q_INSERT_FRONT(&readline_q, tcb, scheduler_queue);
-	switch_safe_mutex_unlock(&readline_mux);
-}
-
-char get_next_char(void) {
-
     /* Get the next char value off the keyboard buffer */
     int res;
 	/* If no character, deschedule ourselves and wait for user input. */
     while ((res = readchar()) == -1) {
-		// Mutex required for store_at_front_read_queue
-		mutex_lock(&readline_mux);
-		yield_execution(BLOCKED, -1, store_at_front_read_queue, NULL);
+		yield_execution(BLOCKED, -1, mark_curr_blocked, NULL);
 	}
     assert(res >= 0);
 
     /* Tricky type conversions to avoid undefined behavior */
     char char_value = (uint8_t) (unsigned int) res;
     return char_value;
-}
-
-int
-readline_char_arrived_handler( void )
-{
-	/* Wakeup (aka, make_thread_runnable) first thread and let it process
-	 * as many characters as it can. As soon as it can no longer process
-	 * characters, it deschedules itself and puts itself into the front
-	 * of the readline queue. */
-
-	// TODO: Can we really acquire the lock here? Might be bad, as thread
-	// running interrupt will be made non-runnable
-
-	// How about keep pointer to first guy? Then just call make_runnable
-	// on him? Can probably avoid race conditions that way.
 }

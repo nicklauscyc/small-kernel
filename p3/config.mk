@@ -153,7 +153,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  memory_manager.o task_manager.o iret_travel.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
 			  asm_interrupt_handler.o context_switch.o \
-			  scheduler.o logger.o tests.o \
+			  scheduler.o logger.o tests.o atomic_utils.o \
 			  \
 			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/gettid.o \
@@ -163,7 +163,6 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_thread_management/deschedule.o \
 			  lib_thread_management/sleep.o \
 			  lib_thread_management/hashmap.o \
-			  lib_thread_management/add_one_atomic.o \
 			  lib_thread_management/mutex.o \
 			  \
 			  lib_life_cycle/asm_life_cycle_handlers.o \

@@ -21,11 +21,11 @@
 #include <simics.h>	/* sim_reg_process */
 #include <logger.h>	/* log */
 #include <iret_travel.h>	/* iret_travel */
+#include <atomic_utils.h>	/* add_one_atomic */
 #include <memory_manager.h> /* get_new_page_table, vm_enable_task */
 #include <variable_queue.h> /* Q_INSERT_TAIL */
 #include <lib_thread_management/hashmap.h>	/* map_* functions */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
-#include <lib_thread_management/add_one_atomic.h>
 
 #define ELF_IF (1 << 9);
 
