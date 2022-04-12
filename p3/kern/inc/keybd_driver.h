@@ -13,7 +13,7 @@
 
 void init_keybd(void);
 void keybd_int_handler(void);
-int readline(char *buf, int len);
+//int old_readline(char *buf, int len);
 
 typedef int aug_char;
 typedef uint8_t raw_byte;

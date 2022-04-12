@@ -8,6 +8,7 @@
 #ifndef READLINE_H_
 #define READLINE_H_
 
+void init_readline( void );
 void readline_char_arrived_handler( void );
 
 #endif /* READLINE_H_ */

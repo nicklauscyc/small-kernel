@@ -2,31 +2,33 @@
  *	@brief Readline syscall handler and facilities for managing
  *		   concurrent readline's
  */
-#include <asm.h>	/* outb */
-#include <assert.h>	/* affirm */
-#include <atomic_utils.h> /* compare_and_swap_atomic */
-
-// TODO: Add our readline_char_received_handler or whatever it was called
-// to keybd_int_handler
-
-/* Wakeup (aka, make_thread_runnable) first thread and let it process
- * as many characters as it can. As soon as it can no longer process
- * characters, it deschedules itself and puts itself into the front
- * of the readline queue. */
-
-// How about keeping a pointer to first guy? Then just call make_runnable
-// on him? Can probably avoid race conditions that way. Issue is if
-// first guy has already been serviced and is off doing something else.
-// Maybe disable/enable interrupts around sections determining next?
-
+#include <asm.h>			/* outb */
+#include <ctype.h>			/* isprint() */
+#include <assert.h>			/* affirm */
+#include <string.h> 		/* memcpy */
+#include <stdint.h>			/* uint32_t */
+#include <stddef.h>			/* NULL */
+#include <console.h>		/* putbyte() */
+#include <keyhelp.h>		/* process_scancode() */
+#include <scheduler.h>		/* status_t, queue_t, make_runnable  */
+#include <keybd_driver.h>	/* aug_char*/
+#include <atomic_utils.h>	/* compare_and_swap_atomic */
+#include <keybd_driver.h>	/* get_next_aug_char */
+#include <task_manager.h>	/* tcb_t */
+#include <video_defines.h>	/* CONSOLE_HEIGHT, CONSOLE_WIDTH */
+#include <variable_queue.h> /* Q_ macros */
+#include <memory_manager.h> /* READ_WRITE, is_valid_user_pointer */
+#include <task_manager_internal.h> /* struct tcb */
+#include <lib_thread_management/mutex.h> /* mutex_t */
 
 static void add_to_readline_queue( tcb_t *tcb, void *data );
 static void mark_curr_blocked( tcb_t *tcb, void *data );
 static int readchar( void );
 static char get_next_char( void );
+static int _readline(char *buf, int len);
 
 /** @brief Queue of threads blocked on readline call. */
-static queue_t	readline_queue;
+static queue_t	readline_q;
 
 /** @brief Thread being served. Can be blocked, running or runnable. */
 static tcb_t   *readline_curr;
@@ -35,28 +37,37 @@ static tcb_t   *readline_curr;
  *
  *	Readline_curr may blind write to this, keybd int handler
  *	should atomically compare-and-swap to avoid race conditions. */
-static int		curr_blocked;
+static uint32_t	curr_blocked;
 
-/** @brief Mutex for readline_curr and readline_queue. */
+/** @brief Mutex for readline_curr and readline_q. */
 static mutex_t	readline_mux;
 
+
+/** @brief Initialize readline */
 void
 init_readline( void )
 {
-	Q_INIT_HEAD(&readline_queue);
+	Q_INIT_HEAD(&readline_q);
 	mutex_init(&readline_mux);
 	readline_curr = NULL;
 	curr_blocked = 0;
 }
 
 
+/** @brief Readline syscall handler
+ *
+ *  @param buf Buffer in which to write characters
+ *  @param len Max number of characters to write in buf */
 int
 readline( char *buf, int len )
 {
-	if (buf == NULL) return -1;
 	if (len < 0) return -1;
 	if (len == 0) return 0;
 	if (len > CONSOLE_WIDTH * CONSOLE_HEIGHT) return -1;
+	for (int i=0; i < len; ++i) {
+		if (!is_valid_user_pointer(buf + i, READ_WRITE))
+			return -1;
+	}
 
 	/* Acquire readline mux. Put ourselves at the back of the queue. */
 	mutex_lock(&readline_mux);
@@ -77,9 +88,9 @@ readline( char *buf, int len )
 	/* Done. Check if anyone else waiting in line */
 	mutex_lock(&readline_mux);
 
-	tcb_t *next = Q_GET_FRONT(&readline_queue);
+	tcb_t *next = Q_GET_FRONT(&readline_q);
 	if (next) {
-		Q_REMOVE(&readline_queue, next, scheduler_queue);
+		Q_REMOVE(&readline_q, next, scheduler_queue);
 		readline_curr = next;
 		mutex_unlock(&readline_mux);
 		make_thread_runnable(next->tid);
@@ -90,8 +101,8 @@ readline( char *buf, int len )
 	return res;
 }
 
-// TODO: Go over for correctness
-int
+
+static int
 _readline(char *buf, int len)
 {
   	int start_row, start_col;
@@ -175,7 +186,7 @@ readline_char_arrived_handler( void )
 	 * keybd interrupt, leading to a race condition. A simple way to ensure
 	 * make_runnable is called only once is a CAS on curr_blocked. */
 	if (compare_and_swap_atomic(&curr_blocked, 1, 0)) {
-		switch_safe_make_thread_runnable(readline_curr);
+		switch_safe_make_thread_runnable(readline_curr->tid);
 	}
 }
 
@@ -206,7 +217,6 @@ get_next_aug_char( aug_char *next_char )
 		return -1;
 	}
 	uint8_t next_byte;
-	//uint8_t *next_bytep = &next_byte;
 	buf_remove(&key_buf, &next_byte);
 	is_buf(&key_buf);
 	enable_interrupts();
@@ -228,7 +238,6 @@ readchar( void )
 	}
 	return -1;
 }
-
 
 static char
 get_next_char( void )

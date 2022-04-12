@@ -131,7 +131,7 @@ THREAD_OBJS = malloc.o panic.o
 SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
-			   new_pages.o remove_pages.o readfile.o halt.o
+			   new_pages.o remove_pages.o readfile.o halt.o readline.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -181,6 +181,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_console/get_cursor_pos.o \
 			  lib_console/set_cursor_pos.o \
 			  lib_console/set_term_color.o \
+			  lib_console/readline.o \
 			  \
 			  lib_misc/asm_misc_handlers.o \
 			  lib_misc/readfile.o \

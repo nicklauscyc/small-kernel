@@ -16,6 +16,7 @@
 #include <timer_driver.h>   /* init_timer() */
 #include <keybd_driver.h>   /* init_keybd() */
 #include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <lib_console/readline.h> /* init_readline() */
 #include <interrupt_defines.h>
 #include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
 												call_keybd_int_handler() */
@@ -221,21 +222,23 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
+
 	/* Lib console */
+	init_readline();
+	if (install_handler(READLINE_INT, call_readline, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
 	if (install_handler(PRINT_INT, call_print, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-
 	if (install_handler(GET_CURSOR_POS_INT, call_get_cursor_pos, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
-
 	if (install_handler(SET_CURSOR_POS_INT, call_set_cursor_pos, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
-
 	if (install_handler(SET_TERM_COLOR_INT, call_set_term_color_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;

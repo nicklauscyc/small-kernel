@@ -52,17 +52,18 @@
 
 #include <keybd_driver.h>
 
-#include <asm.h>				/* process_scancode() */
-#include <keyhelp.h>			/* process_scancode() */
-#include <video_defines.h>		/* CONSOLE_HEIGHT, CONSOLE_WIDTH */
-#include <malloc.h>				/* calloc */
-#include <stddef.h>				/* NULL */
-#include <assert.h>				/* assert() */
-#include <console.h>			/* putbyte() */
-#include <string.h>				/* memcpy() */
-#include <interrupt_defines.h>	/* INT_CTL_PORT */
-#include <ctype.h>				/* isprint() */
-#include <variable_buffer.h>	/* generic buffer macros */
+#include <asm.h>					/* process_scancode() */
+#include <ctype.h>					/* isprint() */
+#include <malloc.h>					/* calloc */
+#include <stddef.h>					/* NULL */
+#include <assert.h>					/* assert() */
+#include <string.h>					/* memcpy() */
+#include <console.h>				/* putbyte() */
+#include <keyhelp.h>				/* process_scancode() */
+#include <video_defines.h>			/* CONSOLE_HEIGHT, CONSOLE_WIDTH */
+#include <variable_buffer.h>		/* generic buffer macros */
+#include <interrupt_defines.h>		/* INT_CTL_PORT */
+#include <lib_console/readline.h>	/* readline_char_arrived_handler() */
 
 /* Keyboard buffer */
 new_buf(keyboard_buffer_t, uint8_t, CONSOLE_WIDTH * CONSOLE_HEIGHT);
@@ -212,7 +213,7 @@ readchar( void )
  *  @return The number of characters in the line buffer,
  *          or -1 if len is invalid or unreasonably large.
  */
-int readline(char *buf, int len) {
+int old_readline(char *buf, int len) {
 
   /* buf == NULL so invalid buf */
   if (buf == NULL) return -1;
