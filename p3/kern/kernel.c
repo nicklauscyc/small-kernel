@@ -104,7 +104,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
     while (!__kernel_all_done) {
 		// Used for development to run a certain test straightaway
-		hard_code_test("remove_pages_test2");
+		//hard_code_test("remove_pages_test2");
 
         int n = MAX_EXECNAME_LEN;
         char s[n];

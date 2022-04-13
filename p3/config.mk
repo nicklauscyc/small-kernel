@@ -111,6 +111,7 @@ UPDATE_METHOD = afs
 		   mem_permissions cho cho2 cho_variant\
 		   knife exec_basic_helper\
 		   remove_pages_test2 \
+		   score
 
 ###########################################################################
 # Test programs you have written which you wish to run
