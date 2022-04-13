@@ -110,6 +110,7 @@ UPDATE_METHOD = afs
 		   swexn_dispatch swexn_regs yield_desc_mkrun make_crash\
 		   mem_permissions cho cho2 cho_variant\
 		   knife exec_basic_helper\
+		   score
 
 ###########################################################################
 # Test programs you have written which you wish to run
