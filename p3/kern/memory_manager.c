@@ -524,7 +524,7 @@ is_valid_user_string( char *s, int len )
  *	@return Number of user args if valid argvec, 0 otherwise
  */
 int
-is_valid_user_argvec( char *execname,  char **argvec )
+is_valid_user_argvec( char *execname, char **argvec )
 {
 	/* Check address of every char * in argvec */
 	int i;

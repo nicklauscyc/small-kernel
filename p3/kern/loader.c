@@ -269,9 +269,22 @@ configure_stack( int argc, char **argv )
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname, int argc, char **argv)
+execute_user_program( char *fname, int argc, char **argv)
 {
 	log_info("Executing: %s", fname);
+
+	if (!first_task) {
+		/* Validate execname */
+		if (!is_valid_null_terminated_user_string(fname, USER_STR_LEN)) {
+			return -1;
+		}
+		assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+		/* Validate argvec */
+		int argc = 0;
+		if (!(argc = is_valid_user_argvec(fname, argv))) {
+			return -1;
+		}
+	}
 
     /* Transfer execname to kernel stack so unaffected by page directory */
 	char kern_stack_execname[USER_STR_LEN];

@@ -21,9 +21,11 @@ main()
 //
 //	if (!pid2) {
 		/* For now just run shell, in the future fork and wait on shell. */
+
 		char shell[] = "shell";
 		char *args[] = {"shell", 0};
 		exec(shell, args);
+
 //	}
 //
 //	int status;

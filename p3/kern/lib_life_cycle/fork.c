@@ -92,7 +92,7 @@ fork( void )
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
-    sim_reg_child(child_pd, parent_pd);
+    //sim_reg_child(child_pd, parent_pd);
 #endif
 
 	uint32_t *child_kernel_esp_on_ctx_switch;
