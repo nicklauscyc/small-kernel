@@ -338,6 +338,10 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 	to_run->status = RUNNING;
 	running_thread = to_run;
 
+	if (running_thread->tid == 2) {
+		MAGIC_BREAK;
+	}
+
 	/* Data structure for other statuses are managed by their own components,
 	 * scheduler is only responsible for managing runnable/running threads. */
 	/* If running thread is already in runnable queue, don't insert again */

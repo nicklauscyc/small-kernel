@@ -13,6 +13,7 @@
 #include <task_manager.h>   /* get_num_threads_in_owning_task() */
 #include <memory_manager.h> /* is_valid_user_string(), is_valid_user_argvec() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
+#include <simics.h>
 
 /** @brief Prints arguments passed to exec() when log level is DEBUG
  *
@@ -50,6 +51,11 @@ log_exec_args( char *execname, char **argvec )
 int
 exec( char *execname, char **argvec )
 {
+	if (strcmp(execname, "exec_basic") == 0) {
+		log_info("executing: exec_basic!");
+		assert(get_running_tid() == 2);
+		MAGIC_BREAK;
+	}
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
