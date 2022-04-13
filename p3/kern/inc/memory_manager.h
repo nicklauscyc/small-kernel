@@ -19,6 +19,7 @@ void enable_write_protection( void );
 void disable_write_protection( void );
 int vm_new_pages ( void *ptd, void *base, int len );
 int is_valid_pd( void *pd );
+
 int is_user_pointer_allocated( void *ptr );
 
 int is_valid_user_pointer( void *ptr, write_mode_t write_mode );
@@ -38,5 +39,10 @@ int zero_page_pf_handler( uint32_t faulting_address );
 #define USER_STR_LEN 256
 #define NUM_USER_ARGS 16
 #define TABLE_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
+
+#ifndef STACK_ALIGNED
+#define STACK_ALIGNED(address) (((uint32_t) (address)) % 4 == 0)
+#endif
+
 
 #endif /* _MEMORY_MANAGER_H */

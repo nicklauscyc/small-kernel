@@ -12,6 +12,7 @@
 #define MULT_FORK_TEST	0
 #define MUTEX_TEST		1
 #define PHYSALLOC_TEST	2
+#define PD_CONSISTENCY  3
 
 // TODO: Introduce tests for new syscalls
 
@@ -212,11 +213,18 @@ int new_pages_test(){
 	return 0;
 }
 
+int
+pd_test( void )
+{
+    return run_test(PD_CONSISTENCY);
+}
+
 int main() {
 	//pagefault_test();
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
-	if (new_pages_test() < 0 ||
+	if (pd_test() < 0 ||
+        new_pages_test() < 0 ||
 		readfile_test() < 0 ||
 		cursor_test() < 0 ||
 		print_test() < 0 ||

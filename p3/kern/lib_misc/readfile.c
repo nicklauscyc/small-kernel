@@ -12,6 +12,10 @@
 int
 readfile( char *filename, char *buf, int count, int offset )
 {
+#include <cr.h>
+#include <page.h>
+	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
+
 	/* Acknowledge interrupt */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 

@@ -29,8 +29,6 @@
 
 #define ELF_IF (1 << 9);
 
-#define STACK_ALIGNED(address) ((uint32_t) address % 4 == 0)
-
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
 static uint32_t get_user_eflags( void );
@@ -223,6 +221,7 @@ task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	 * however, we should go to some "receiver" function which appropriately
 	 * sets user registers and segment selectors, and lastly RETs to
 	 * the entry_point. */
+	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 	iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
 		esp, SEGSEL_USER_DS);
 
@@ -349,12 +348,15 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	 */
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
-	log("tid[%lu]: tcb->stack_lo:%p",tcb->tid, tcb->kernel_stack_lo);
+	log("create_tcb(): tcb->stack_lo:%p", tcb->kernel_stack_lo);
+	// FIXME faults here
 
 	tcb->kernel_esp = tcb->kernel_stack_lo;
 	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
 			  PAGE_SIZE - sizeof(uint32_t));
 	tcb->kernel_stack_hi = tcb->kernel_esp;
+	log("create_tcb(): tcb->kernel_stack_hi:%p", tcb->kernel_stack_hi);
+
 
 	return 0;
 }
