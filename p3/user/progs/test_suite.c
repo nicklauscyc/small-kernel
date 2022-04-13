@@ -247,15 +247,15 @@ int main() {
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
 	if (remove_pages_test() < 0 ||
 		pd_test() < 0 ||
-        new_pages_test() < 0 //||
-		//readfile_test() < 0 ||
-		//cursor_test() < 0 ||
-		//print_test() < 0 ||
-		//sleep_test() < 0 ||
- 		//mutex_test() < 0 ||
-		//yield_test() < 0 ||
-		//multiple_fork_test() < 0)
-		)
+        new_pages_test() < 0 ||
+		readfile_test() < 0 ||
+		cursor_test() < 0 ||
+		print_test() < 0 ||
+		sleep_test() < 0 ||
+ 		mutex_test() < 0 ||
+		yield_test() < 0 ||
+		multiple_fork_test() < 0
+	)
 		return -1;
 
 	lprintf("ALL TESTS PASSED!");
