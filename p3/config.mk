@@ -85,7 +85,7 @@ UPDATE_METHOD = afs
 		   actual_wait wait_getpid fork_wait fork_wait_bomb fork_exit_bomb\
 		   sleep_test1 stack_test1 swexn_basic_test swexn_cookie_monster\
 		   swexn_dispatch swexn_regs yield_desc_mkrun make_crash\
-		   mem_permissions cho cho2 cho_variant\
+		   mem_permissions cho cho2 cho_variant score\
 		   knife exec_basic_helper\
 
 ###########################################################################

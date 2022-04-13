@@ -51,11 +51,6 @@ log_exec_args( char *execname, char **argvec )
 int
 exec( char *execname, char **argvec )
 {
-	if (strcmp(execname, "exec_basic") == 0) {
-		log_info("executing: exec_basic!");
-		assert(get_running_tid() == 2);
-		MAGIC_BREAK;
-	}
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 	assert(is_valid_pd(get_tcb_pd(get_running_thread())));

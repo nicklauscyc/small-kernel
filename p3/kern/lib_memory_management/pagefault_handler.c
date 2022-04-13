@@ -6,11 +6,15 @@
 
 #include <cr.h>					/* get_cr2() */
 #include <asm.h>				/* outb() */
+#include <seg.h>				/* SEGSEL_USER_CS */
 #include <page.h>				/* PAGE_SIZE */
 #include <assert.h>				/* panic() */
+#include <scheduler.h>			/* get_running_tid */
+#include <common_kern.h>		/* USER_MEM_START  */
 #include <memory_manager.h>		/* zero_page_pf_handler */
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
+
 
 #include <simics.h>
 #include <logger.h> /* log() */
@@ -50,18 +54,24 @@ pagefault_handler( int error_code, int eip, int cs )
 		user_mode : supervisor_mode;
 
 	if (!(error_code & PRESENT_BIT))
-		panic("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
-				mode, faulting_vm_address, eip,
+		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
+				get_running_tid(), mode, faulting_vm_address, eip,
 				faulting_vm_address < PAGE_SIZE ?
 				"Null dereference." : "Page not present.");
 
+	/* Jank check but reasonable for now */
+	if (cs == SEGSEL_USER_CS && eip < USER_MEM_START)
+		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
+				"User mode trying to access kernel memory",
+				get_running_tid(),mode, faulting_vm_address, eip);
+
 	if (error_code & READ_WRITE_BIT)
-		panic("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
+		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
 				"Writing into read-only page",
-				mode, faulting_vm_address, eip);
+				get_running_tid(), mode, faulting_vm_address, eip);
 
 	if (error_code & RESERVED_BIT_BIT)
-		panic("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
+		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
 				"Writing into reserved bits",
-				mode, faulting_vm_address, eip);
+				get_running_tid(), mode, faulting_vm_address, eip);
 }

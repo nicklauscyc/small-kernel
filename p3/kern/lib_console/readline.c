@@ -21,7 +21,9 @@
 #include <task_manager_internal.h> /* struct tcb */
 #include <lib_thread_management/mutex.h> /* mutex_t */
 
+// TODO: Delete, debugging
 #include <simics.h>
+#include <malloc.h>
 
 static void mark_curr_blocked( tcb_t *tcb, void *data );
 static int readchar( void );
@@ -94,7 +96,9 @@ _readline(char *buf, int len)
   	get_cursor(&start_row, &start_col);
 
 	assert(len <= CONSOLE_WIDTH * CONSOLE_HEIGHT);
-  	char temp_buf[CONSOLE_WIDTH * CONSOLE_HEIGHT];
+	char *temp_buf;
+	temp_buf = smalloc(CONSOLE_WIDTH * CONSOLE_HEIGHT);
+  	//char temp_buf[CONSOLE_WIDTH * CONSOLE_HEIGHT];
 
   	int i = 0;
   	int written = 0; /* characters written so far */
@@ -157,6 +161,10 @@ _readline(char *buf, int len)
 		assert(written == len);
   	}
 	memcpy(buf, temp_buf, written);
+
+	// TODO: Delte
+	sfree(temp_buf, CONSOLE_HEIGHT * CONSOLE_WIDTH);
+
   	return written;
 }
 

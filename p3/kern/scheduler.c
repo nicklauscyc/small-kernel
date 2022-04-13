@@ -209,7 +209,6 @@ make_thread_runnable_helper( uint32_t tid, int switch_safe )
 	disable_interrupts();
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
 		log_warn("Trying to make runnable thread %d runnable again", tid);
-		MAGIC_BREAK;
 		if (!switch_safe)
 			enable_interrupts();
 		return -1;
@@ -337,10 +336,6 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 
 	to_run->status = RUNNING;
 	running_thread = to_run;
-
-	if (running_thread->tid == 2) {
-		MAGIC_BREAK;
-	}
 
 	/* Data structure for other statuses are managed by their own components,
 	 * scheduler is only responsible for managing runnable/running threads. */

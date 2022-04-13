@@ -54,7 +54,6 @@ new_pages( void *base, int len )
     if (num_free_phys_frames() < pages_to_alloc) {
         log_info("new_pages(): "
                  "not enough free frames to satisfy request!");
-        MAGIC_BREAK;
         return -1;
     }
     /* Check if any portion is currently allocated in task address space */
