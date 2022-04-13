@@ -23,14 +23,13 @@
 
 #include <simics.h>
 
-static void add_to_readline_queue( tcb_t *tcb, void *data );
 static void mark_curr_blocked( tcb_t *tcb, void *data );
 static int readchar( void );
 static char get_next_char( void );
 static int _readline(char *buf, int len);
 
 /** @brief Queue of threads blocked on readline call. */
-static queue_t	readline_q;
+//static queue_t	readline_q;
 
 /** @brief Thread being served. Can be blocked, running or runnable. */
 static tcb_t   *readline_curr;
@@ -49,7 +48,6 @@ static mutex_t	readline_mux;
 void
 init_readline( void )
 {
-	Q_INIT_HEAD(&readline_q);
 	mutex_init(&readline_mux);
 	readline_curr = NULL;
 	curr_blocked = 0;
@@ -78,31 +76,12 @@ readline( int len, char *buf )
 	/* Acquire readline mux. Put ourselves at the back of the queue. */
 	mutex_lock(&readline_mux);
 
-	if (readline_curr) {
-		// add_to_readline_queue will release the mux
-		yield_execution(BLOCKED, -1, add_to_readline_queue, NULL);
-	} else {
-		readline_curr = get_running_thread(); // aka, me
-		mutex_unlock(&readline_mux);
-	}
-
-	assert(readline_curr == get_running_thread());
-	assert(curr_blocked == 0);
+	readline_curr = get_running_thread();
 
 	int res = _readline(buf, len);
 
 	/* Done. Check if anyone else waiting in line */
-	mutex_lock(&readline_mux);
-
-	tcb_t *next = Q_GET_FRONT(&readline_q);
-	if (next) {
-		Q_REMOVE(&readline_q, next, scheduler_queue);
-		readline_curr = next;
-		mutex_unlock(&readline_mux);
-		make_thread_runnable(next->tid);
-	} else {
-		mutex_unlock(&readline_mux);
-	}
+	mutex_unlock(&readline_mux);
 
 	return res;
 }
@@ -197,14 +176,6 @@ readline_char_arrived_handler( void )
 }
 
 /* --- HELPERS --- */
-
-static void
-add_to_readline_queue( tcb_t *tcb, void *data )
-{
-	Q_INSERT_TAIL(&readline_q, tcb, scheduler_queue);
-	switch_safe_mutex_unlock(&readline_mux);
-}
-
 
 static void
 mark_curr_blocked( tcb_t *tcb, void *data )
