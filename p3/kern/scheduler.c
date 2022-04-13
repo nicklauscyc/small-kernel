@@ -209,6 +209,7 @@ make_thread_runnable_helper( uint32_t tid, int switch_safe )
 	disable_interrupts();
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
 		log_warn("Trying to make runnable thread %d runnable again", tid);
+		MAGIC_BREAK;
 		if (!switch_safe)
 			enable_interrupts();
 		return -1;

@@ -34,6 +34,7 @@ pcb_t *find_pcb( uint32_t pid );
 uint32_t get_pid( void );
 status_t get_tcb_status( tcb_t *tcb );
 uint32_t get_tcb_tid(tcb_t *tcb);
+void set_task_exit_status( int status );
 
 int get_num_threads_in_owning_task( tcb_t *tcbp );
 void *get_kern_stack_hi( tcb_t *tcbp );

@@ -57,6 +57,21 @@ get_tcb_tid(tcb_t *tcb)
 	return tcb->tid;
 }
 
+void
+set_task_exit_status( int status )
+{
+	tcb_t *tcb = get_running_thread();
+	affirm(tcb);
+	affirm(tcb->owning_task);
+	pcb_t *owning_task = tcb->owning_task;
+
+	/* Atomically update exit status of owning task */
+	mutex_lock(&owning_task->set_status_vanish_wait_mux);
+	tcb->owning_task->exit_status = status;
+	mutex_unlock(&owning_task->set_status_vanish_wait_mux);
+}
+
+
 /** @brief Initializes task manager's resources
  *
  *	 @return Void
@@ -282,6 +297,10 @@ create_pcb( uint32_t *pid, void *pd )
 	Q_INIT_HEAD(&(pcb->owned_threads));
 	pcb->num_threads = 0;
 
+	/* Initialize set_status_vanish_wait_mux */
+	if (mutex_init(&(pcb->set_status_vanish_wait_mux)) < 0) {
+		return -1;
+	}
 
 	/* Add to pcb linked list*/
 	mutex_lock(&pcb_list_mux);
@@ -313,11 +332,30 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	*tid = get_unique_tid();
 	tcb->tid = *tid;
+
+    /* If debug mode is set, we let each kernel stack be PAGE_SIZE of usable
+     * memory, followed by PAGE_SIZE of unusable memory to prevent kernel
+     * stacks from overlapping onto each other during execution.
+     */
+#ifdef DEBUG
+	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
+	if (!tcb->kernel_stack_lo) {
+		sfree(tcb, sizeof(tcb_t));
+		return -1;
+	}
+	uint32_t **parent_pd = owning_task->pd;
+    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
+	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
+    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
+	parent_pt[pt_index] = 0x0;
+	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
+#else
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
 		return -1;
 	}
+#endif
 
 	tcb->status = UNINITIALIZED;
 
