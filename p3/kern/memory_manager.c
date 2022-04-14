@@ -976,6 +976,8 @@ enable_paging( void )
 
 	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
 	vm_enabled = 1;
+	log_info("enable_paging(): paging enabled!");
+	MAGIC_BREAK;
 }
 
 static void

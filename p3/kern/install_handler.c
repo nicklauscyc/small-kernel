@@ -112,16 +112,24 @@ install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
 /** @brief General function to install a handler without an init function
  *
  *  @param idt_entry Index in IDT to install
+ *  @param init Initialization function if needed for handler installation
  *  @param asm_wrapper Assembly wrapper to call the handler
  *  @param dpl DPL
+ *  @param gate_type Wether it is a trap gate or interrupt gate
  *  @return 0 on success, -1 on error
  */
 int
-install_handler( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
-                 int gate_type )
+install_handler( int idt_entry, init_func_t *init, asm_wrapper_t *asm_wrapper,
+                 int dpl, int gate_type )
 {
 	if (!asm_wrapper) {
 		return -1;
+	}
+	if ((gate_type != D32_TRAP) && (gate_type != D32_INTERRUPT)) {
+		return -1;
+	}
+	if (init) {
+		init();
 	}
 	return install_handler_in_idt(idt_entry, asm_wrapper, dpl, gate_type);
 }
@@ -176,47 +184,50 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	/* Lib thread management */
-	if (install_handler(GETTID_INT, call_gettid, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(GETTID_INT, NULL, call_gettid, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(GET_TICKS_INT, call_get_ticks, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(YIELD_INT, call_yield, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(DESCHEDULE_INT, call_deschedule, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(MAKE_RUNNABLE_INT, call_make_runnable, DPL_3,
+	if (install_handler(GET_TICKS_INT, NULL, call_get_ticks, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(SLEEP_INT, call_sleep, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(YIELD_INT, NULL, call_yield, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(DESCHEDULE_INT, NULL, call_deschedule, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(MAKE_RUNNABLE_INT, NULL, call_make_runnable, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(SLEEP_INT, NULL, call_sleep, DPL_3,
+		D32_TRAP) < 0) {
 		return -1;
 	}
 
 	/* Lib lifecycle*/
 	//TODO are these DPL_3 or DPL_0
-	if (install_handler(FORK_INT, call_fork, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(FORK_INT, NULL, call_fork, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(EXEC_INT, call_exec, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(EXEC_INT, NULL, call_exec, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(VANISH_INT, call_vanish, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(VANISH_INT, NULL, call_vanish, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(TASK_VANISH_INT, call_task_vanish, DPL_3,
+	if (install_handler(TASK_VANISH_INT, NULL, call_task_vanish, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(SET_STATUS_INT, call_set_status, DPL_3,
+	if (install_handler(SET_STATUS_INT, NULL, call_set_status, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
@@ -224,103 +235,112 @@ handler_install(void (*tick)(unsigned int))
 
 
 	/* Lib memory management */
-	if (install_handler(NEW_PAGES_INT, call_new_pages, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-	if (install_handler(REMOVE_PAGES_INT, call_remove_pages, DPL_3,
+	if (install_handler(NEW_PAGES_INT, NULL, call_new_pages, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(IDT_PF, call_pagefault_handler, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(REMOVE_PAGES_INT, NULL, call_remove_pages, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+	if (install_handler(IDT_PF, NULL, call_pagefault_handler, DPL_3,
+		D32_TRAP) < 0) {
 		return -1;
 	}
 
 	/* Lib console */
-	init_readline();
-	if (install_handler(READLINE_INT, call_readline, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-	if (install_handler(PRINT_INT, call_print, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-	if (install_handler(GET_CURSOR_POS_INT, call_get_cursor_pos, DPL_3,
+	if (install_handler(READLINE_INT, init_readline, call_readline, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(SET_CURSOR_POS_INT, call_set_cursor_pos, DPL_3,
+	if (install_handler(PRINT_INT, NULL, call_print, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+	if (install_handler(GET_CURSOR_POS_INT, NULL, call_get_cursor_pos, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
-	if (install_handler(SET_TERM_COLOR_INT, call_set_term_color_handler, DPL_3,
+	if (install_handler(SET_CURSOR_POS_INT, NULL, call_set_cursor_pos, DPL_3,
 		D32_TRAP) < 0) {
+		return -1;
+	}
+	if (install_handler(SET_TERM_COLOR_INT, NULL, call_set_term_color_handler,
+		DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
 
 	/* Lib misc */
-	if (install_handler(READFILE_INT, call_readfile, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(READFILE_INT, NULL, call_readfile, DPL_3,
+		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(HALT_INT, call_halt, DPL_3, D32_TRAP) < 0) {
+	if (install_handler(HALT_INT, NULL, call_halt, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
 
 	/* Fault handlers */
-	if (install_handler(IDT_DE, call_divide_handler, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(IDT_DB, call_debug_handler, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(IDT_BP, call_breakpoint_handler, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(IDT_OF, call_overflow_handler, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(IDT_BR, call_bound_handler, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(IDT_UD, call_invalid_opcode_handler, DPL_3,
+	if (install_handler(IDT_DE, NULL, call_divide_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(IDT_NM, call_float_handler, DPL_3, D32_TRAP) < 0) {
-		return -1;
-	}
-
-	if (install_handler(IDT_NP, call_segment_not_present_handler, DPL_3,
+	if (install_handler(IDT_DB, NULL, call_debug_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(IDT_SS, call_stack_fault_handler, DPL_3,
+	if (install_handler(IDT_BP, NULL, call_breakpoint_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(IDT_GP, call_general_protection_handler, DPL_3,
+	if (install_handler(IDT_OF, NULL, call_overflow_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(IDT_AC, call_alignment_check_handler, DPL_3,
+	if (install_handler(IDT_BR, NULL, call_bound_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(IDT_NMI, call_non_maskable_handler, DPL_3,
+	if (install_handler(IDT_UD, NULL, call_invalid_opcode_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
-	if (install_handler(IDT_MC, call_machine_check_handler, DPL_3,
+	if (install_handler(IDT_NM, NULL, call_float_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NP, NULL, call_segment_not_present_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_SS, NULL, call_stack_fault_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_GP, NULL, call_general_protection_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_AC, NULL, call_alignment_check_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_NMI, NULL, call_non_maskable_handler, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
+	if (install_handler(IDT_MC, NULL, call_machine_check_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
