@@ -700,6 +700,7 @@ get_ptep( const uint32_t **pd, uint32_t virtual_address )
 		log_warn("get_ptep(): "
 		         "pd:%p, virtual_address:0x%08lx, pd[pd_index] cannot be "
 				 "NULL!", pd, virtual_address);
+		MAGIC_BREAK;
 		return NULL;
 	}
 	/* Page table must have correct flag bits set */

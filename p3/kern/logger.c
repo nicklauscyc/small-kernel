@@ -88,8 +88,6 @@ vtprintf( const char *format, va_list args, int priority )
 					 tid, priority);
 			sim_puts(str);
 
-			// Print on hardware
-			printf(str);
 			return;
 	}
 	/* Print rest of output, and a little extra for CRITICAL priority */
@@ -97,11 +95,11 @@ vtprintf( const char *format, va_list args, int priority )
 	if (priority == CRITICAL_PRIORITY) {
 		snprintf(str + offset, sizeof(str) - offset - 1,
 		         "\nCrashing the kernel.");
-	}
-	sim_puts(str);
 
-	// Print on hardware
-	printf(str);
+		printf("%s", str);
+	}
+
+	sim_puts(str);
 
 	return;
 }
