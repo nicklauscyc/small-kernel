@@ -131,7 +131,5 @@ store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
 	/* Since thread not running, might as well use the scheduler queue link! */
 	Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INSERT_TAIL(&sleep_q, tcb, scheduler_queue);
-	//switch_safe_mutex_unlock(&sleep_mux);
-	mutex_unlock(&sleep_mux);
-
+	switch_safe_mutex_unlock(&sleep_mux);
 }

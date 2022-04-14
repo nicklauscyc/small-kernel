@@ -6,8 +6,6 @@
  */
 
 #include <install_handler.h>
-	#include <logger.h>
-
 #include <asm.h>			/* idt_base() */
 #include <idt.h>			/* IDT_PF */
 #include <seg.h>            /* SEGSEL_KERNEL_CS */
@@ -108,7 +106,7 @@ install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
 		return -1;
 	}
     init_timer(tickback);
-	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0, D32_INTERRUPT);
+	return install_handler_in_idt(idt_entry, asm_wrapper, DPL_0, D32_TRAP);
 }
 
 /** @brief General function to install a handler without an init function
@@ -169,8 +167,6 @@ handler_install(void (*tick)(unsigned int))
     if (install_test_handler(TEST_INT, call_test_int_handler) < 0) {
         return -1;
     }
-
-	log_info("&call_timer_int_handler:%p", call_timer_int_handler);
 	if (install_timer_handler(TIMER_IDT_ENTRY, call_timer_int_handler,
 	                          tick) < 0) {
 		return -1;
