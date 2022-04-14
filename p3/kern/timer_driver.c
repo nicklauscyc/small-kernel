@@ -53,11 +53,13 @@ get_total_ticks( void )
  *  @return Void.
  */
 void timer_int_handler(void) {
-  /* Pass total ticks to application callback which should run quickly */
-  application_tickback(total_ticks++);
+	int tick = total_ticks++;
 
-  /* Acknowledge interrupt and return */
-  outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	/* Acknowledge interrupt and return */
+  	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	/* Pass total ticks to application callback which should run quickly */
+  	application_tickback(tick);
   return;
 }
 

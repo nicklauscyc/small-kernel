@@ -62,7 +62,7 @@ install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
   if (!asm_wrapper) {
 	  return -1;
   }
-  /* Get address of trap gate for timer */
+  /* Get gate address */
   void *idt_base_addr = idt_base();
   void *idt_entry_addr = idt_base_addr + (idt_entry * BYTES_PER_GATE);
 

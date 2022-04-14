@@ -176,7 +176,7 @@ int sleep_test() {
 	lprintf("Running sleep_test, sleeping for %d seconds (%d ticks).\
 			 Currently at tick %d", ticks / 1000, ticks, get_ticks());
 
-	if (fork()) {
+	if (fork() > 0) {
 		sleep(ticks);
 		lprintf("Passed sleep_test. Now at tick %d", get_ticks());
 	}
@@ -236,7 +236,8 @@ pd_test( void )
 }
 
 int main() {
-	fork_exec_test();
+
+	//fork_exec_test();
 	//pagefault_test();
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
@@ -252,5 +253,9 @@ int main() {
 		return -1;
 
 	lprintf("ALL TESTS PASSED!");
+	while (1) {
+		continue;
+	}
+
     return 0;
 }

@@ -268,12 +268,10 @@ scheduler_on_tick( unsigned int num_ticks )
 		/* Do nothing if there's no thread waiting to be run */
 		if (!(to_run = Q_GET_FRONT(&runnable_q))) {
 			enable_interrupts();
-			lprintf("No one to run");
 			return;
 		}
 		Q_REMOVE(&runnable_q, to_run, scheduler_queue);
 
-		lprintf("Swapping to %ld", to_run->tid);
 		swap_running_thread(to_run, RUNNABLE, NULL, NULL);
 	}
 }
@@ -336,9 +334,6 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 	tcb_t *running = running_thread;
 	running->status = store_status;
 
-	to_run->status = RUNNING;
-	running_thread = to_run;
-
 	/* Data structure for other statuses are managed by their own components,
 	 * scheduler is only responsible for managing runnable/running threads. */
 	/* If running thread is already in runnable queue, don't insert again */
@@ -348,6 +343,11 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 		/* FIXME: What happens if the callback calls a yield_execution? */
 		callback(running, data);
 	}
+
+	/* Update running thread after, since callback expects to be called by
+	 * original running thread. */
+	to_run->status = RUNNING;
+	running_thread = to_run;
 
 	/* Interrupts are enabled inside context switch, once it's safe to do so. */
 	switch_threads(running, to_run);

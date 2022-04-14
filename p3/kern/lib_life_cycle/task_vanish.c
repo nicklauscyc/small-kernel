@@ -17,6 +17,3 @@ task_vanish( int status )
 		continue;
 	}
 }
-
-
-

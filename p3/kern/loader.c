@@ -371,9 +371,6 @@ execute_user_program( char *fname, int argc, char **argv)
 		uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
 		parent_pt[pt_index] = 0x0;
 #endif
-
-
-
 	}
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
