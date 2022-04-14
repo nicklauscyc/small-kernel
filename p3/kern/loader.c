@@ -269,7 +269,7 @@ configure_stack( int argc, char **argv )
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( const char *fname, int argc, char **argv)
+execute_user_program( char *fname, int argc, char **argv)
 {
 	log_info("Executing: %s", fname);
 
