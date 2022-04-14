@@ -10,6 +10,7 @@
 #define DEBUG_PRIORITY 1
 #define INFO_PRIORITY 2
 #define WARN_PRIORITY 3
+#define CRITICAL_PRIORITY 4
 
 /* Current logging level defined in kernel.c */
 extern int log_level;
@@ -18,6 +19,7 @@ extern int log_level;
 void log( const char *format, ... );
 void log_info( const char *format, ...);
 void log_warn( const char *format, ...);
+void log_crit( const char *format, ...);
 
 #endif /* _LOGGER_H_ */
 

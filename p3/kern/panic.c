@@ -35,8 +35,8 @@
  */
 
 #include <stdarg.h> /* va_list(), va_end() */
-#include <thr_internals.h> /* tprintf() */
-
+#include <logger.h> /* log_crit() */
+#include <asm.h>
 /** @brief This function is called by the assert() macro defined in assert.h;
  *         it's also a nice simple general-purpose panic function. Ceases
  *         execution of all running threads.
@@ -54,12 +54,14 @@ void panic( const char *fmt, ... )
 	/* Print error that occurred */
 	va_list args;
 	va_start(args, fmt);
-	vtprintf(fmt, args);
+	log_crit(fmt, args);
 	va_end(args);
 
-	/* Print that all other threads will crash */
-	tprintf("Crashing, ceasing execution for all other threads");
-	task_vanish(-1);
+	disable_interrupts();
+	while (1) {
+		continue;
+	}
+    // call halt();
 
 	return;
 }
