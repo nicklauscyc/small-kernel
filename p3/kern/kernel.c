@@ -31,6 +31,7 @@
 #include <console.h>    	/* init_console() */
 #include <scheduler.h>  	/* scheduler_on_tick() */
 #include <task_manager.h>	/* task_manager_init() */
+#include <memory_manager.h>	/* initialize_zero_frame() */
 #include <keybd_driver.h>	/* readline() */
 #include <lib_thread_management/sleep.h>	/* sleep_on_tick() */
 
@@ -93,10 +94,9 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	init_console();
 
 	task_manager_init();
-	//test_physalloc(); // TODO put in test suite
 
-
-    //TODO: Run shell once exec and fork are working
+	// TODO: maybe should be somewhere else
+	initialize_zero_frame();
 
 	log("this is DEBUG");
 	log_info("this is INFO");

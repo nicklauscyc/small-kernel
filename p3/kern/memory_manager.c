@@ -27,14 +27,12 @@
 #include <logger.h>		/* log */
 #include <memory_manager_internal.h>
 
+// TODO: delete
+#include <asm.h>
+
 /* 1 if VM is enabled, 0 otherwise */
 static int vm_enabled = 0;
 static uint32_t sys_zero_frame = USER_MEM_START;
-static int vm_init = 0;
-
-/* [USER_MEM_START, USER_MEM_START + PAGE_SIZE) is all zeroes */
-//static uint32_t system_zero_frame = USER_MEM_START;
-
 
 static uint32_t *get_ptep( const uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
@@ -42,9 +40,12 @@ static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
 static int allocate_region( uint32_t **pd, void *start, uint32_t len,
                            write_mode_t write_mode );
 static void enable_paging( void );
+
 static int valid_memory_regions( simple_elf_t *elf );
 static void vm_set_pd( void *pd );
 static void free_pt_memory( uint32_t *pt, int pd_index );
+
+static void zero_out_phys_frame( uint32_t phys_frame_address );
 
 /* TODO do we need this? */
 uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index );
@@ -112,15 +113,19 @@ zero_page_pf_handler( uint32_t faulting_address )
 	log("alloced physframe is 0x%08lx", *get_ptep((const uint32_t **) pd,
 	                                              faulting_address));
 	log("res:%d", res);
+
+	/* Flush TLB so we get updated info for this frame */
+	set_cr3(get_cr3());
+
+	memset((void *)faulting_address, 0, PAGE_SIZE);
+
 	return res;
 }
 
 void
-init_vm( void )
+initialize_zero_frame( void )
 {
-	affirm(!vm_init);
 	affirm(!vm_enabled);
-	vm_init = 1;
 
 	/* Zero fill system wide zero frame */
 	memset((uint32_t *) sys_zero_frame, 0, PAGE_SIZE);
@@ -144,10 +149,6 @@ init_vm( void )
 void *
 new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
-	/* If not initialized, initialize vm */
-	if (!vm_init) {
-		init_vm();
-	}
 	/* Allocate new pd that is zero filled */
     uint32_t **pd = allocate_new_pd();
 	if (!pd) {
@@ -766,7 +767,8 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 				return -1;
 			}
 		}
-		return 0;
+
+		// TODO: memory in this frame is zeroed out
 
 	/* Page table entry contains a NULL address, allocate new physical frame */
 	} else {
@@ -787,7 +789,44 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 	} else {
 		*ptep |= PE_USER_READABLE;
 	}
+
+	zero_out_phys_frame(TABLE_ADDRESS(*ptep));
+
 	return 0;
+}
+
+/* One way is to have a fake pd, add that virtual_address to
+ * the pd and memset it to 0. */
+static void
+zero_out_phys_frame( uint32_t phys_frame_address )
+{
+	// TODO: Assert virtual_address page_aligned
+
+	/* TODO: Can allocate a global variable with size 2 * PAGE_SIZE
+	 * and add the necessary offset to get a PAGE_SIZE aligned PAGE_SIZE
+	 * buffer (without having to allocate one every time!). Protect
+	 * it with a mutex! */
+	//uint32_t temp_addr = (uint32_t)smemalign(PAGE_SIZE, PAGE_SIZE);
+
+	//uint32_t **pd = (uint32_t **)TABLE_ADDRESS(get_cr3());
+	//uint32_t pd_index = PD_INDEX(temp_addr);
+	//uint32_t pt_index = PT_INDEX(temp_addr);
+	//uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
+
+	///* FIXME: Hack, as PE_KERN_WRITABLE includes PGE flag */
+	//pt[pt_index] = phys_frame_address | PE_USER_WRITABLE;
+
+	///* TODO: invlpg (currently just flushing tlb) */
+	//set_cr3(get_cr3());
+
+	//memset((void *)temp_addr, 0, PAGE_SIZE);
+
+	//pt[pt_index] = temp_addr | PE_KERN_WRITABLE;
+
+	///* Go back to the way things were */
+	//set_cr3(get_cr3());
+
+	//sfree((void *)temp_addr, PAGE_SIZE);
 }
 
 /** @brief Allocates the system wide zero frame

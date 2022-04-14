@@ -93,6 +93,13 @@ getbytes( const char *filename, int offset, int size, char *buf )
     return bytes_to_copy;
 }
 
+static void
+zero_out_memory_region( uint32_t start, uint32_t len )
+{
+	uint32_t align_end = ((start + len + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
+	memset((void *)start, 0, align_end - start);
+}
+
 /** @brief Transplants program data into virtual memory.
  *  Assumes paging is enabled and that virtual memory
  *  has been setup.
@@ -115,7 +122,11 @@ transplant_program_memory( simple_elf_t *se_hdr )
     // FIXME: This error checking is kinda hacky
     int i = 0;
 
-    /* TODO: Zero out bytes between memory regions */
+    /* Zero out bytes between memory regions (as well as inside them)  */
+	zero_out_memory_region(se_hdr->e_txtstart, se_hdr->e_txtlen);
+	zero_out_memory_region(se_hdr->e_datstart, se_hdr->e_datlen);
+	zero_out_memory_region(se_hdr->e_rodatstart, se_hdr->e_rodatlen);
+	zero_out_memory_region(se_hdr->e_bssstart, se_hdr->e_bsslen);
 
     /* We rely on the fact that virtual-memory is
      * enabled to "transplant" program data. Notice

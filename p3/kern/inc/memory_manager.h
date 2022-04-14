@@ -31,7 +31,8 @@
 #endif
 
 
-void init_vm( void );
+void initialize_zero_frame( void );
+
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
