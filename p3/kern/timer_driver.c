@@ -9,6 +9,8 @@
  *  @author Nicklaus Choo (nchoo)
  */
 
+#include <logger.h>
+
 #include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <asm.h> /* outb() */
 #include <assert.h> /* assert() */
@@ -53,12 +55,13 @@ get_total_ticks( void )
  *  @return Void.
  */
 void timer_int_handler(void) {
-  /* Pass total ticks to application callback which should run quickly */
-  application_tickback(total_ticks++);
-
-  /* Acknowledge interrupt and return */
+  /* This is effectively atomic because timer_int_handler() is the only
+   * function that modifies total_ticks and until we */
+  uint32_t current_total_ticks = ++total_ticks;
   outb(INT_CTL_PORT, INT_ACK_CURRENT);
-  return;
+
+  application_tickback(current_total_ticks);
+
 }
 
 /** @brief Initializes the timer driver

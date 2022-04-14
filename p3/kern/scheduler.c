@@ -268,7 +268,7 @@ scheduler_on_tick( unsigned int num_ticks )
 		/* Do nothing if there's no thread waiting to be run */
 		if (!(to_run = Q_GET_FRONT(&runnable_q))) {
 			enable_interrupts();
-			lprintf("No one to run");
+			lprintf("scheduler_on_tick(): No one else to run");
 			return;
 		}
 		Q_REMOVE(&runnable_q, to_run, scheduler_queue);

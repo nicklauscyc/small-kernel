@@ -252,11 +252,11 @@ new_pd_from_parent( void *v_parent_pd )
 	}
 
 	/* Just shallow copy kern memory page tables */
-	for (int i=0; i < 4; ++i) {
-		child_pd[i] = parent_pd[i];
-	}
+	//for (int i=0; i < 4; ++i) {
+	//	child_pd[i] = parent_pd[i];
+	//}
 
-	for (int i=4; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+	for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
 
 		if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
 			/* Allocate new child page_table */
@@ -293,7 +293,7 @@ new_pd_from_parent( void *v_parent_pd )
 				if (vm_address < USER_MEM_START) {
 					child_pt[j] = parent_pt[j];
 					continue;
-				}
+				} else {
 				if ((parent_pt[j] & PRESENT_FLAG) && (parent_pt[j] & RW_FLAG)) {
 					/* Allocate new physical frame for child. */
 					child_pt[j] = physalloc();
@@ -325,6 +325,7 @@ new_pd_from_parent( void *v_parent_pd )
 
 				} else {
 					child_pt[j] = parent_pt[j];
+				}
 				}
 			}
 

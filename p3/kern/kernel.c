@@ -102,11 +102,10 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-	char *args[] = {"test_suite", 0};
-	execute_user_program("test_suite", 1, args);
+	hard_code_test("test_suite");
+
 //    while (!__kernel_all_done) {
 //		// Used for development to run a certain test straightaway
-//		//hard_code_test("exec_basic");
 //
 //        int n = MAX_EXECNAME_LEN;
 //        char s[n];

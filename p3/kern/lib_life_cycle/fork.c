@@ -51,6 +51,7 @@ int
 fork( void )
 {
 	MAGIC_BREAK;
+	enable_interrupts();
 	//assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 
 	/* Acknowledge interrupt immediately */

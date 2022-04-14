@@ -37,10 +37,12 @@ void fork_exec_test() {
 	lprintf("Forking in fork_exec_test");
 	int pid = fork();
 
+	// parent does exec() */
 	if (pid) {
 		char *args[] = {"fork_test1", NULL};
 		lprintf("Exec'ing fork_test1");
 		exec("fork_test1", args);
+	/* child jut loops */
 	} else
 		while (1) {
 			continue;
@@ -236,7 +238,7 @@ pd_test( void )
 }
 
 int main() {
-	fork_exec_test();
+	//fork_exec_test();
 	//pagefault_test();
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
