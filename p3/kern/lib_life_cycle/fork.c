@@ -20,7 +20,8 @@
 #include <x86/asm.h> /* outb() */
 
 // saves regs and returns new esp
-void *save_child_regs(void *parent_kern_esp, void *child_kern_esp);
+void *save_child_regs(void *parent_kern_esp, void *child_kern_esp,
+					  void *child_cr3 );
 
 /** @brief Prints the parent and child stacks on call to fork()
  *
@@ -126,7 +127,8 @@ fork( void )
 	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
 
 	child_kernel_esp_on_ctx_switch = save_child_regs(parent_kern_stack_hi,
-	                                                 child_kern_stack_hi);
+	                                                 child_kern_stack_hi,
+													 child_pd);
 	//affirm(is_valid_pd(parent_pd));
 	//affirm(is_valid_pd(child_pd));
 
