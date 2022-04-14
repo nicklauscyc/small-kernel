@@ -31,17 +31,19 @@ void *save_child_regs(void *parent_kern_esp, void *child_kern_esp);
 void
 log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 {
-	log("print parent stack");
+	log_info("print parent stack");
 	for (int i = 0; i < 32; ++i) {
-		log("address:%p, value:0x%lx", get_kern_stack_hi(parent_tcb) - i,
+		log_info("address:%p, value:0x%lx",
+		(uint32_t *)get_kern_stack_hi(parent_tcb) - i,
 		*((uint32_t *) get_kern_stack_hi(parent_tcb) - i));
 	}
-	log("print child stack");
+	log_info("print child stack");
 	for (int i = 0; i < 32; ++i) {
-		log("address:%p, value:0x%lx", get_kern_stack_hi(child_tcb) - i,
+		log_info("address:%p, value:0x%lx",
+		(uint32_t *) get_kern_stack_hi(child_tcb) - i,
 		*((uint32_t *) get_kern_stack_hi(child_tcb) - i));
 	}
-	log("result from get_running_tid():%d", get_running_tid());
+	log_info("result from get_running_tid():%d", get_running_tid());
 }
 
 /** @brief Fork task into two.
