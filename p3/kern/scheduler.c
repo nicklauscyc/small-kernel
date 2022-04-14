@@ -366,8 +366,7 @@ switch_threads(tcb_t *running, tcb_t *to_run)
 	/* Let thread know where to come back to on USER->KERN mode switch */
 	set_esp0((uint32_t)to_run->kernel_stack_hi);
 
-	context_switch((void **)&(running->kernel_esp),
-			to_run->kernel_esp, to_run->owning_task->pd);
+	context_switch((void **)&(running->kernel_esp), to_run->kernel_esp);
 }
 
 

@@ -45,10 +45,6 @@ static int valid_memory_regions( simple_elf_t *elf );
 static void vm_set_pd( void *pd );
 static void free_pt_memory( uint32_t *pt, int pd_index );
 
-static void zero_out_phys_frame( uint32_t phys_frame_address );
-
-/* TODO do we need this? */
-uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index );
 static void *allocate_new_pd( void );
 static int add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address );
 
@@ -252,13 +248,9 @@ new_pd_from_parent( void *v_parent_pd )
 	}
 
 	/* Just shallow copy kern memory page tables */
-	for (int i=0; i < 4; ++i) {
-		child_pd[i] = parent_pd[i];
-	}
+	for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
 
-	for (int i=4; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
-
-		if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
+		if (parent_pd[i] & PRESENT_FLAG) {
 			/* Allocate new child page_table */
 			uint32_t *child_pt = smemalign(PAGE_SIZE, PAGE_SIZE);
 			if (!child_pt) {
@@ -294,7 +286,7 @@ new_pd_from_parent( void *v_parent_pd )
 					child_pt[j] = parent_pt[j];
 					continue;
 				}
-				if ((parent_pt[j] & PRESENT_FLAG) && (parent_pt[j] & RW_FLAG)) {
+				if (parent_pt[j] & PRESENT_FLAG) {
 					/* Allocate new physical frame for child. */
 					child_pt[j] = physalloc();
 					assert(PAGE_ALIGNED(child_pt[j]));
@@ -306,8 +298,9 @@ new_pd_from_parent( void *v_parent_pd )
 						return NULL;
 					}
 
-					/* Set child_pt flags, then memcpy */
-					child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
+					/* Mark child_pt[j] as writable, copy and then mark
+					 * same flags as the parent (in case READ-ONLY) */
+					child_pt[j] |= PE_KERN_WRITABLE;
 
 					log("vm_address:%lx, i:0x%x, j:0x%x, "
 					"parent_pd[i]:0x%lx, child_pd[i]:0x%lx, "
@@ -323,13 +316,17 @@ new_pd_from_parent( void *v_parent_pd )
 					memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
 					vm_set_pd(parent_pd);
 
+					// Zero out flags
+					child_pt[j] &= ~(PAGE_SIZE - 1);
+					// Set parent flags
+					child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
+
 				} else {
-					child_pt[j] = parent_pt[j];
+					assert(parent_pt[j] == 0);
 				}
 			}
-
 		} else {
-			child_pd[i] = parent_pd[i];
+			assert(parent_pd[i] == 0);
 		}
 	}
 
@@ -379,16 +376,6 @@ disable_write_protection( void )
 	set_cr0(current_cr0 & (~WRITE_PROTECT_FLAG));
 }
 
-/** Allocate new pages in a given process' virtual memory. */
-int
-vm_new_pages ( void *pd, void *base, int len )
-{
-	// TODO: Implement
-	(void)pd;
-	(void)base;
-	(void)len;
-	return -1;
-}
 
 /** @brief Checks if a user pointer is valid.
  *	Valid means the pointer is non-NULL, belongs to
@@ -783,55 +770,14 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 		}
 		*ptep = free_frame;
 	}
-	/* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
-	 * zero-filled pages for the initially allocated regions? Seems like
-	 * .bss and new_pages are the only ones required to be zeroed out by spec.
-	 * Should we even be calling enable paging here??? */
-	/* ATOMICALLY start */
-	/* ATOMICALLY end*/
+
 	if (write_mode == READ_WRITE) {
 		*ptep |= PE_USER_WRITABLE;
 	} else {
 		*ptep |= PE_USER_READABLE;
 	}
 
-	zero_out_phys_frame(TABLE_ADDRESS(*ptep));
-
 	return 0;
-}
-
-/* One way is to have a fake pd, add that virtual_address to
- * the pd and memset it to 0. */
-static void
-zero_out_phys_frame( uint32_t phys_frame_address )
-{
-	// TODO: Assert virtual_address page_aligned
-
-	/* TODO: Can allocate a global variable with size 2 * PAGE_SIZE
-	 * and add the necessary offset to get a PAGE_SIZE aligned PAGE_SIZE
-	 * buffer (without having to allocate one every time!). Protect
-	 * it with a mutex! */
-	//uint32_t temp_addr = (uint32_t)smemalign(PAGE_SIZE, PAGE_SIZE);
-
-	//uint32_t **pd = (uint32_t **)TABLE_ADDRESS(get_cr3());
-	//uint32_t pd_index = PD_INDEX(temp_addr);
-	//uint32_t pt_index = PT_INDEX(temp_addr);
-	//uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
-
-	///* FIXME: Hack, as PE_KERN_WRITABLE includes PGE flag */
-	//pt[pt_index] = phys_frame_address | PE_USER_WRITABLE;
-
-	///* TODO: invlpg (currently just flushing tlb) */
-	//set_cr3(get_cr3());
-
-	//memset((void *)temp_addr, 0, PAGE_SIZE);
-
-	//pt[pt_index] = temp_addr | PE_KERN_WRITABLE;
-
-	///* Go back to the way things were */
-	//set_cr3(get_cr3());
-
-	//sfree((void *)temp_addr, PAGE_SIZE);
 }
 
 /** @brief Allocates the system wide zero frame

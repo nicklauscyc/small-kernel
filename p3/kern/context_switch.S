@@ -12,10 +12,15 @@ context_switch:
 	pushl %edi
 	pushl %esi
 
+	movl %cr3, %ecx
+	pushl %ecx
+
 	movl 8(%ebp), %ecx
 	movl %esp, (%ecx)	/* save current %esp to first arg */
 	movl 12(%ebp), %esp /* restore %esp from second arg */
-	movl 16(%ebp), %ecx
+	#movl 16(%ebp), %ecx /* put to_run->pd into ecx */
+
+	popl %ecx
 	movl %ecx, %cr3		/* update page directory */
 
 	popl %esi
