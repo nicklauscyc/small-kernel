@@ -43,8 +43,15 @@
  *  convert their variable number of arguments into a va_list before passing
  *  them to vtprintf().
  *
+ *  Passing in an unrecognized priority will just lead to
+ *  printing out an error message to let the user know that it has supplied
+ *  the wrong arguments, no need to cause an assertion failure as the error
+ *  is promptly displayed. This should never happen anyway since vtprintf()
+ *  is currently implemented static.
+ *
  *  @param format String format to print to
  *  @param args A va_list of all arguments to include in format
+ *  @param priority Logging priority.
  *  @return Void.
  */
 static void
@@ -70,13 +77,31 @@ vtprintf( const char *format, va_list args, int priority )
 			offset = snprintf(str, sizeof(str) - 1, "tid[%d]: WARN: ", tid);
 			break;
 
-	    /* Improper use of vtprintf, since vtprintf only called by log_() */
+		case CRITICAL_PRIORITY:
+			offset = snprintf(str, sizeof(str) - 1, "tid[%d]: CRITICAL: ", tid);
+			break;
+
+	    /* Improper use of vtprintf(), print error */
 		default:
-			panic("unrecognized priority: %d", priority);
+			snprintf(str, sizeof(str) - 1,
+			         "tid[%d]: UNRECOGNIZED priority:%d for vtprintf()",
+					 tid, priority);
+			sim_puts(str);
+
+			// Print on hardware
+			printf(str);
+			return;
 	}
-	/* Print rest of output */
-	vsnprintf(str + offset, sizeof(str) - offset - 1, format, args);
+	/* Print rest of output, and a little extra for CRITICAL priority */
+	offset += vsnprintf(str + offset, sizeof(str) - offset - 1, format, args);
+	if (priority == CRITICAL_PRIORITY) {
+		snprintf(str + offset, sizeof(str) - offset - 1,
+		         "\nCrashing the kernel.");
+	}
 	sim_puts(str);
+
+	// Print on hardware
+	printf(str);
 
 	return;
 }
@@ -93,9 +118,9 @@ log( const char *format, ... )
 {
 #ifndef NDEBUG
 	if (log_level <= DEBUG_PRIORITY) {
+
 		/* Construct va_list to pass on to vtprintf */
 		va_list args;
-
 		va_start(args, format);
 		vtprintf(format, args, DEBUG_PRIORITY);
 		va_end(args);
@@ -116,9 +141,9 @@ log_info( const char *format, ... )
 {
 #ifndef NDEBUG
 	if (log_level <= INFO_PRIORITY) {
+
 		/* Construct va_list to pass on to vtprintf */
 		va_list args;
-
 		va_start(args, format);
 		vtprintf(format, args, INFO_PRIORITY);
 		va_end(args);
@@ -141,7 +166,6 @@ log_warn( const char *format, ... )
 	if (log_level <= WARN_PRIORITY) {
 		/* Construct va_list to pass on to vtprintf */
 		va_list args;
-
 		va_start(args, format);
 		vtprintf(format, args, WARN_PRIORITY);
 		va_end(args);
@@ -149,3 +173,27 @@ log_warn( const char *format, ... )
 #endif
 	return;
 }
+
+/** @brief prints out log to console and kernel log regardless of whether
+ * 		   NDEBUG is set since this log has priority CRITICAL_PRIORITY
+ * 		   which means that an unrecoverable failure in the kernel has occurred.
+ *
+ *  @pre Callers of log_crit must intend to crash the kernel
+ *  @param format String specifier to print
+ *  @param ... Arguments to format string
+ *  @return Void.
+ */
+void
+log_crit( const char *format, ... )
+{
+	if (log_level <= CRITICAL_PRIORITY) {
+
+		/* Construct va_list to pass on to vtprintf */
+		va_list args;
+		va_start(args, format);
+		vtprintf(format, args, CRITICAL_PRIORITY);
+		va_end(args);
+	}
+}
+
+

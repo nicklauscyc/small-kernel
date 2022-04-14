@@ -37,10 +37,10 @@ general_protection_handler( uint32_t *ebp )
 				   error_code, eip, cs, eflags);
 	}
 	if (cs == SEGSEL_KERNEL_CS) {
-		lprintf("[Kernel mode] General protection fault encountered error at "
+		panic("[Kernel mode] General protection fault encountered error at "
 		        "0x%x.", eip);
 	}
 	/* TODO: acknowledge signal and call user handler  */
 
-	lprintf("[User mode] General protection fault encountered at 0x%x", eip);
+	panic("[User mode] General protection fault encountered at 0x%x", eip);
 }

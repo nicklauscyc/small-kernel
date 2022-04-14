@@ -87,6 +87,7 @@ UPDATE_METHOD = afs
 		   swexn_dispatch swexn_regs yield_desc_mkrun make_crash\
 		   mem_permissions cho cho2 cho_variant score\
 		   knife exec_basic_helper\
+		   score
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -154,7 +155,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  memory_manager.o task_manager.o iret_travel.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
 			  asm_interrupt_handler.o context_switch.o \
-			  scheduler.o logger.o tests.o atomic_utils.o \
+			  scheduler.o logger.o tests.o atomic_utils.o panic.o\
 			  \
 			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/gettid.o \
