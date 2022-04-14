@@ -251,7 +251,12 @@ new_pd_from_parent( void *v_parent_pd )
 		return NULL;
 	}
 
-	for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+	/* Just shallow copy kern memory page tables */
+	for (int i=0; i < 4; ++i) {
+		child_pd[i] = parent_pd[i];
+	}
+
+	for (int i=4; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
 
 		if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
 			/* Allocate new child page_table */

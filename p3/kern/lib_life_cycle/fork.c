@@ -116,7 +116,7 @@ fork( void )
 
 #ifndef NDEBUG
     /* Register this task with simics for better debugging */
-    //sim_reg_child(child_pd, parent_pd);
+    sim_reg_child(child_pd, parent_pd);
 #endif
 	//affirm(is_valid_pd(parent_pd));
 	//affirm(is_valid_pd(child_pd));
