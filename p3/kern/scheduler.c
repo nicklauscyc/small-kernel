@@ -268,10 +268,12 @@ scheduler_on_tick( unsigned int num_ticks )
 		/* Do nothing if there's no thread waiting to be run */
 		if (!(to_run = Q_GET_FRONT(&runnable_q))) {
 			enable_interrupts();
+			lprintf("No one to run");
 			return;
 		}
 		Q_REMOVE(&runnable_q, to_run, scheduler_queue);
 
+		lprintf("Swapping to %ld", to_run->tid);
 		swap_running_thread(to_run, RUNNABLE, NULL, NULL);
 	}
 }

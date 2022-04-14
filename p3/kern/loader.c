@@ -33,6 +33,8 @@
 #include <simics.h>
 #include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
 
+#include <task_manager_internal.h>
+
 /* --- Local function prototypes --- */
 
 /* first_task is 1 if there is currently no user task running, so
@@ -199,19 +201,14 @@ configure_stack( int argc, char **argv )
 	for (int i = 0; i < argc; ++i) {
 		*(--esp) = (uint32_t) user_stack_argv[argc - 1 - i];
 	}
+
 	/* Save value of char **argv */
 	char **argv_arg = (char **) esp;
 
-	/* Put stack_low onto stack */
+	/* Store arguments on stack */
 	*(--esp) = (uint32_t) stack_low;
-
-	/* Put stack_high onto stack */
 	*(--esp) = (uint32_t) stack_high;
-
-    /* Put argv_arg onto the user stack */
 	*(--esp) = (uint32_t) argv_arg;
-
-	/* Put argc onto stack */
 	*(--esp) = argc;
 
     /* Functions expect esp to point to return address on entry.
@@ -282,14 +279,21 @@ configure_stack( int argc, char **argv )
 int
 execute_user_program( char *fname, int argc, char **argv)
 {
-	log_info("Executing: %s", fname);
+	disable_interrupts();
+	if (first_task)
+		log_warn("Executing first task");
+	else
+		log_warn("Executing not-first task");
+
+	log_warn("Executing pointer %s", fname);
+	enable_interrupts();
 
 	if (!first_task) {
 		/* Validate execname */
 		if (!is_valid_null_terminated_user_string(fname, USER_STR_LEN)) {
 			return -1;
 		}
-		assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+		//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 		/* Validate argvec */
 		int argc = 0;
 		if (!(argc = is_valid_user_argvec(fname, argv))) {
@@ -349,9 +353,27 @@ execute_user_program( char *fname, int argc, char **argv)
 			return -1;
 		}
 		void *old_pd = swap_task_pd(new_pd);
-		assert(is_valid_pd(old_pd));
+		//assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
+
+		/* FIXME: Hope we fail this assertion. If so, likely found
+		 * the bug.*/
+
+		tcb_t *tcb = get_running_thread();
+		assert(tcb->kernel_esp == tcb->kernel_stack_hi);
+
+		/* Let's set some other values here*/
+#ifdef DEBUG
+		uint32_t **parent_pd = tcb->owning_task->pd;
+		uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
+		uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
+		uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
+		parent_pt[pt_index] = 0x0;
+#endif
+
+
+
 	}
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {

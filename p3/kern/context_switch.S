@@ -26,7 +26,7 @@ context_switch:
 	popl %eax
 	popl %ebp
 
-	sti			/* Enable interrupts*/
+	sti		/* enable interrupts */
 
 	ret
 

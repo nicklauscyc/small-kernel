@@ -106,7 +106,7 @@ get_tcb_status( tcb_t *tcb )
 void *
 swap_task_pd( void *new_pd )
 {
-	affirm(is_valid_pd(new_pd));
+	assert(is_valid_pd(new_pd));
 
 	/* Find PCB to swap its stored page directory */
 	uint32_t pid = get_pid();
@@ -142,9 +142,9 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 	/* Ensure alignment of page table directory */
 	/* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
 	void *pd = new_pd_from_elf(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
-		if (!pd) {
-			return -1;
-		}
+	if (!pd) {
+		return -1;
+	}
 
 	if (create_pcb(pid, pd) < 0) {
 		sfree(pd, PAGE_SIZE);
@@ -206,12 +206,6 @@ task_set_active( uint32_t tid )
 {
 	tcb_t *tcb;
 	affirm((tcb = find_tcb(tid)) != NULL);
-	pcb_t *pcb = tcb->owning_task;
-
-	// TODO: Remove this check?
-	if (!pcb->prepared) {
-		activate_task_memory(pcb->pid);
-	}
 
 	/* Let scheduler know it can now run this thread */
 	/* Let scheduler know it can now run this thread if it doesn't know */
@@ -230,7 +224,7 @@ task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	affirm((tcb = find_tcb(tid)) != NULL);
 
 	/* Before going to user mode, update esp0, so we know where to go back to */
-	set_esp0((uint32_t)tcb->kernel_esp);
+	set_esp0((uint32_t)tcb->kernel_stack_hi);
 
 	/* We're currently going directly to entry point. In the future,
 	 * however, we should go to some "receiver" function which appropriately
