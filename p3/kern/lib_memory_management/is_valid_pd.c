@@ -68,7 +68,6 @@ is_valid_pt( uint32_t *pt, int pd_index )
                          "pt_index:0x%08lx",
                          pt, pd_index, pt_entry, phys_address, i);
                 log_warn("virtual address of pt_entry:%p", &pt_entry);
-                MAGIC_BREAK;
 				return 0;
 			}
 			/* pt holds physical frames for user memory */

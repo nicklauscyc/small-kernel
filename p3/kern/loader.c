@@ -357,11 +357,7 @@ execute_user_program( char *fname, int argc, char **argv)
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 
-		/* FIXME: Hope we fail this assertion. If so, likely found
-		 * the bug.*/
-
 		tcb_t *tcb = get_running_thread();
-		assert(tcb->kernel_esp == tcb->kernel_stack_hi);
 
 		/* Let's set some other values here*/
 #ifdef DEBUG
