@@ -53,14 +53,12 @@ get_total_ticks( void )
  *  @return Void.
  */
 void timer_int_handler(void) {
-	int tick = total_ticks++;
 
-	/* Acknowledge interrupt and return */
-  	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-
-	/* Pass total ticks to application callback which should run quickly */
-  	application_tickback(tick);
-  return;
+	/* Acknowledging the interrupt before any context switch can take place */
+	uint32_t current_total_ticks = ++total_ticks;
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	application_tickback(current_total_ticks);
+	return;
 }
 
 /** @brief Initializes the timer driver

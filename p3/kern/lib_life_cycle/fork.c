@@ -40,7 +40,7 @@ log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 	}
 	log("print child stack");
 	for (int i = 0; i < 32; ++i) {
-		log_info("address:%p, value:0x%lx",
+		log("address:%p, value:0x%lx",
 		(uint32_t *) get_kern_stack_hi(child_tcb) - i,
 		*((uint32_t *) get_kern_stack_hi(child_tcb) - i));
 	}

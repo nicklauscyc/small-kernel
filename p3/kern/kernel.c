@@ -136,8 +136,8 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-	char *args[] = {"score", 0};
-	execute_user_program("score", 1, args);
+	char *args[] = {"score", "memory", 0};
+	execute_user_program("score", 2, args);
 //    while (!__kernel_all_done) {
 //		// Used for development to run a certain test straightaway
 //		//hard_code_test("exec_basic");
