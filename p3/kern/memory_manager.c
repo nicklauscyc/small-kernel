@@ -153,6 +153,9 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 		return NULL;
 	}
 
+	/* If there is a current page directory, the bottom 4 must be kernel mapped
+	 * so use those instead
+	 */
 	if (get_cr3()) {
 		uint32_t ** current_pd = (uint32_t **)(TABLE_ADDRESS(get_cr3()));
 		for (int i = 0; i < 4; ++i) {
