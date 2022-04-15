@@ -50,7 +50,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 	           || (pt_entry == 0));
 
 
-        //TABLE_ENTRY_INVARIANT(pt_entry));
+        TABLE_ENTRY_INVARIANT(pt_entry);
 
 		/* Check only if entry is non-NULL, ignoring bottom 12 bits */
 		if (TABLE_ADDRESS(pt_entry)) {

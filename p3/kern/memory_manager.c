@@ -949,22 +949,25 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 
 	affirm(is_valid_pt(pt, pd_index));
 
-	/* pt holds physical frames for user memory */
-	if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
-		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
+		/* pt holds physical frames for user memory */
+		if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
 			uint32_t pt_entry = pt[i];
 			if (pt_entry & PRESENT_FLAG) {
 				affirm_msg(TABLE_ADDRESS(pt_entry) != 0, "pt_entry:0x%08lx",
 						   pt_entry);
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 				physfree(phys_address);
+
+				// Zero the entry as well
+				pt[i] = 0;
 			}
-			// Zero the entry as well
+		/* Currently free < USER_MEM_START */
+		/* TODO final version shouldn't need to free kernel memory */
+		} else {
 			pt[i] = 0;
 		}
-	} else {
-		/* Currently nothing to free if < USER_MEM_START */
 	}
 }
 
