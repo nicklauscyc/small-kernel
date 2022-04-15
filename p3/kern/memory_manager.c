@@ -316,7 +316,8 @@ new_pd_from_parent( void *v_parent_pd )
 
 					/* Mark child_pt[j] as writable, copy and then mark
 					 * same flags as the parent (in case READ-ONLY) */
-					child_pt[j] |= PE_KERN_WRITABLE;
+					// Mark as user writable to avoid creating a global TLB entry
+					child_pt[j] |= PE_USER_WRITABLE;
 
 					log("vm_address:%lx, i:0x%x, j:0x%x, "
 					"parent_pd[i]:0x%lx, child_pd[i]:0x%lx, "
@@ -349,6 +350,7 @@ new_pd_from_parent( void *v_parent_pd )
 	}
 
 	sfree(temp_buf, PAGE_SIZE);
+	assert(is_valid_pd(child_pd));
 	return child_pd;
 }
 

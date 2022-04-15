@@ -138,36 +138,15 @@ transplant_program_memory( simple_elf_t *se_hdr )
             (unsigned int) se_hdr->e_txtoff,
             (unsigned int) se_hdr->e_txtlen,
 	        (char *) se_hdr->e_txtstart);
-
-	uint32_t *curr = (uint32_t *)se_hdr->e_txtstart;
-	for (int j=0; j< se_hdr->e_txtlen / 4; ++j) {
-		log_info("at %p, %lx", curr, *curr);
-		curr++;
-	}
-
 	i += getbytes(se_hdr->e_fname,
 	        (unsigned int) se_hdr->e_rodatoff,
             (unsigned int) se_hdr->e_rodatlen,
 	        (char *) se_hdr->e_rodatstart);
-
-	curr = (uint32_t *)se_hdr->e_rodatstart;
-	for (int j=0; j< se_hdr->e_rodatlen / 4; ++j) {
-		log_info("at %p, %lx", curr, *curr);
-		curr++;
-	}
-
 	i += getbytes(se_hdr->e_fname,
             (unsigned int) se_hdr->e_datoff,
             (unsigned int) se_hdr->e_datlen,
 	        (char *) se_hdr->e_datstart);
 
-	curr = (uint32_t *)se_hdr->e_datstart;
-	for (int j=0; j< se_hdr->e_datlen / 4; ++j) {
-		log_info("at %p, %lx", curr, *curr);
-		curr++;
-	}
-
-	MAGIC_BREAK;
     /* Re-enable write-protection bit. */
     enable_write_protection();
 
@@ -387,6 +366,7 @@ execute_user_program( char *fname, int argc, char **argv)
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
+
     if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
 	}

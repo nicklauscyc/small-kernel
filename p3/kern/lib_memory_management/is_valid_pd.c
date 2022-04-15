@@ -68,11 +68,22 @@ is_valid_pt( uint32_t *pt, int pd_index )
                          "pt_index:0x%08lx",
                          pt, pd_index, pt_entry, phys_address, i);
                 log_warn("virtual address of pt_entry:%p", &pt_entry);
-				MAGIC_BREAK;
 				return 0;
 			}
 			/* pt holds physical frames for user memory */
 			if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
+
+				if (pt_entry & GLOBAL_FLAG) {
+					log_warn("User page cannot have global flag enabled!"
+							 "pt:%p "
+							 "pd_index:0x%08lx "
+							 "pt_entry:0x%08lx "
+							 "phys_address:0x%08lx "
+							 "pt_index:0x%08lx",
+							 pt, pd_index, pt_entry, phys_address, i);
+					MAGIC_BREAK;
+					return 0;
+				}
 
                 /* Frame cannot be equal to pt */
                 if (TABLE_ADDRESS(pt_entry) == (uint32_t) pt) {
