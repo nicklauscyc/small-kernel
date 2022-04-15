@@ -356,18 +356,14 @@ execute_user_program( char *fname, int argc, char **argv)
 		//assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
-
-		tcb_t *tcb = get_running_thread();
-
-		/* Let's set some other values here*/
-#ifdef DEBUG
-		uint32_t **parent_pd = tcb->owning_task->pd;
-		uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
-		uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
-		uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
-		parent_pt[pt_index] = 0x0;
-#endif
 	}
+
+#ifdef DEBUG
+	tcb_t *tcb = get_running_thread();
+	/* Register this task's new binary with simics */
+	sim_reg_process(get_tcb_pd(tcb), kern_stack_execname);
+#endif
+
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
 		return -1;
