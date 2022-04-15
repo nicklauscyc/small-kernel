@@ -356,8 +356,10 @@ execute_user_program( char *fname, int argc, char **argv)
 		sfree(old_pd, PAGE_SIZE);
 	}
 
+
 #ifdef DEBUG
-	tcb_t *tcb = get_running_thread();
+	tcb_t *tcb = find_tcb(tid);
+	assert(tcb);
 	/* Register this task's new binary with simics */
 	sim_reg_process(get_tcb_pd(tcb), kern_stack_execname);
 #endif
