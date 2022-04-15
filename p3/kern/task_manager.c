@@ -158,10 +158,6 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
-#ifndef NDEBUG
-	/* Register this task with simics for better debugging */
-	sim_reg_process(pcb->pd, elf->e_fname);
-#endif
 	return 0;
 }
 

@@ -56,11 +56,11 @@ exec( char *execname, char **argvec )
 //	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Only allow exec of task that has 1 thread */
-	tcb_t *parent_tcb = get_running_thread();
+	tcb_t *tcb = get_running_thread();
 	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-	assert(parent_tcb);
-	int num_threads = get_num_threads_in_owning_task(parent_tcb);
+	assert(tcb);
+	int num_threads = get_num_threads_in_owning_task(tcb);
 	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	log("Exec() task with number of threads:%ld", num_threads);
