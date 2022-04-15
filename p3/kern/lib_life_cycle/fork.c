@@ -116,10 +116,10 @@ fork( void )
 	tcb_t *child_tcb;
 	assert(child_tcb = find_tcb(child_tid));
 
-#ifndef NDEBUG
-    /* Register this task with simics for better debugging */
-    sim_reg_child(child_pd, parent_pd);
-#endif
+//#ifndef NDEBUG
+//    /* Register this task with simics for better debugging */
+//    sim_reg_child(child_pd, (void *) get_cr3());
+//#endif
 	//affirm(is_valid_pd(parent_pd));
 	//affirm(is_valid_pd(child_pd));
 
