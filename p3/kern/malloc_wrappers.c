@@ -93,6 +93,8 @@ void sfree(void *buf, size_t size)
 {
 	LOCK;
 	_sfree(buf, size);
+	log_info("sfree(): freed %p, size 0x%08lx", buf, size);
+
 	UNLOCK;
 }
 

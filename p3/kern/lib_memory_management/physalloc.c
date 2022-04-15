@@ -137,7 +137,7 @@ physalloc( void )
 
 	mutex_unlock(&mux);
 
-	log("physalloc returned frame 0x%lx", frame);
+	log_info("physalloc(): returned frame 0x%lx", frame);
 	assert(is_physframe(frame));
 	return frame;
 }

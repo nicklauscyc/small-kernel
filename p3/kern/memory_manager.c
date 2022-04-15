@@ -311,10 +311,14 @@ new_pd_from_parent( void *v_parent_pd )
 
 					/* Copy parent to temp, change page-directory,
 					 * copy child to parent, restore parent page-directory */
+					disable_interrupts();
+
 					memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
 					vm_set_pd(child_pd);
 					memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
 					vm_set_pd(parent_pd);
+
+					enable_interrupts();
 
 					// Zero out flags
 					child_pt[j] &= ~(PAGE_SIZE - 1);
