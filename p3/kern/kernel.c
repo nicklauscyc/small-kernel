@@ -34,6 +34,7 @@
 #include <memory_manager.h>	/* initialize_zero_frame() */
 #include <keybd_driver.h>	/* readline() */
 #include <lib_thread_management/sleep.h>	/* sleep_on_tick() */
+#include <simics.h>
 
 volatile static int __kernel_all_done = 0;
 
@@ -62,8 +63,41 @@ void tick(unsigned int numTicks) {
 	 * to (in most cases). */
 	sleep_on_tick(numTicks);
 
+	//if (get_running_thread()) {
+	//	assert(*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+	//	== 0xcafebabe);
+	//	assert(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+	//	== 0xdeadbeef);
+
+	//}
+	if (get_running_thread()) {
+		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		!= 0xcafebabe) {
+			MAGIC_BREAK;
+		}
+
+		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		!= 0xdeadbeef) {
+			MAGIC_BREAK;
+		}
+	}
+
 	/* Scheduler tick handler should be last, as it triggers context_switch */
 	scheduler_on_tick(numTicks);
+	if (get_running_thread()) {
+		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		!= 0xcafebabe) {
+			MAGIC_BREAK;
+		}
+
+		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		!= 0xdeadbeef) {
+			MAGIC_BREAK;
+		}
+	}
+
+
+
 }
 
 void hard_code_test( char *s )

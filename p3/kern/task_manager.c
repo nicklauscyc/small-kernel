@@ -390,6 +390,11 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	log("create_tcb(): tcb->kernel_stack_hi:%p", tcb->kernel_stack_hi);
 
 
+	// set the canary
+	*(tcb->kernel_stack_hi) = 0xcafebabe;
+
+	*(tcb->kernel_stack_lo) = 0xdeadbeef;
+	return 0;
 	return 0;
 }
 
@@ -435,6 +440,19 @@ get_kern_stack_hi( tcb_t *tcbp )
 	affirm_msg(STACK_ALIGNED(tcbp->kernel_stack_hi), "tcbp->kernel_stack_hi "
 		   "must be stack aligned!");
 	return tcbp->kernel_stack_hi;
+}
+
+void *
+get_kern_stack_lo( tcb_t *tcbp )
+{
+	/* Argument checks */
+	affirm_msg(tcbp, "tcbp cannot be NULL!");
+
+	/* Invariant checks to ensure returned value is legal */
+	affirm_msg(tcbp->kernel_stack_lo, "tcbp->kernel_stack_lo cannot be NULL!");
+	affirm_msg(STACK_ALIGNED(tcbp->kernel_stack_lo), "tcbp->kernel_stack_lo "
+		   "must be stack aligned!");
+	return tcbp->kernel_stack_lo;
 }
 
 /** @brief Sets the kernel_esp field in supplied TCB

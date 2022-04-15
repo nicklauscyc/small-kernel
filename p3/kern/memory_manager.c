@@ -152,50 +152,59 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 		         "unable to allocate new page directory.");
 		return NULL;
 	}
+
+	if (get_cr3()) {
+		uint32_t ** current_pd = (uint32_t **)(TABLE_ADDRESS(get_cr3()));
+		for (int i = 0; i < 4; ++i) {
+			pd[i] = current_pd[i];
+		}
+	} else {
+
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
 
-		/* This invariant must not break */
-		uint32_t pd_index = PD_INDEX(addr);
-		uint32_t *pd_entry = pd[pd_index];
-		affirm_msg(TABLE_ENTRY_INVARIANT(pd_entry),
-				   "new_pd_from_elf(): "
-				   "pd entry invariant broken for "
-				   "pd:%p pd_index:0x%08lx pd[pd_index]:%p",
-				   pd, pd_index, pd_entry);
+			/* This invariant must not break */
+			uint32_t pd_index = PD_INDEX(addr);
+			uint32_t *pd_entry = pd[pd_index];
+			affirm_msg(TABLE_ENTRY_INVARIANT(pd_entry),
+					   "new_pd_from_elf(): "
+					   "pd entry invariant broken for "
+					   "pd:%p pd_index:0x%08lx pd[pd_index]:%p",
+					   pd, pd_index, pd_entry);
 
-		/* Add new page table every time page directory entry is NULL */
-		if (pd[pd_index] == NULL) {
+			/* Add new page table every time page directory entry is NULL */
+			if (pd[pd_index] == NULL) {
 
-			/* Since we are going in increasing virtual addresses, this holds */
-			assert((addr & ((1 << PAGE_DIRECTORY_SHIFT) - 1)) == 0);
-			if (add_new_pt_to_pd(pd, addr) < 0) {
-				log_warn("new_pd_from_elf(): "
-				         "unable to allocate new page table in pd:%p for "
-						 "virtual_address: 0x%08lx", pd, addr);
-				return NULL;
-				//TODO clean up
+				/* Since we are going in increasing virtual addresses, holds */
+				assert((addr & ((1 << PAGE_DIRECTORY_SHIFT) - 1)) == 0);
+				if (add_new_pt_to_pd(pd, addr) < 0) {
+					log_warn("new_pd_from_elf(): "
+							 "unable to allocate new page table in pd:%p for "
+							 "virtual_address: 0x%08lx", pd, addr);
+					return NULL;
+					//TODO clean up
+				}
 			}
-		}
-		/* Now get a pointer to the corresponding page table entry */
-        uint32_t *ptep = get_ptep((const uint32_t **) pd, addr);
+			/* Now get a pointer to the corresponding page table entry */
+			uint32_t *ptep = get_ptep((const uint32_t **) pd, addr);
 
-		/* If NULL is returned, free all resources in page directory */
-		if (!ptep) {
-			free_pd_memory(pd);
-			sfree(pd, PAGE_SIZE);
-			log_warn("new_pd_from_elf(): "
-		             "unable to get page table entry pointer.");
-			return NULL;
+			/* If NULL is returned, free all resources in page directory */
+			if (!ptep) {
+				free_pd_memory(pd);
+				sfree(pd, PAGE_SIZE);
+				log_warn("new_pd_from_elf(): "
+						 "unable to get page table entry pointer.");
+				return NULL;
+			}
+			/* Indicate page table entry permissions */
+			if (addr == 0) {
+				*ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
+			} else {
+				*ptep = addr | PE_KERN_WRITABLE;
+			}
+			assert(*ptep < USER_MEM_START);
 		}
-		/* Indicate page table entry permissions */
-		if (addr == 0) {
-			*ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
-		} else {
-			*ptep = addr | PE_KERN_WRITABLE; /* Can delete this?: PE_KERN_WRITABLE FIXME */
-		}
-		assert(*ptep < USER_MEM_START);
-    }
+	}
 	log("new_pd_from_elf(): direct map ended");
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
@@ -249,6 +258,10 @@ new_pd_from_parent( void *v_parent_pd )
 
 	/* Just shallow copy kern memory page tables */
 	for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+		if (i < 4) {
+			child_pd[i] = parent_pd[i];
+			continue;
+		}
 
 		if (parent_pd[i] & PRESENT_FLAG) {
 			/* Allocate new child page_table */
@@ -311,14 +324,12 @@ new_pd_from_parent( void *v_parent_pd )
 
 					/* Copy parent to temp, change page-directory,
 					 * copy child to parent, restore parent page-directory */
-					disable_interrupts();
 
 					memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
 					vm_set_pd(child_pd);
 					memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
 					vm_set_pd(parent_pd);
 
-					enable_interrupts();
 
 					// Zero out flags
 					child_pt[j] &= ~(PAGE_SIZE - 1);
@@ -985,6 +996,7 @@ free_pd_memory( void *pd )
 	uint32_t **pd_cast = (uint32_t **) pd;
 
 	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+		if (i < 4) continue;
 
 		uint32_t *pd_entry = pd_cast[i];
 

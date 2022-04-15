@@ -37,6 +37,7 @@ uint32_t get_tcb_tid(tcb_t *tcb);
 void set_task_exit_status( int status );
 
 int get_num_threads_in_owning_task( tcb_t *tcbp );
+void *get_kern_stack_lo( tcb_t *tcbp );
 void *get_kern_stack_hi( tcb_t *tcbp );
 void set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp );
 void *swap_task_pd( void *new_pd );

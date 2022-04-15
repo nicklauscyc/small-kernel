@@ -1,5 +1,9 @@
 #include <seg.h>
 
+/**
+ * Since we direct map kernel memory, changing the value in cr3 should
+ * have no effect on the stack values being stored on the kernel stack
+ */
 .globl context_switch
 
 context_switch:
