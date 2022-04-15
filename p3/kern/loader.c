@@ -126,8 +126,8 @@ transplant_program_memory( simple_elf_t *se_hdr )
 
     /* Zero out bytes between memory regions (as well as inside them)  */
 	zero_out_memory_region(se_hdr->e_txtstart, se_hdr->e_txtlen);
-	zero_out_memory_region(se_hdr->e_datstart, se_hdr->e_datlen);
 	zero_out_memory_region(se_hdr->e_rodatstart, se_hdr->e_rodatlen);
+	zero_out_memory_region(se_hdr->e_datstart, se_hdr->e_datlen);
 	zero_out_memory_region(se_hdr->e_bssstart, se_hdr->e_bsslen);
 
     /* We rely on the fact that virtual-memory is
@@ -139,16 +139,35 @@ transplant_program_memory( simple_elf_t *se_hdr )
             (unsigned int) se_hdr->e_txtlen,
 	        (char *) se_hdr->e_txtstart);
 
-	i += getbytes(se_hdr->e_fname,
-            (unsigned int) se_hdr->e_datoff,
-            (unsigned int) se_hdr->e_datlen,
-	        (char *) se_hdr->e_datstart);
+	uint32_t *curr = (uint32_t *)se_hdr->e_txtstart;
+	for (int j=0; j< se_hdr->e_txtlen / 4; ++j) {
+		log_info("at %p, %lx", curr, *curr);
+		curr++;
+	}
 
 	i += getbytes(se_hdr->e_fname,
 	        (unsigned int) se_hdr->e_rodatoff,
             (unsigned int) se_hdr->e_rodatlen,
 	        (char *) se_hdr->e_rodatstart);
 
+	curr = (uint32_t *)se_hdr->e_rodatstart;
+	for (int j=0; j< se_hdr->e_rodatlen / 4; ++j) {
+		log_info("at %p, %lx", curr, *curr);
+		curr++;
+	}
+
+	i += getbytes(se_hdr->e_fname,
+            (unsigned int) se_hdr->e_datoff,
+            (unsigned int) se_hdr->e_datlen,
+	        (char *) se_hdr->e_datstart);
+
+	curr = (uint32_t *)se_hdr->e_datstart;
+	for (int j=0; j< se_hdr->e_datlen / 4; ++j) {
+		log_info("at %p, %lx", curr, *curr);
+		curr++;
+	}
+
+	MAGIC_BREAK;
     /* Re-enable write-protection bit. */
     enable_write_protection();
 
