@@ -38,9 +38,22 @@ general_protection_handler( uint32_t *ebp )
 	}
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] General protection fault encountered error at "
-		        "0x%x.", eip);
+	    	       "segment descriptor\n"
+				   "error_code:0x%08x\n "
+				   "eip:0x%08x\n "
+				   "cs:0x%08x\n "
+				   "eflags:0x%08x\n ",
+				   error_code, eip, cs, eflags);
+
 	}
 	/* TODO: acknowledge signal and call user handler  */
+	panic("[User mode] General protection fault encountered at "
+	    	       "segment descriptor\n"
+				   "error_code:0x%08x\n "
+				   "eip:0x%08x\n "
+				   "cs:0x%08x\n "
+				   "eflags:0x%08x\n ",
+				   error_code, eip, cs, eflags);
 
-	panic("[User mode] General protection fault encountered at 0x%x", eip);
+
 }
