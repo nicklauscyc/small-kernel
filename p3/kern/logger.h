@@ -4,6 +4,8 @@
  *  @author Nicklaus Choo (nchoo)
  */
 
+#include <stdarg.h> /* va_list() */
+
 #ifndef _LOGGER_H_
 #define _LOGGER_H_
 
@@ -16,6 +18,7 @@
 extern int log_level;
 
 /* Function prototypes */
+void vtprintf( const char *format, va_list args, int priority );
 void log( const char *format, ... );
 void log_info( const char *format, ...);
 void log_warn( const char *format, ...);

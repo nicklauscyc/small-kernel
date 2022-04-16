@@ -55,7 +55,7 @@ void panic( const char *fmt, ... )
 	/* Print error that occurred */
 	va_list args;
 	va_start(args, fmt);
-	log_crit(fmt, args);
+	vtprintf(fmt, args, CRITICAL_PRIORITY);
 	va_end(args);
 
 	disable_interrupts();

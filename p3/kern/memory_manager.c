@@ -94,7 +94,6 @@ get_pd( void )
 int
 zero_page_pf_handler( uint32_t faulting_address )
 {
-	log("zero_page_pf_handler() called");
 	/* get_pd() guarantees basic consistency for valid page directory */
 	uint32_t **pd = get_pd();
 

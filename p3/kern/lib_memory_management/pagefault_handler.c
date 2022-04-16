@@ -18,7 +18,7 @@
 
 #include <simics.h>
 #include <logger.h> /* log() */
-
+#include <lib_life_cycle/life_cycle.h>
 
 #define PRESENT_BIT			(1 << 0)
 #define READ_WRITE_BIT		(1 << 1)
@@ -30,10 +30,24 @@
  *  @return Void.
  */
 void
-pagefault_handler( int error_code, int eip, int cs )
+pagefault_handler( uint32_t *ebp )
 {
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	int error_code = *(ebp + 1);
+	int eip = *(ebp + 2);
+	int cs = *(ebp + 3);
+	int eflags = *(ebp + 4);
+	int esp, ss;
+
+	/* More args on stack if it was from user space */
+	if (cs == SEGSEL_USER_CS) {
+		esp = *(ebp + 5);
+		ss = *(ebp + 6);
+	}
+	(void) esp;
+	(void) ss;
 
 	uint32_t faulting_vm_address = get_cr2();
 
@@ -41,8 +55,12 @@ pagefault_handler( int error_code, int eip, int cs )
 	/* TODO: acknowledge signal and call user handler  */
 
 	(void)cs;
-	log_info("pagefault_handler(): error_code:0x%x, eip:0x%x, cs:0x%x", error_code,
-	    eip, cs);
+	log_info("pagefault_handler(): "
+	         "error_code:0x%x "
+			 "eip:0x%x "
+			 "cs:0x%x "
+	         "faulting_vm_address:%p",
+			 error_code, eip, cs, faulting_vm_address);
 
 	char user_mode[] = "[USER-MODE]";
 	char supervisor_mode[] = "[SUPERVISOR-MODE]";
@@ -50,33 +68,48 @@ pagefault_handler( int error_code, int eip, int cs )
 	char *mode = (error_code & USER_SUPERVISOR_BIT) ?
 		user_mode : supervisor_mode;
 
-	if (!(error_code & PRESENT_BIT))
-		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
+	if (!(error_code & PRESENT_BIT)) {
+		log_info("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
 				get_running_tid(), mode, faulting_vm_address, eip,
 				faulting_vm_address < PAGE_SIZE ?
 				"Null dereference." : "Page not present.");
+		_vanish();
+	}
+
 
 	/* Jank check but reasonable for now */
-	if (cs == SEGSEL_USER_CS && eip < USER_MEM_START)
-		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
+	if (cs == SEGSEL_USER_CS && eip < USER_MEM_START) {
+		log_info("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
 				"User mode trying to access kernel memory",
 				get_running_tid(),mode, faulting_vm_address, eip);
+		_vanish();
+	}
 
 	/* Check if this was a ZFOD allocated page */
 	if (zero_page_pf_handler(faulting_vm_address) == 0) {
 		return;
 	}
 
-	if (error_code & RESERVED_BIT_BIT)
-		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
+	if (error_code & RESERVED_BIT_BIT) {
+		log_info("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
 				"Writing into reserved bits",
 				get_running_tid(), mode, faulting_vm_address, eip);
-
-	if (error_code & READ_WRITE_BIT)
-		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
+		_vanish();
+	}
+	if (error_code & READ_WRITE_BIT) {
+		log_info("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
 				"Writing into read-only page",
 				get_running_tid(), mode, faulting_vm_address, eip);
+		_vanish();
+	}
+	MAGIC_BREAK;
+	panic("PAGEFAULT HANDLER BROKEN!\n"
+				   "error_code:0x%08x\n "
+				   "eip:0x%08x\n "
+				   "cs:0x%08x\n "
+				   "eflags:0x%08x\n "
+				   "faulting_vm_address: 0x%08lx",
+				   error_code, eip, cs, eflags, faulting_vm_address);
 
-	panic("PAGEFAULT HANDLER BROKEN!");
 
 }

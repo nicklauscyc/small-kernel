@@ -7,14 +7,21 @@
 #include <timer_driver.h>		/* get_total_ticks() */
 
 void
+_vanish( void )
+{
+	log_info("call _vanish()");
+	while(1) {
+		continue;
+	}
+}
+
+void
 vanish( void )
 {
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 	log_info("call vanish");
-	while(1) {
-		continue;
-	}
+	_vanish();
 }
 
 
