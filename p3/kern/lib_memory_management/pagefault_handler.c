@@ -37,9 +37,6 @@ pagefault_handler( int error_code, int eip, int cs )
 
 	uint32_t faulting_vm_address = get_cr2();
 
-	if (zero_page_pf_handler(faulting_vm_address) == 0) {
-		return;
-	}
 	// TODO Add the swexn() execution here
 	/* TODO: acknowledge signal and call user handler  */
 
@@ -65,13 +62,21 @@ pagefault_handler( int error_code, int eip, int cs )
 				"User mode trying to access kernel memory",
 				get_running_tid(),mode, faulting_vm_address, eip);
 
-	if (error_code & READ_WRITE_BIT)
-		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
-				"Writing into read-only page",
-				get_running_tid(), mode, faulting_vm_address, eip);
+	/* Check if this was a ZFOD allocated page */
+	if (zero_page_pf_handler(faulting_vm_address) == 0) {
+		return;
+	}
 
 	if (error_code & RESERVED_BIT_BIT)
 		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
 				"Writing into reserved bits",
 				get_running_tid(), mode, faulting_vm_address, eip);
+
+	if (error_code & READ_WRITE_BIT)
+		panic("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
+				"Writing into read-only page",
+				get_running_tid(), mode, faulting_vm_address, eip);
+
+	panic("PAGEFAULT HANDLER BROKEN!");
+
 }

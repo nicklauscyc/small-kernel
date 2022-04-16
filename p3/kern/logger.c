@@ -87,7 +87,6 @@ vtprintf( const char *format, va_list args, int priority )
 			         "tid[%d]: UNRECOGNIZED priority:%d for vtprintf()",
 					 tid, priority);
 			sim_puts(str);
-
 			return;
 	}
 	/* Print rest of output, and a little extra for CRITICAL priority */
@@ -100,6 +99,7 @@ vtprintf( const char *format, va_list args, int priority )
 	}
 
 	sim_puts(str);
+	//TODO print on actual hardware
 
 	return;
 }

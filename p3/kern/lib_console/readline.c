@@ -63,8 +63,6 @@ init_readline( void )
 int
 readline( int len, char *buf )
 {
-	lprintf("len %d", len);
-	lprintf("buf %p", buf);
 	if (len < 0) return -1;
 	if (len == 0) return 0;
 	if (len > CONSOLE_WIDTH * CONSOLE_HEIGHT) return -1;
