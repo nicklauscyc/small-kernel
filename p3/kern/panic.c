@@ -58,6 +58,9 @@ void panic( const char *fmt, ... )
 	vtprintf(fmt, args, CRITICAL_PRIORITY);
 	va_end(args);
 
+#include <simics.h>
+	MAGIC_BREAK;
+
 	disable_interrupts();
 	while (1) {
 		continue;

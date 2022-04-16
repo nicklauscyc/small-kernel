@@ -11,13 +11,8 @@
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 
-/** @brief Deschedules currently running thread if *reject == 0
- *		   Atomic w.r.t make_runnable
- *
- *	@param reject Pointer to integer describing whether to deschedule
- *	@return 0 on success, negative value on failure */
 int
-deschedule( int *reject )
+_deschedule( int *reject )
 {
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
@@ -28,4 +23,15 @@ deschedule( int *reject )
 	if (*reject == 0)
 		return yield_execution(DESCHEDULED, -1, NULL, NULL);
 	return 0;
+}
+
+/** @brief Deschedules currently running thread if *reject == 0
+ *		   Atomic w.r.t make_runnable
+ *
+ *	@param reject Pointer to integer describing whether to deschedule
+ *	@return 0 on success, negative value on failure */
+int
+deschedule( int *reject )
+{
+	return _deschedule(reject);
 }

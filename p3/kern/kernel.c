@@ -47,7 +47,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 2;
+int log_level = 4;
 
 void tick(unsigned int numTicks) {
 	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow
@@ -136,7 +136,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-	char *args[] = {"mem_permissions",0, "memory",  0};
-	execute_user_program("mem_permissions",1, args);
+	char *args[] = {"score", "memory",  0};
+	execute_user_program("score",2, args);
     return 0;
 }

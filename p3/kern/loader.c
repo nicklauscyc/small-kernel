@@ -189,6 +189,11 @@ configure_stack( int argc, char **argv )
 		log("string of argv at address:%p", esp_char);
 		assert(STACK_ALIGNED(esp_char));
 		memset(esp_char, 0, USER_STR_LEN);
+
+		affirm(esp_char);
+		affirm(argv);
+		affirm(argv[argc - 1 - i]);
+
 		memcpy(esp_char, argv[argc - 1 - i], strlen(argv[argc - 1 - i]));
 		user_stack_argv[argc - 1 - i] = esp_char;
 	}

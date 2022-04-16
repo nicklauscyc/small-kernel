@@ -136,7 +136,7 @@ zero_page_pf_handler( uint32_t faulting_address )
 
 	/* Flush TLB so we zero out the appropriate physical frame */
 	set_cr3(get_cr3());
-	log_info("memsetting faulting_address %p, (table addr %p) to 0.",
+	log("memsetting faulting_address %p, (table addr %p) to 0.",
 			(void *)faulting_address,(void *)TABLE_ADDRESS(faulting_address));
 	memset((void *)TABLE_ADDRESS(faulting_address), 0, PAGE_SIZE);
 
@@ -889,7 +889,7 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 	}
 	/* is_valid_pd() is expensive, hence the assert() */
 	assert(is_valid_pd(pd));
-	log_info("allocate_user_zero_frame(): "
+	log("allocate_user_zero_frame(): "
 	    "allocate zero frame for vm:%p", (uint32_t *) virtual_address);
 
 	/* pd is NULL, abort with error */

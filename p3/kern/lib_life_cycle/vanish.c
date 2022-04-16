@@ -5,15 +5,21 @@
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <logger.h>    /* log() */
 #include <timer_driver.h>		/* get_total_ticks() */
+#include <lib_thread_management/thread_management.h> /* _deschedule() */
 
 void
 _vanish( void )
 {
 	log_info("call _vanish()");
-	while(1) {
+	//int reject = 0;
+	//_deschedule(&reject);
+	while(1)
+	{
 		continue;
 	}
+
 }
+
 
 void
 vanish( void )

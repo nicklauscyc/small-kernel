@@ -28,7 +28,7 @@ new_pages( void *base, int len )
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-    log_info("new_pages(): "
+    log("new_pages(): "
         "base:%p, len:0x%08lx", base, len);
 
     if ((uint32_t)base < USER_MEM_START) {

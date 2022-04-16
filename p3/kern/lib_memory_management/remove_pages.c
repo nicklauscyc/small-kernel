@@ -74,7 +74,7 @@ remove_pages( void *base )
 
 		ptep = get_ptep((const uint32_t **) pd, curr);
 	}
-	log_info("remove_pages(): "
+	log("remove_pages(): "
 			 "unallocated base:%p, len:%d", base,
 			 curr - ((uint32_t) base));
 	/* TODO jank get and set cr3() to flush TLB entries */
