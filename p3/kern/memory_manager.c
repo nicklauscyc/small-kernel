@@ -98,7 +98,6 @@ zero_page_pf_handler( uint32_t faulting_address )
 	/* get_pd() guarantees basic consistency for valid page directory */
 	uint32_t **pd = get_pd();
 
-	//TODO a version of get_ptep that does not allocate the pagetable at l
 	uint32_t *ptep = get_ptep( (const uint32_t **) pd, faulting_address);
 
 	/* Page table entry cannot be NULL frame */
@@ -131,13 +130,14 @@ zero_page_pf_handler( uint32_t faulting_address )
 	// TODO version of allocate_frame that throws an error if already allocated
 	int res = allocate_frame(pd, faulting_address, READ_WRITE, sys_prog_flag);
 	if (res) {
-		log_warn("Failed to allocate frame inside zero_page_pf_handler");
+		log_warn("zero_page_pf_handler(): "
+		         "Failed to allocate frame inside zero_page_pf_handler");
 		return -1;
 	}
 
 	/* Flush TLB so we zero out the appropriate physical frame */
 	set_cr3(get_cr3());
-	lprintf("memsetting faulting_address %p, (table addr %p) to 0.",
+	log_info("memsetting faulting_address %p, (table addr %p) to 0.",
 			(void *)faulting_address,(void *)TABLE_ADDRESS(faulting_address));
 	memset((void *)TABLE_ADDRESS(faulting_address), 0, PAGE_SIZE);
 
@@ -890,11 +890,13 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 	}
 	/* is_valid_pd() is expensive, hence the assert() */
 	assert(is_valid_pd(pd));
-	log("allocate zero frame for vm:%p", (uint32_t *) virtual_address);
+	log_info("allocate_user_zero_frame(): "
+	    "allocate zero frame for vm:%p", (uint32_t *) virtual_address);
 
 	/* pd is NULL, abort with error */
 	if (!pd) {
-		log_warn("allocate_zero_frame pd cannot be NULL!");
+		log_info("allocate_user_zero_frame(): "
+		         "allocate_zero_frame pd cannot be NULL!");
 		return -1;
 	}
 	assert(is_valid_pd(pd));
@@ -904,6 +906,8 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 
 	/* pd is valid, so !ptep means must add new page table to page directory */
 	if (!ptep) {
+		uint32_t pd_index = PD_INDEX(virtual_address);
+		affirm(pd[pd_index] == NULL);
 		add_new_pt_to_pd(pd, virtual_address);
 		log_info("allocate_user_zero_frame(): "
 		         "adding new pt to pd for virutal_address:0x%08lx",
@@ -916,7 +920,7 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 	/* If page table entry contains a non-NULL address */
 	if (TABLE_ADDRESS(pt_entry)) {
 		log_info("allocate_user_zero_frame(): "
-		         "zero frame already allocated!");
+				 "zero frame already allocated!");
 		return -1;
 	}
 	/* Allocate new physical frame */

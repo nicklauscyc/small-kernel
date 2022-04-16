@@ -136,7 +136,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-	char *args[] = {"init", 0};
-	execute_user_program("init", 1, args);
+	char *args[] = {"new_pages", 0, "memory",  0};
+	execute_user_program("new_pages", 1, args);
     return 0;
 }
