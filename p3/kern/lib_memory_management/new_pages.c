@@ -75,7 +75,7 @@ new_pages( void *base, int len )
         /* If any step fails, unallocate zero frame, return -1 */
         if (res < 0) {
             log_info("new_pages(): "
-                     "unable to allocate zero frame in new_pages()");
+                     "unable to allocate zero frame");
 
             /* Cleanup */
             for (uint32_t j = 0; j < i; ++j) {

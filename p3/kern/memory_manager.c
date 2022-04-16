@@ -807,24 +807,28 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address)
 {
 	/* is_valid_pd() is expensive, hence the assert() */
 	assert(is_valid_pd(pd));
-	log("allocate zero frame for vm:%p", (uint32_t *) virtual_address);
+	log_info("allocate_user_zero_frame(): "
+	    "allocate zero frame for vm:%p", (uint32_t *) virtual_address);
 
 	/* pd is NULL, abort with error */
 	if (!pd) {
-		log_warn("allocate_zero_frame pd cannot be NULL!");
+		log_info("allocate_user_zero_frame(): "
+		         "allocate_zero_frame pd cannot be NULL!");
 		return -1;
 	}
 	/* Find page table entry corresponding to virtual address */
 	uint32_t *ptep = get_ptep((const uint32_t **) pd, virtual_address);
 	if (!ptep) {
-		log_warn("unable to get page table entry");
+		log_info("allocate_user_zero_frame(): "
+				 "unable to get page table entry");
 		return -1;
 	}
 	uint32_t pt_entry = *ptep;
 
 	/* If page table entry contains a non-NULL address */
 	if (TABLE_ADDRESS(pt_entry)) {
-		log_warn("zero frame already allocated!");
+		log_info("allocate_user_zero_frame(): "
+				 "zero frame already allocated!");
 		return -1;
 	}
 	/* Allocate new physical frame */
