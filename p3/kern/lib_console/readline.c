@@ -111,12 +111,16 @@ _readline(char *buf, int len)
   	  	/* If at front of buffer, Delete the character if backspace */
   	  	if (ch == '\b') {
 
-			/* If at start_row, start_col, do nothing as don't delete prompt */
+			/* If at start_row/col, do nothing so as to not delete prompt */
   	  	  	int row, col;
   	  	  	get_cursor(&row, &col);
-  	  	  	assert (row * CONSOLE_WIDTH + col >= start_row * CONSOLE_WIDTH + start_col);
-  	  	  	if (!(row == start_row && col == start_col)) {
-				assert(i > 0);
+
+  	  	  	if (!(row * CONSOLE_WIDTH + col >= start_row * CONSOLE_WIDTH + start_col)) {
+				continue;
+			}
+
+  	  	  	if (i > 0) {
+				assert((row != start_row || col != start_col));
 
   	  	  	  	/* Print to screen and update intial cursor position if needed*/
   	  	  	  	scrolled_putbyte(ch, &start_row, &start_col);
@@ -139,11 +143,9 @@ _readline(char *buf, int len)
 	  	  	scrolled_putbyte(ch, &start_row, &start_col);
 
 	  	  	/* write to buffer */
-	  	  	if (isprint(ch)) {
-				temp_buf[i] = ch;
-	  	  	   	i++;
-	  	  	   	if (i > written) written = i;
-	  	  	}
+			temp_buf[i] = ch;
+			i++;
+			if (i > written) written = i;
   	  	}
   	}
   	assert(written <= len);

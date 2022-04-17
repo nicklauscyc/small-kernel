@@ -136,7 +136,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-	char *args[] = {"score", "memory",  0};
-	execute_user_program("score",2, args);
+	char *args[] = {"init", 0};
+	execute_user_program("init", 1, args);
     return 0;
 }
