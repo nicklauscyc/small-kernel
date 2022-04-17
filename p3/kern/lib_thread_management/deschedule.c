@@ -14,9 +14,6 @@
 int
 _deschedule( int *reject )
 {
-    /* Acknowledge interrupt immediately */
-    outb(INT_CTL_PORT, INT_ACK_CURRENT);
-
 	if (!is_valid_user_pointer(reject, READ_ONLY))
 		return -1;
 
@@ -33,5 +30,8 @@ _deschedule( int *reject )
 int
 deschedule( int *reject )
 {
+    /* Acknowledge interrupt immediately */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
 	return _deschedule(reject);
 }
