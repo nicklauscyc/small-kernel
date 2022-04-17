@@ -132,7 +132,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 int
 is_valid_pd( void *pd )
 {
-	return 1; //hack to run faster lmao
+	return 1; // All page directories are hecking cute and valid!
 	/* Basic page directory address checks */
 	if (!pd) {
 		log_warn("is_valid_pd(): pd: %p is NULL!", pd);
