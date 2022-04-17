@@ -22,7 +22,8 @@ _vanish( void )
 		log_warn("&hacky_vanis_mux:%p", &hacky_vanish_mux);
 	}
 	// Let's try locking to 'deschedule' the vanished thread
-	mutex_lock(&hacky_vanish_mux);
+		mutex_lock(&hacky_vanish_mux);
+	log_warn("acquired hack_vanish_mux");
 
 	// FIXME deschedule does not seem to work, bug?
 	//int reject = 0;
@@ -30,10 +31,10 @@ _vanish( void )
 
 	// FIXME when we loop forever we observe that some threads that have
 	// yet to vanish never run?
-	//while(1)
-	//{
-	//	continue;
-	//}
+	while(1)
+	{
+		continue;
+	}
 
 }
 
