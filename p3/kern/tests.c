@@ -3,7 +3,7 @@
 
 #include <tests.h>
 
-#include <asm.h> /* outb() */
+#include <asm.h>		/* outb() */
 #include <assert.h>
 #include <simics.h>
 #include <logger.h>

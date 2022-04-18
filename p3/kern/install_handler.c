@@ -15,6 +15,7 @@
 #include <timer_driver.h>   /* init_timer() */
 #include <keybd_driver.h>   /* init_keybd() */
 #include <timer_defines.h>  /* TIMER_IDT_ENTRY */
+#include <lib_console/readline.h> /* init_readline() */
 #include <interrupt_defines.h>
 #include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
 												call_keybd_int_handler() */
@@ -60,7 +61,7 @@ install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
   if (!asm_wrapper) {
 	  return -1;
   }
-  /* Get address of trap gate for timer */
+  /* Get gate address */
   void *idt_base_addr = idt_base();
   void *idt_entry_addr = idt_base_addr + (idt_entry * BYTES_PER_GATE);
 
@@ -248,6 +249,10 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	/* Lib console */
+	if (install_handler(READLINE_INT, init_readline,
+		call_readline, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
 	if (install_handler(PRINT_INT, NULL, call_print, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}

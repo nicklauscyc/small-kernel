@@ -46,15 +46,14 @@
  *  Passing in an unrecognized priority will just lead to
  *  printing out an error message to let the user know that it has supplied
  *  the wrong arguments, no need to cause an assertion failure as the error
- *  is promptly displayed. This should never happen anyway since vtprintf()
- *  is currently implemented static.
+ *  is promptly displayed.
  *
  *  @param format String format to print to
  *  @param args A va_list of all arguments to include in format
  *  @param priority Logging priority.
  *  @return Void.
  */
-static void
+void
 vtprintf( const char *format, va_list args, int priority )
 {
 	char str[LEN];
@@ -87,7 +86,6 @@ vtprintf( const char *format, va_list args, int priority )
 			         "tid[%d]: UNRECOGNIZED priority:%d for vtprintf()",
 					 tid, priority);
 			sim_puts(str);
-
 			return;
 	}
 	/* Print rest of output, and a little extra for CRITICAL priority */
@@ -100,6 +98,7 @@ vtprintf( const char *format, va_list args, int priority )
 	}
 
 	sim_puts(str);
+	//TODO print on actual hardware
 
 	return;
 }

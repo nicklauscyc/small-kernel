@@ -10,7 +10,8 @@ update_child_esp:
 
 .globl save_child_regs
 //TODO if possible do it in C
-/* void *save_child_regs(void *parent_kern_esp, void *child_kern_esp); */
+/* void *save_child_regs(void *parent_kern_esp, void *child_kern_esp
+ *						 void *child_cr3 ); */
 save_child_regs:
 	/**************************************************************************/
 	/* header: necessary steps to guarantee correct function return           */
@@ -67,6 +68,8 @@ save_child_regs:
 
 	pushl %edx
 
+# TODO: Just subl 20 to child esp instead
+#		Or just 5 times, subl 4 so we can comment what's up
 	movl -68(%ecx), %edx /* parent ebx in %edx */
 	pushl %edx
 	movl -72(%ecx), %edx /* parent ecx in %edx */
@@ -76,6 +79,8 @@ save_child_regs:
 	movl -80(%ecx), %edx /* parent edi in %edx */
 	pushl %edx
 	movl -84(%ecx), %edx /* parent esi in %edx */
+	pushl %edx
+	movl 16(%ebp), %edx /* parent cr3 in %edx */
 	pushl %edx
 
 	movl %esp, %eax /* return the stack pointer for child to use */

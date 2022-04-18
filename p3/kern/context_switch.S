@@ -1,5 +1,9 @@
 #include <seg.h>
 
+/**
+ * Since we direct map kernel memory, changing the value in cr3 should
+ * have no effect on the stack values being stored on the kernel stack
+ */
 .globl context_switch
 
 context_switch:
@@ -12,10 +16,14 @@ context_switch:
 	pushl %edi
 	pushl %esi
 
+	movl %cr3, %ecx
+	pushl %ecx
+
 	movl 8(%ebp), %ecx
 	movl %esp, (%ecx)	/* save current %esp to first arg */
 	movl 12(%ebp), %esp /* restore %esp from second arg */
-	movl 16(%ebp), %ecx
+
+	popl %ecx
 	movl %ecx, %cr3		/* update page directory */
 
 	popl %esi

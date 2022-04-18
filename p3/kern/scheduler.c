@@ -104,7 +104,7 @@ yield_execution( status_t store_status, int tid,
 		/* If we are coincidentally at the front of the queue,
 		 * we only want to yield to ourselves if we want to remain
 		 * runnable. */
-		if (tcb->tid == get_running_tid()) {
+		if (tcb && tcb->tid == get_running_tid()) {
 			/* If store_status is not runnable find someone else. */
 			if (store_status != RUNNABLE) {
 				Q_REMOVE(&runnable_q, tcb, scheduler_queue);
@@ -196,15 +196,8 @@ init_scheduler( void )
 	return 0;
 }
 
-/** @brief Registers thread with scheduler. After this call,
- *		   the thread may be executed by the scheduler.
- *
- *	@param tid Id of thread to register
- *
- *	@return 0 on success, negative value on error */
-/* TODO: Think of synchronization here*/
-int
-make_thread_runnable(uint32_t tid)
+static int
+make_thread_runnable_helper( uint32_t tid, int switch_safe )
 {
 	log("Making thread %d runnable", tid);
 
@@ -216,7 +209,8 @@ make_thread_runnable(uint32_t tid)
 	disable_interrupts();
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
 		log_warn("Trying to make runnable thread %d runnable again", tid);
-		enable_interrupts();
+		if (!switch_safe)
+			enable_interrupts();
 		return -1;
 	}
 
@@ -225,7 +219,7 @@ make_thread_runnable(uint32_t tid)
 		tcbp->status = RUNNING;
 		running_thread = tcbp;
 	} else {
-		if (tcbp->status == UNINITIALIZED) {
+		if (tcbp->status == UNINITIALIZED || switch_safe) {
 			tcbp->status = RUNNABLE;
 			Q_INSERT_TAIL(&runnable_q, tcbp, scheduler_queue);
 		} else {
@@ -235,11 +229,30 @@ make_thread_runnable(uint32_t tid)
 			swap_running_thread(tcbp, RUNNABLE, NULL, NULL);
 		}
 	}
-	enable_interrupts();
 
-	log("Succesfully registered thread %d", tid);
+	if (!switch_safe)
+		enable_interrupts();
 
 	return 0;
+}
+
+int
+switch_safe_make_thread_runnable( uint32_t tid )
+{
+	return make_thread_runnable_helper(tid, 1);
+}
+
+/** @brief Registers thread with scheduler. After this call,
+ *		   the thread may be executed by the scheduler.
+ *
+ *	@param tid Id of thread to register
+ *
+ *	@return 0 on success, negative value on error */
+/* TODO: Think of synchronization here*/
+int
+make_thread_runnable( uint32_t tid )
+{
+	return make_thread_runnable_helper(tid, 0);
 }
 
 void
@@ -320,20 +333,23 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 
 	tcb_t *running = running_thread;
 	running->status = store_status;
+
 	/* Data structure for other statuses are managed by their own components,
 	 * scheduler is only responsible for managing runnable/running threads. */
 	/* If running thread is already in runnable queue, don't insert again */
 	if (store_status == RUNNABLE && !Q_IN_SOME_QUEUE(running, scheduler_queue))
 		Q_INSERT_TAIL(&runnable_q, running, scheduler_queue);
 	else if (callback) {
+		/* FIXME: What happens if the callback calls a yield_execution? */
 		callback(running, data);
 	}
 
+	/* Update running thread after, since callback expects to be called by
+	 * original running thread. */
 	to_run->status = RUNNING;
 	running_thread = to_run;
 
-	enable_interrupts();
-
+	/* Interrupts are enabled inside context switch, once it's safe to do so. */
 	switch_threads(running, to_run);
 
 	/* Nothing which must run should be placed after switch_threads as,
@@ -350,8 +366,7 @@ switch_threads(tcb_t *running, tcb_t *to_run)
 	/* Let thread know where to come back to on USER->KERN mode switch */
 	set_esp0((uint32_t)to_run->kernel_stack_hi);
 
-	context_switch((void **)&(running->kernel_esp),
-			to_run->kernel_esp, to_run->owning_task->pd);
+	context_switch((void **)&(running->kernel_esp), to_run->kernel_esp);
 }
 
 

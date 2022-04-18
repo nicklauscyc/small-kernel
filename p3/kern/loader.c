@@ -33,6 +33,8 @@
 #include <simics.h>
 #include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
 
+#include <task_manager_internal.h>
+
 /* --- Local function prototypes --- */
 
 /* first_task is 1 if there is currently no user task running, so
@@ -93,6 +95,13 @@ getbytes( const char *filename, int offset, int size, char *buf )
     return bytes_to_copy;
 }
 
+static void
+zero_out_memory_region( uint32_t start, uint32_t len )
+{
+	uint32_t align_end = ((start + len + PAGE_SIZE - 1) / PAGE_SIZE) * PAGE_SIZE;
+	memset((void *)start, 0, align_end - start);
+}
+
 /** @brief Transplants program data into virtual memory.
  *  Assumes paging is enabled and that virtual memory
  *  has been setup.
@@ -115,7 +124,11 @@ transplant_program_memory( simple_elf_t *se_hdr )
     // FIXME: This error checking is kinda hacky
     int i = 0;
 
-    /* TODO: Zero out bytes between memory regions */
+    /* Zero out bytes between memory regions (as well as inside them)  */
+	zero_out_memory_region(se_hdr->e_txtstart, se_hdr->e_txtlen);
+	zero_out_memory_region(se_hdr->e_rodatstart, se_hdr->e_rodatlen);
+	zero_out_memory_region(se_hdr->e_datstart, se_hdr->e_datlen);
+	zero_out_memory_region(se_hdr->e_bssstart, se_hdr->e_bsslen);
 
     /* We rely on the fact that virtual-memory is
      * enabled to "transplant" program data. Notice
@@ -125,16 +138,14 @@ transplant_program_memory( simple_elf_t *se_hdr )
             (unsigned int) se_hdr->e_txtoff,
             (unsigned int) se_hdr->e_txtlen,
 	        (char *) se_hdr->e_txtstart);
-
-	i += getbytes(se_hdr->e_fname,
-            (unsigned int) se_hdr->e_datoff,
-            (unsigned int) se_hdr->e_datlen,
-	        (char *) se_hdr->e_datstart);
-
 	i += getbytes(se_hdr->e_fname,
 	        (unsigned int) se_hdr->e_rodatoff,
             (unsigned int) se_hdr->e_rodatlen,
 	        (char *) se_hdr->e_rodatstart);
+	i += getbytes(se_hdr->e_fname,
+            (unsigned int) se_hdr->e_datoff,
+            (unsigned int) se_hdr->e_datlen,
+	        (char *) se_hdr->e_datstart);
 
     /* Re-enable write-protection bit. */
     enable_write_protection();
@@ -178,6 +189,11 @@ configure_stack( int argc, char **argv )
 		log("string of argv at address:%p", esp_char);
 		assert(STACK_ALIGNED(esp_char));
 		memset(esp_char, 0, USER_STR_LEN);
+
+		affirm(esp_char);
+		affirm(argv);
+		affirm(argv[argc - 1 - i]);
+
 		memcpy(esp_char, argv[argc - 1 - i], strlen(argv[argc - 1 - i]));
 		user_stack_argv[argc - 1 - i] = esp_char;
 	}
@@ -188,19 +204,14 @@ configure_stack( int argc, char **argv )
 	for (int i = 0; i < argc; ++i) {
 		*(--esp) = (uint32_t) user_stack_argv[argc - 1 - i];
 	}
+
 	/* Save value of char **argv */
 	char **argv_arg = (char **) esp;
 
-	/* Put stack_low onto stack */
+	/* Store arguments on stack */
 	*(--esp) = (uint32_t) stack_low;
-
-	/* Put stack_high onto stack */
 	*(--esp) = (uint32_t) stack_high;
-
-    /* Put argv_arg onto the user stack */
 	*(--esp) = (uint32_t) argv_arg;
-
-	/* Put argc onto stack */
 	*(--esp) = argc;
 
     /* Functions expect esp to point to return address on entry.
@@ -271,7 +282,28 @@ configure_stack( int argc, char **argv )
 int
 execute_user_program( char *fname, int argc, char **argv)
 {
-	log_info("Executing: %s", fname);
+	//disable_interrupts();// FIXME why is this here gg
+	//if (first_task)
+	//	log_warn("Executing first task");
+	//else
+	//	log_warn("Executing not-first task");
+
+	//log_warn("Executing pointer %s", fname);
+	//enable_interrupts();
+	log_warn("executing task fname:%s", fname);
+
+	if (!first_task) {
+		/* Validate execname */
+		if (!is_valid_null_terminated_user_string(fname, USER_STR_LEN)) {
+			return -1;
+		}
+		//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+		/* Validate argvec */
+		int argc = 0;
+		if (!(argc = is_valid_user_argvec(fname, argv))) {
+			return -1;
+		}
+	}
 
     /* Transfer execname to kernel stack so unaffected by page directory */
 	char kern_stack_execname[USER_STR_LEN];
@@ -325,14 +357,24 @@ execute_user_program( char *fname, int argc, char **argv)
 			return -1;
 		}
 		void *old_pd = swap_task_pd(new_pd);
-		assert(is_valid_pd(old_pd));
+		//assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 	}
+
+
+#ifdef DEBUG
+	tcb_t *tcb = find_tcb(tid);
+	assert(tcb);
+	/* Register this task's new binary with simics */
+	sim_reg_process(get_tcb_pd(tcb), kern_stack_execname);
+#endif
+
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
+
     if (transplant_program_memory(&se_hdr) < 0) {
         return -1;
 	}

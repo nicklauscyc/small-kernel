@@ -16,6 +16,8 @@
 #include <page.h> /* PAGE_SIZE */
 #include <simics.h>
 #include <physalloc.h>
+#include <memory_manager_internal.h>
+
 
 // TODO locking
 int
@@ -26,7 +28,7 @@ new_pages( void *base, int len )
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-    log_info("new_pages(): "
+    log("new_pages(): "
         "base:%p, len:0x%08lx", base, len);
 
     if ((uint32_t)base < USER_MEM_START) {
@@ -54,7 +56,6 @@ new_pages( void *base, int len )
     if (num_free_phys_frames() < pages_to_alloc) {
         log_info("new_pages(): "
                  "not enough free frames to satisfy request!");
-        MAGIC_BREAK;
         return -1;
     }
     /* Check if any portion is currently allocated in task address space */
@@ -70,13 +71,21 @@ new_pages( void *base, int len )
     int res = 0;
     for (uint32_t i = 0; i < len / PAGE_SIZE; ++i) {
         assert(res == 0);
-        res += allocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
-                                        (uint32_t) base + (i * PAGE_SIZE));
 
+		/* We mark in the page table if the allocated page is the first */
+		if (i == 0) {
+			res += allocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
+											(uint32_t) base + (i * PAGE_SIZE),
+											NEW_PAGE_BASE_FLAG);
+		} else {
+			res += allocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
+											(uint32_t) base + (i * PAGE_SIZE),
+											NEW_PAGE_CONTINUE_FROM_BASE_FLAG);
+		}
         /* If any step fails, unallocate zero frame, return -1 */
         if (res < 0) {
             log_info("new_pages(): "
-                     "unable to allocate zero frame in new_pages()");
+                     "unable to allocate zero frame");
 
             /* Cleanup */
             for (uint32_t j = 0; j < i; ++j) {
@@ -86,5 +95,7 @@ new_pages( void *base, int len )
             return -1;
         }
     }
+	/* TODO jank get and set cr3() to flush TLB entries */
+	set_cr3(get_cr3());
     return res;
 }

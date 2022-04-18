@@ -18,7 +18,7 @@
 
 
 int physalloc_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 
 	return run_test(PHYSALLOC_TEST);
@@ -31,8 +31,24 @@ void halt_test() {
 	panic("FAIL, halt_test");
 }
 
+/* Fork(), then exec() then fork() */
+void fork_exec_test() {
+
+	lprintf("Forking in fork_exec_test");
+	int pid = fork();
+
+	if (pid) {
+		char *args[] = {"fork_test1", NULL};
+		lprintf("Exec'ing fork_test1");
+		exec("fork_test1", args);
+	} else
+		while (1) {
+			continue;
+		}
+}
+
 int readfile_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 
 	lprintf("Running readfile test");
@@ -48,7 +64,7 @@ int readfile_test() {
 		return -1;
 	}
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 	lprintf("SUCCESS, readfile_test");
 	return 0;
@@ -62,7 +78,7 @@ void pagefault_test() {
 
 
 int print_test() {
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 
 	lprintf("Running print test. Equal characters should not be interleaved");
@@ -94,7 +110,7 @@ int print_test() {
 	if (pid1 && pid2)
 		print(sizeof(D)/sizeof(char), D);
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 	return 0;
 }
@@ -111,7 +127,7 @@ int cursor_test() {
 		return -1;
 	}
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 	lprintf("SUCCESS, cursor_test");
 	return 0;
@@ -131,7 +147,7 @@ int multiple_fork_test() {
     //    vanish();
 
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 
     return result;
@@ -148,7 +164,7 @@ int mutex_test() {
     //if (pid)
     //    vanish();
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
     return result;
 }
@@ -160,12 +176,12 @@ int sleep_test() {
 	lprintf("Running sleep_test, sleeping for %d seconds (%d ticks).\
 			 Currently at tick %d", ticks / 1000, ticks, get_ticks());
 
-	if (fork()) {
+	if (fork() > 0) {
 		sleep(ticks);
 		lprintf("Passed sleep_test. Now at tick %d", get_ticks());
 	}
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 
 	return 0;
@@ -188,7 +204,7 @@ int yield_test() {
     //if (pid)
     //    vanish();
 
-	if (gettid() != 0) // Hack until vanish is implemented
+	if (gettid() != 1) // Hack until vanish is implemented
 		return TEST_EARLY_EXIT;
 	lprintf("SUCCESS, yield_test");
 	return 0;
@@ -196,12 +212,19 @@ int yield_test() {
 
 int new_pages_test(){
 
-	char *name = (char *) (0x1000000 + 7*PAGE_SIZE);
+#define ADDR 0x40000000
+
+	char *name = (char *) ADDR; //(0x1000000 + 7*PAGE_SIZE);
 	int len = 2 * PAGE_SIZE;
 	int res = new_pages(name, len);
 	assert(res == 0);
 	assert(new_pages(name, len) < 0);
 	lprintf("new_pages allocated");
+	char *p = name;
+	for (int i = 0; i < len; ++i) {
+		assert(*((char*)(p + i)) == '\0');
+	}
+
 
 	/* Test writing to name */
 	char c = *name;
@@ -209,6 +232,12 @@ int new_pages_test(){
 	char a = 'a';
 	lprintf("a address:%p", &a);
 	*name = a;
+	lprintf("name is %s=='a'", name);
+	res = remove_pages(name);
+	assert(res == 0);
+	assert (new_pages(name, len) == 0);
+	lprintf("name is %s=='\\0'", name);
+
 	lprintf("new_pages test passed");
 	return 0;
 }
@@ -219,11 +248,27 @@ pd_test( void )
     return run_test(PD_CONSISTENCY);
 }
 
+int remove_pages_test( void )
+{
+	assert(remove_pages((int *) 0x4) < 0);
+	assert(remove_pages((int *) 0xdeadd00d) < 0);
+	assert(remove_pages((int *) 0xffffe000) < 0);
+	assert(remove_pages((int *) 0xfffff000) < 0);
+	lprintf("remove_pages_test() passed!");
+	return 0;
+}
 int main() {
+
+	//fork_exec_test();
 	//pagefault_test();
+	int pid = fork();
+	if (pid) {
+		return 0;
+	}
 
 	// physalloc_test() works only during startup, will fail here, TODO: fix it
-	if (pd_test() < 0 ||
+	if (remove_pages_test() < 0 ||
+		pd_test() < 0 ||
         new_pages_test() < 0 ||
 		readfile_test() < 0 ||
 		cursor_test() < 0 ||
@@ -231,9 +276,14 @@ int main() {
 		sleep_test() < 0 ||
  		mutex_test() < 0 ||
 		yield_test() < 0 ||
-		multiple_fork_test() < 0)
+		multiple_fork_test() < 0
+	)
 		return -1;
 
 	lprintf("ALL TESTS PASSED!");
+	while (1) {
+		continue;
+	}
+
     return 0;
 }

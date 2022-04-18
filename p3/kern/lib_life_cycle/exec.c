@@ -13,6 +13,7 @@
 #include <task_manager.h>   /* get_num_threads_in_owning_task() */
 #include <memory_manager.h> /* is_valid_user_string(), is_valid_user_argvec() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
+#include <simics.h>
 
 /** @brief Prints arguments passed to exec() when log level is DEBUG
  *
@@ -52,37 +53,37 @@ exec( char *execname, char **argvec )
 {
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+//	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Only allow exec of task that has 1 thread */
-	tcb_t *parent_tcb = get_running_thread();
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	tcb_t *tcb = get_running_thread();
+	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-	assert(parent_tcb);
-	int num_threads = get_num_threads_in_owning_task(parent_tcb);
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	assert(tcb);
+	int num_threads = get_num_threads_in_owning_task(tcb);
+	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	log("Exec() task with number of threads:%ld", num_threads);
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	if (num_threads > 1) {
 		return -1;
 	}
 	assert(num_threads == 1);
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Validate execname */
 	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
 		return -1;
 	}
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 	/* Validate argvec */
 	int argc = 0;
 	if (!(argc = is_valid_user_argvec(execname, argvec))) {
 		return -1;
 	}
 	// TODO ensure no software exception handler registered
-	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	log_exec_args(execname, argvec);
 

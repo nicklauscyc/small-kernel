@@ -36,7 +36,8 @@
 
 #include <stdarg.h> /* va_list(), va_end() */
 #include <logger.h> /* log_crit() */
-#include <asm.h>
+#include <asm.h>	/* disable interrupts */
+
 /** @brief This function is called by the assert() macro defined in assert.h;
  *         it's also a nice simple general-purpose panic function. Ceases
  *         execution of all running threads.
@@ -54,8 +55,11 @@ void panic( const char *fmt, ... )
 	/* Print error that occurred */
 	va_list args;
 	va_start(args, fmt);
-	log_crit(fmt, args);
+	vtprintf(fmt, args, CRITICAL_PRIORITY);
 	va_end(args);
+
+#include <simics.h>
+	MAGIC_BREAK;
 
 	disable_interrupts();
 	while (1) {

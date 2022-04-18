@@ -67,6 +67,9 @@ sleep_on_tick( unsigned int total_ticks )
 	 * remove earliest expired thread(s) */
 	earliest_expiry_date = UINT_MAX;
 
+	// FIXME: what if we context swap and someone calls
+	// sleep, therefore modifying the sleep_q halfway
+	// through our read
 	tcb_t *curr = Q_GET_FRONT(&sleep_q);
 	tcb_t *next;
 	while (curr) {
@@ -108,6 +111,10 @@ sleep( int ticks )
 	tcb_t *me = get_running_thread();
 	me->sleep_expiry_date = get_total_ticks() + ticks;
 
+	/* TODO:
+	 * We could lock the sleep_q mux here and release it through the callback?
+	 * This should ensure no conflicts with the sleep q stuff */
+	mutex_lock(&sleep_mux);
 	affirm(yield_execution(BLOCKED, -1, store_tcb_in_sleep_queue, NULL) == 0);
 
 	return 0;
@@ -124,4 +131,5 @@ store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
 	/* Since thread not running, might as well use the scheduler queue link! */
 	Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INSERT_TAIL(&sleep_q, tcb, scheduler_queue);
+	switch_safe_mutex_unlock(&sleep_mux);
 }

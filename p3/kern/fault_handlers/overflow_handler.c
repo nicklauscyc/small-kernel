@@ -9,9 +9,9 @@ void
 overflow_handler( int eip, int cs )
 {
 	if (cs == SEGSEL_KERNEL_CS) {
-		lprintf("[Kernel mode] Overflow encountered at 0x%x.", eip);
+		panic("[Kernel mode] Overflow encountered at 0x%x.", eip);
 	}
 	/* TODO: acknowledge signal and call user handler  */
 
-	lprintf("[User mode] Unhandled overflow fault encountered at 0x%x", eip);
+	panic("[User mode] Unhandled overflow fault encountered at 0x%x", eip);
 }

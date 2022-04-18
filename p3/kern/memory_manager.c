@@ -27,29 +27,46 @@
 #include <logger.h>		/* log */
 #include <memory_manager_internal.h>
 
+// TODO: delete
+#include <asm.h>
+
 /* 1 if VM is enabled, 0 otherwise */
-static int vm_enabled = 0;
+static int paging_enabled = 0;
 static uint32_t sys_zero_frame = USER_MEM_START;
-static int vm_init = 0;
 
-/* [USER_MEM_START, USER_MEM_START + PAGE_SIZE) is all zeroes */
-//static uint32_t system_zero_frame = USER_MEM_START;
-
-
-static uint32_t *get_ptep( const uint32_t **pd, uint32_t virtual_address );
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
-                          write_mode_t write_mode );
+                          write_mode_t write_mode, uint32_t sys_prog_flag );
 static int allocate_region( uint32_t **pd, void *start, uint32_t len,
                            write_mode_t write_mode );
 static void enable_paging( void );
+
 static int valid_memory_regions( simple_elf_t *elf );
 static void vm_set_pd( void *pd );
 static void free_pt_memory( uint32_t *pt, int pd_index );
 
-/* TODO do we need this? */
-uint32_t vm_address_from_index( uint32_t pd_index, uint32_t pt_index );
 static void *allocate_new_pd( void );
 static int add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address );
+
+void
+unallocate_frame( uint32_t **pd, uint32_t virtual_address )
+{
+	uint32_t *ptep = get_ptep((const uint32_t **) pd, virtual_address);
+	affirm_msg(ptep, "unallocate_frame(): "
+			  "cannot free non existent page table, "
+			  "pd:%p, "
+			  "virtual_address:0x%08lx",
+			  pd, virtual_address);
+	uint32_t pt_entry = *ptep;
+
+	affirm(pt_entry & PRESENT_FLAG);
+
+	uint32_t phys_address = TABLE_ADDRESS(pt_entry);
+	physfree(phys_address);
+
+	// Zero the entry as well
+	*ptep = 0;
+}
+
 
 /** @brief Returns pointer to page directory from cr3(), guarantees that pointer
  *		   is non-NULL and page aligned, and below USER_MEM_START
@@ -77,11 +94,9 @@ get_pd( void )
 int
 zero_page_pf_handler( uint32_t faulting_address )
 {
-	log("zero_page_pf_handler() called");
 	/* get_pd() guarantees basic consistency for valid page directory */
 	uint32_t **pd = get_pd();
 
-	//TODO a version of get_ptep that does not allocate the pagetable at l
 	uint32_t *ptep = get_ptep( (const uint32_t **) pd, faulting_address);
 
 	/* Page table entry cannot be NULL frame */
@@ -98,31 +113,40 @@ zero_page_pf_handler( uint32_t faulting_address )
 		log_warn("zero_page_pf_handler(): "
                  "page table entry for vm 0x%08lx is not zero frame",
 				 faulting_address);
-		MAGIC_BREAK;
 		return -1;
 	}
 	/* Page table entry must be user readable since sys wide zero frame */
 	assert((pt_entry & PE_USER_READABLE) == PE_USER_READABLE);
+
+	/* Get sys_prog_flag */
+	uint32_t sys_prog_flag = SYS_PROG_FLAG(pt_entry);
+	assert(is_valid_sys_prog_flag(sys_prog_flag));
 
 	/* Unallocate zero frame */
 	unallocate_user_zero_frame(pd, faulting_address);
 
 	/* Back up with actual frame */
 	// TODO version of allocate_frame that throws an error if already allocated
-	int res = allocate_frame(pd, faulting_address, READ_WRITE);
-	log("alloced physframe is 0x%08lx", *get_ptep((const uint32_t **) pd,
-	                                              faulting_address));
-	log("res:%d", res);
-	MAGIC_BREAK;
-	return res;
+	int res = allocate_frame(pd, faulting_address, READ_WRITE, sys_prog_flag);
+	if (res) {
+		log_warn("zero_page_pf_handler(): "
+		         "Failed to allocate frame inside zero_page_pf_handler");
+		return -1;
+	}
+
+	/* Flush TLB so we zero out the appropriate physical frame */
+	set_cr3(get_cr3());
+	log("memsetting faulting_address %p, (table addr %p) to 0.",
+			(void *)faulting_address,(void *)TABLE_ADDRESS(faulting_address));
+	memset((void *)TABLE_ADDRESS(faulting_address), 0, PAGE_SIZE);
+
+	return 0;
 }
 
 void
-init_vm( void )
+initialize_zero_frame( void )
 {
-	affirm(!vm_init);
-	affirm(!vm_enabled);
-	vm_init = 1;
+	affirm(!paging_enabled);
 
 	/* Zero fill system wide zero frame */
 	memset((uint32_t *) sys_zero_frame, 0, PAGE_SIZE);
@@ -146,10 +170,6 @@ init_vm( void )
 void *
 new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
-	/* If not initialized, initialize vm */
-	if (!vm_init) {
-		init_vm();
-	}
 	/* Allocate new pd that is zero filled */
     uint32_t **pd = allocate_new_pd();
 	if (!pd) {
@@ -157,50 +177,62 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 		         "unable to allocate new page directory.");
 		return NULL;
 	}
+
+	/* If there is a current page directory, the bottom 4 must be kernel mapped
+	 * so use those instead
+	 */
+	if (get_cr3()) {
+		uint32_t ** current_pd = (uint32_t **)(TABLE_ADDRESS(get_cr3()));
+		for (int i = 0; i < NUM_KERN_PAGE_TABLES; ++i) {
+			pd[i] = current_pd[i];
+		}
+	} else {
+
     /* Direct map all 16MB for kernel, setting correct permission bits */
     for (uint32_t addr = 0; addr < USER_MEM_START; addr += PAGE_SIZE) {
 
-		/* This invariant must not break */
-		uint32_t pd_index = PD_INDEX(addr);
-		uint32_t *pd_entry = pd[pd_index];
-		affirm_msg(TABLE_ENTRY_INVARIANT(pd_entry),
-				   "new_pd_from_elf(): "
-				   "pd entry invariant broken for "
-				   "pd:%p pd_index:0x%08lx pd[pd_index]:%p",
-				   pd, pd_index, pd_entry);
+			/* This invariant must not break */
+			uint32_t pd_index = PD_INDEX(addr);
+			uint32_t *pd_entry = pd[pd_index];
+			affirm_msg(TABLE_ENTRY_INVARIANT(pd_entry),
+					   "new_pd_from_elf(): "
+					   "pd entry invariant broken for "
+					   "pd:%p pd_index:0x%08lx pd[pd_index]:%p",
+					   pd, pd_index, pd_entry);
 
-		/* Add new page table every time page directory entry is NULL */
-		if (pd[pd_index] == NULL) {
+			/* Add new page table every time page directory entry is NULL */
+			if (pd[pd_index] == NULL) {
 
-			/* Since we are going in increasing virtual addresses, this holds */
-			assert((addr & ((1 << PAGE_DIRECTORY_SHIFT) - 1)) == 0);
-			if (add_new_pt_to_pd(pd, addr) < 0) {
-				log_warn("new_pd_from_elf(): "
-				         "unable to allocate new page table in pd:%p for "
-						 "virtual_address: 0x%08lx", pd, addr);
-				return NULL;
-				//TODO clean up
+				/* Since we are going in increasing virtual addresses, holds */
+				assert((addr & ((1 << PAGE_DIRECTORY_SHIFT) - 1)) == 0);
+				if (add_new_pt_to_pd(pd, addr) < 0) {
+					log_warn("new_pd_from_elf(): "
+							 "unable to allocate new page table in pd:%p for "
+							 "virtual_address: 0x%08lx", pd, addr);
+					return NULL;
+					//TODO clean up
+				}
 			}
-		}
-		/* Now get a pointer to the corresponding page table entry */
-        uint32_t *ptep = get_ptep((const uint32_t **) pd, addr);
+			/* Now get a pointer to the corresponding page table entry */
+			uint32_t *ptep = get_ptep((const uint32_t **) pd, addr);
 
-		/* If NULL is returned, free all resources in page directory */
-		if (!ptep) {
-			free_pd_memory(pd);
-			sfree(pd, PAGE_SIZE);
-			log_warn("new_pd_from_elf(): "
-		             "unable to get page table entry pointer.");
-			return NULL;
+			/* If NULL is returned, free all resources in page directory */
+			if (!ptep) {
+				free_pd_memory(pd);
+				sfree(pd, PAGE_SIZE);
+				log_warn("new_pd_from_elf(): "
+						 "unable to get page table entry pointer.");
+				return NULL;
+			}
+			/* Indicate page table entry permissions */
+			if (addr == 0) {
+				*ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
+			} else {
+				*ptep = addr | PE_KERN_WRITABLE;
+			}
+			assert(*ptep < USER_MEM_START);
 		}
-		/* Indicate page table entry permissions */
-		if (addr == 0) {
-			*ptep = addr | PE_UNMAPPED; /* Leave NULL unmapped. */
-		} else {
-			*ptep = addr | PE_KERN_WRITABLE; /* Can delete this?: PE_KERN_WRITABLE FIXME */
-		}
-		assert(*ptep < USER_MEM_START);
-    }
+	}
 	log("new_pd_from_elf(): direct map ended");
     /* Allocate regions with appropriate read/write permissions.
      * TODO: Free allocated regions if later allocation fails. */
@@ -252,9 +284,14 @@ new_pd_from_parent( void *v_parent_pd )
 		return NULL;
 	}
 
+	/* Just shallow copy kern memory page tables */
 	for (int i=0; i < (PAGE_SIZE / sizeof(uint32_t)); ++i) {
+		if (i < 4) {
+			child_pd[i] = parent_pd[i];
+			continue;
+		}
 
-		if ((parent_pd[i] & PRESENT_FLAG) && (parent_pd[i] & RW_FLAG)) {
+		if (parent_pd[i] & PRESENT_FLAG) {
 			/* Allocate new child page_table */
 			uint32_t *child_pt = smemalign(PAGE_SIZE, PAGE_SIZE);
 			if (!child_pt) {
@@ -284,13 +321,9 @@ new_pd_from_parent( void *v_parent_pd )
 				// Constructing the virtual address
 				uint32_t vm_address = ((i << 22) | (j << 12));
 				assert(PAGE_ALIGNED(vm_address));
+				assert(vm_address >= USER_MEM_START);
 
-				// direct map kernel memory
-				if (vm_address < USER_MEM_START) {
-					child_pt[j] = parent_pt[j];
-					continue;
-				}
-				if ((parent_pt[j] & PRESENT_FLAG) && (parent_pt[j] & RW_FLAG)) {
+				if (parent_pt[j] & PRESENT_FLAG) {
 					/* Allocate new physical frame for child. */
 					child_pt[j] = physalloc();
 					assert(PAGE_ALIGNED(child_pt[j]));
@@ -302,8 +335,10 @@ new_pd_from_parent( void *v_parent_pd )
 						return NULL;
 					}
 
-					/* Set child_pt flags, then memcpy */
-					child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
+					/* Mark child_pt[j] as writable, copy and then mark
+					 * same flags as the parent (in case READ-ONLY) */
+					// Mark as user writable to avoid creating a global TLB entry
+					child_pt[j] |= PE_USER_WRITABLE;
 
 					log("vm_address:%lx, i:0x%x, j:0x%x, "
 					"parent_pd[i]:0x%lx, child_pd[i]:0x%lx, "
@@ -314,22 +349,29 @@ new_pd_from_parent( void *v_parent_pd )
 
 					/* Copy parent to temp, change page-directory,
 					 * copy child to parent, restore parent page-directory */
+
 					memcpy(temp_buf, (uint32_t *) vm_address, PAGE_SIZE);
 					vm_set_pd(child_pd);
 					memcpy((uint32_t *) vm_address, temp_buf, PAGE_SIZE);
 					vm_set_pd(parent_pd);
 
+
+					// Zero out flags
+					child_pt[j] &= ~(PAGE_SIZE - 1);
+					// Set parent flags
+					child_pt[j] |= parent_pt[j] & (PAGE_SIZE - 1);
+
 				} else {
-					child_pt[j] = parent_pt[j];
+					assert(parent_pt[j] == 0);
 				}
 			}
-
 		} else {
-			child_pd[i] = parent_pd[i];
+			assert(parent_pd[i] == 0);
 		}
 	}
 
 	sfree(temp_buf, PAGE_SIZE);
+	assert(is_valid_pd(child_pd));
 	return child_pd;
 }
 
@@ -349,7 +391,7 @@ vm_enable_task( void *pd )
 			   "Page directory must in kernel memory!");
 
 	vm_set_pd(pd);
-	if (!vm_enabled) {
+	if (!paging_enabled) {
 		enable_paging();
 
 		/* Set PGE flag in cr4 so kernel mappings not flushed on context switch */
@@ -375,16 +417,6 @@ disable_write_protection( void )
 	set_cr0(current_cr0 & (~WRITE_PROTECT_FLAG));
 }
 
-/** Allocate new pages in a given process' virtual memory. */
-int
-vm_new_pages ( void *pd, void *base, int len )
-{
-	// TODO: Implement
-	(void)pd;
-	(void)base;
-	(void)len;
-	return -1;
-}
 
 /** @brief Checks if a user pointer is valid.
  *	Valid means the pointer is non-NULL, belongs to
@@ -526,7 +558,7 @@ is_valid_user_string( char *s, int len )
  *	@return Number of user args if valid argvec, 0 otherwise
  */
 int
-is_valid_user_argvec( char *execname,  char **argvec )
+is_valid_user_argvec( char *execname, char **argvec )
 {
 	/* Check address of every char * in argvec */
 	int i;
@@ -675,12 +707,15 @@ add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
 /** @brief Gets pointer to page table entry in a given page directory.
  *		   Allocates page table if necessary.
  *
+ *  Invariant violations for page directory or page table will cause
+ *  a crash.
+ *
  *	@param pd Page table address
  *	@param virtual_address Virtual address corresponding to page table
  *	@return Pointer to a page table entry that can be dereferenced to get
  *			a physical address, NULL on failure.
  */
-static uint32_t *
+uint32_t *
 get_ptep( const uint32_t **pd, uint32_t virtual_address )
 {
 	/* Checking if a pd is valid is expensive, hence an assert() */
@@ -703,13 +738,12 @@ get_ptep( const uint32_t **pd, uint32_t virtual_address )
 				 "NULL!", pd, virtual_address);
 		return NULL;
 	}
-	/* Page table must have correct flag bits set */
-    if (((uint32_t) pd[pd_index] & PE_USER_WRITABLE) != PE_USER_WRITABLE) {
-		log_warn("get_ptep(): "
-		         "pd[pd_index]:%p does not have PE_USER_WRITABLE bits set!",
-				 pd[pd_index]);
-		return NULL;
-	}
+	/* Page directory must have correct flag bits set */
+    affirm_msg(((uint32_t) pd[pd_index] & PE_USER_WRITABLE) == PE_USER_WRITABLE,
+			   "get_ptep(): "
+		       "pd[pd_index]:%p does not have PE_USER_WRITABLE bits set!",
+	            pd[pd_index]);
+
     /* Page table entry pointer zeroes out bottom 12 bits */
     uint32_t *ptep = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
 
@@ -733,8 +767,11 @@ get_ptep( const uint32_t **pd, uint32_t virtual_address )
  *	*/
 static int
 allocate_frame( uint32_t **pd, uint32_t virtual_address,
-				write_mode_t write_mode )
+				write_mode_t write_mode, uint32_t sys_prog_flag )
 {
+	if (!is_valid_sys_prog_flag(sys_prog_flag)) {
+		return -1;
+	}
 	/* is_valid_pd() is expensive, hence the assert() */
 	assert(is_valid_pd(pd));
 	log("allocate frame for vm:%p", (uint32_t *) virtual_address);
@@ -760,15 +797,18 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 
 		/* Ensure it's allocated with same flags. */
 		if (write_mode == READ_WRITE) {
-			if (!((pt_entry & (PAGE_SIZE - 1)) == PE_USER_WRITABLE)) {
+			if ((pt_entry & (PAGE_SIZE - 1)) !=
+				(PE_USER_WRITABLE | sys_prog_flag)) {
 				return -1;
 			}
 		} else {
-			if (!((pt_entry & (PAGE_SIZE - 1)) == PE_USER_READABLE)) {
+			if ((pt_entry & (PAGE_SIZE - 1)) !=
+				(PE_USER_READABLE | sys_prog_flag)) {
 				return -1;
 			}
 		}
-		return 0;
+
+		// TODO: memory in this frame is zeroed out
 
 	/* Page table entry contains a NULL address, allocate new physical frame */
 	} else {
@@ -778,52 +818,115 @@ allocate_frame( uint32_t **pd, uint32_t virtual_address,
 		}
 		*ptep = free_frame;
 	}
-	/* FIXME: Hack for until we implement ZFOD. Do we even want to guarantee
-	 * zero-filled pages for the initially allocated regions? Seems like
-	 * .bss and new_pages are the only ones required to be zeroed out by spec.
-	 * Should we even be calling enable paging here??? */
-	/* ATOMICALLY start */
-	/* ATOMICALLY end*/
+
 	if (write_mode == READ_WRITE) {
-		*ptep |= PE_USER_WRITABLE;
+		*ptep |= (PE_USER_WRITABLE | sys_prog_flag);
 	} else {
-		*ptep |= PE_USER_READABLE;
+		*ptep |= (PE_USER_READABLE | sys_prog_flag);
 	}
+
 	return 0;
 }
 
-/** @brief Allocates the system wide zero frame
+/** @brief Checks if system programmer flags are valid or not as defined in
+ *         memory_manager_internal.h
+ *
+ *  @param sys_prog_flag System programmer flag
+ *  @return 1 if valid flag, 0 otherwise
  */
 int
-allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address)
+is_valid_sys_prog_flag( uint32_t sys_prog_flag )
 {
+	switch (sys_prog_flag) {
+
+		/* Empty sys_prog_flag is vacuously valid */
+		case 0 :
+			return 1;
+			break;
+
+		case NEW_PAGE_BASE_FLAG :
+			return 1;
+			break;
+
+		case NEW_PAGE_CONTINUE_FROM_BASE_FLAG :
+			return 1;
+			break;
+
+		/* Invalid sys programmer flag */
+		default :
+			return 0;
+	}
+}
+
+
+/** @brief Allocates the system wide zero frame.
+ *
+ *  Currently this is only ever called by new_pages(), and thus
+ *  allocated pages will always be writable by user programs. However since
+ *  this is a zero frame, we set it to only have readonly access by the user.
+ *
+ *  When a user attempts to write to this physical frame, we check if the
+ *  frame is the system wide zero frame and if it is, allocate it with
+ *  user write permissions.
+ *
+ *  Requires that virtual address is valid
+ *
+ *  @param pd Page directory pointer
+ *  @param virtual_address VM address we are allocating zero frame for
+ *  @param sys_prog_flag Bits 9,10,11 to OR page table entry with
+ *  @param 0 on success, -1 on error.
+ */
+int
+allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
+                          uint32_t sys_prog_flag )
+{
+	assert(PAGE_ALIGNED(virtual_address));
+	if (!is_valid_sys_prog_flag(sys_prog_flag)) {
+		log_info("allocate_user_zero_frame(): "
+				 "invalid sys_prog_flag:0x%x",
+				 sys_prog_flag);
+		return -1;
+	}
 	/* is_valid_pd() is expensive, hence the assert() */
 	assert(is_valid_pd(pd));
-	log("allocate zero frame for vm:%p", (uint32_t *) virtual_address);
+	log("allocate_user_zero_frame(): "
+	    "allocate zero frame for vm:%p", (uint32_t *) virtual_address);
 
 	/* pd is NULL, abort with error */
 	if (!pd) {
-		log_warn("allocate_zero_frame pd cannot be NULL!");
+		log_info("allocate_user_zero_frame(): "
+		         "allocate_zero_frame pd cannot be NULL!");
 		return -1;
 	}
+	assert(is_valid_pd(pd));
+
 	/* Find page table entry corresponding to virtual address */
 	uint32_t *ptep = get_ptep((const uint32_t **) pd, virtual_address);
+
+	/* pd is valid, so !ptep means must add new page table to page directory */
 	if (!ptep) {
-		log_warn("unable to get page table entry");
-		return -1;
+		uint32_t pd_index = PD_INDEX(virtual_address);
+		affirm(pd[pd_index] == NULL);
+		add_new_pt_to_pd(pd, virtual_address);
+		log_info("allocate_user_zero_frame(): "
+		         "adding new pt to pd for virutal_address:0x%08lx",
+				 virtual_address);
 	}
+	ptep = get_ptep((const uint32_t **) pd, virtual_address);
+	affirm(ptep);
 	uint32_t pt_entry = *ptep;
 
 	/* If page table entry contains a non-NULL address */
 	if (TABLE_ADDRESS(pt_entry)) {
-		log_warn("zero frame already allocated!");
+		log_info("allocate_user_zero_frame(): "
+				 "zero frame already allocated!");
 		return -1;
 	}
 	/* Allocate new physical frame */
 	*ptep = sys_zero_frame;
 
 	/* Mark as READ_ONLY for user */
-	*ptep |= PE_USER_READABLE;
+	*ptep |= (sys_prog_flag | PE_USER_READABLE);
 	return 0;
 }
 
@@ -902,7 +1005,7 @@ allocate_region( uint32_t **pd, void *start, uint32_t len, write_mode_t write_mo
 			}
 		}
         int res = allocate_frame((uint32_t **)pd, virtual_address,
-								 write_mode);
+								 write_mode, 0);
 		if (res < 0) {
 			// TODO CLEAN UP ALL PREVIOUSLY ALLOCATED PHYS FRAMES
 			return -1;
@@ -931,8 +1034,8 @@ enable_paging( void )
 	uint32_t current_cr0 = get_cr0();
 	set_cr0(current_cr0 | PAGING_FLAG);
 
-	affirm_msg(!vm_enabled, "Paging should be enabled exactly once!");
-	vm_enabled = 1;
+	affirm_msg(!paging_enabled, "Paging should be enabled exactly once!");
+	paging_enabled = 1;
 }
 
 static void
@@ -961,22 +1064,25 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 
 	affirm(is_valid_pt(pt, pd_index));
 
-	/* pt holds physical frames for user memory */
-	if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
-		for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
+		/* pt holds physical frames for user memory */
+		if (pd_index >= (USER_MEM_START >> PAGE_DIRECTORY_SHIFT)) {
 			uint32_t pt_entry = pt[i];
 			if (pt_entry & PRESENT_FLAG) {
 				affirm_msg(TABLE_ADDRESS(pt_entry) != 0, "pt_entry:0x%08lx",
 						   pt_entry);
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 				physfree(phys_address);
+
+				// Zero the entry as well
+				pt[i] = 0;
 			}
-			// Zero the entry as well
+		/* Currently free < USER_MEM_START */
+		/* TODO final version shouldn't need to free kernel memory */
+		} else {
 			pt[i] = 0;
 		}
-	} else {
-		/* Currently nothing to free if < USER_MEM_START */
 	}
 }
 
@@ -989,7 +1095,7 @@ free_pd_memory( void *pd )
 	affirm(is_valid_pd(pd));
 	uint32_t **pd_cast = (uint32_t **) pd;
 
-	for (int i = 0; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
+	for (int i = NUM_KERN_PAGE_TABLES; i < PAGE_SIZE / sizeof(uint32_t); ++i) {
 
 		uint32_t *pd_entry = pd_cast[i];
 

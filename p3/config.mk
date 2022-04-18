@@ -1,27 +1,4 @@
 ###########################################################################
-#
-#    #####          #######         #######         ######            ###
-#   #     #            #            #     #         #     #           ###
-#   #                  #            #     #         #     #           ###
-#    #####             #            #     #         ######             #
-#         #            #            #     #         #
-#   #     #            #            #     #         #                 ###
-#    #####             #            #######         #                 ###
-#
-#
-# Please read the directions in README and in this config.mk carefully.
-# Do -N-O-T- just dump things randomly in here until your kernel builds.
-# If you do that, you run an excellent chance of turning in something
-# which can't be graded.  If you think the build infrastructure is
-# somehow restricting you from doing something you need to do, contact
-# the course staff--don't just hit it with a hammer and move on.
-#
-# [Once you've read this message, please edit it out of your config.mk]
-# [Once you've read this message, please edit it out of your config.mk]
-# [Once you've read this message, please edit it out of your config.mk]
-###########################################################################
-
-###########################################################################
 # This is the include file for the make file.
 # You should have to edit only this file to get things to build.
 ###########################################################################
@@ -108,9 +85,9 @@ UPDATE_METHOD = afs
 		   actual_wait wait_getpid fork_wait fork_wait_bomb fork_exit_bomb\
 		   sleep_test1 stack_test1 swexn_basic_test swexn_cookie_monster\
 		   swexn_dispatch swexn_regs yield_desc_mkrun make_crash\
-		   mem_permissions cho cho2 cho_variant\
+		   mem_permissions cho cho2 cho_variant score\
 		   knife exec_basic_helper\
-		   score
+		   remove_pages_test2 \
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -156,7 +133,7 @@ SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
 			   new_pages.o remove_pages.o readfile.o halt.o vanish.o \
-			   task_vanish.o set_status.o
+			   readline.o task_vanish.o set_status.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -178,7 +155,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  memory_manager.o task_manager.o iret_travel.o \
 			  keybd_driver.o timer_driver.o install_handler.o \
 			  asm_interrupt_handler.o context_switch.o \
-			  scheduler.o logger.o tests.o panic.o\
+			  scheduler.o logger.o tests.o atomic_utils.o panic.o\
 			  \
 			  lib_thread_management/asm_thread_management_handlers.o \
 			  lib_thread_management/gettid.o \
@@ -188,7 +165,6 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_thread_management/deschedule.o \
 			  lib_thread_management/sleep.o \
 			  lib_thread_management/hashmap.o \
-			  lib_thread_management/add_one_atomic.o \
 			  lib_thread_management/mutex.o \
 			  \
 			  lib_life_cycle/asm_life_cycle_handlers.o \
@@ -211,6 +187,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_console/get_cursor_pos.o \
 			  lib_console/set_cursor_pos.o \
 			  lib_console/set_term_color.o \
+			  lib_console/readline.o \
 			  \
 			  lib_misc/asm_misc_handlers.o \
 			  lib_misc/readfile.o \
@@ -249,7 +226,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 # or init unless you are writing your own, and don't do that unless
 # you have a really good reason to do so.
 #
-410REQPROGS = idle init shell
+410REQPROGS = idle shell
 
 ###########################################################################
 # Mandatory programs whose source is provided by you
@@ -264,4 +241,4 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 # kernel in, or else your tweaked version will run and the test harness
 # won't.
 #
-STUDENTREQPROGS =
+STUDENTREQPROGS = init

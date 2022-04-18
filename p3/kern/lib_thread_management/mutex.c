@@ -93,14 +93,12 @@ mutex_exit:
 	assert(mp->owner_tid == get_running_tid());
 }
 
-/** @brief Unlock mutex.
- *  @param mp Mutex to unlock. Has to be previously locked
- *            by calling thread
- *
- *  @return Void
- *  */
-void
-mutex_unlock( mutex_t *mp )
+/**
+ * Switch safe means its safe to call this during a context switch.
+ * To ensure this is the case, we do not disable/enable interrupts
+ * nor do we call another context switch (through make_thread_runnable) */
+static void
+mutex_unlock_helper( mutex_t *mp, int switch_safe )
 {
     /* Ensure lock is valid, locked and owned by this thread*/
     assert(mp && mp->initialized);
@@ -116,20 +114,45 @@ mutex_unlock( mutex_t *mp )
 
     /* Atomically check if someone is in waiters queue, if so,
      * add them to run queue. */
-    disable_interrupts();
+
+    if (!switch_safe)
+		disable_interrupts();
+
     tcb_t *to_run;
     if ((to_run = Q_GET_FRONT(&mp->waiters_queue))) {
         Q_REMOVE(&mp->waiters_queue, to_run, scheduler_queue);
         mp->owner_tid = to_run->tid;
-		enable_interrupts();
-        make_thread_runnable(to_run->tid);
+		if (switch_safe) {
+			switch_safe_make_thread_runnable(to_run->tid);
+		} else {
+			enable_interrupts();
+			make_thread_runnable(to_run->tid);
+		}
     } else {
         mp->owned = 0;
     }
 
-    enable_interrupts();
+	if (!switch_safe)
+		enable_interrupts();
 }
 
+/** @brief Unlock mutex.
+ *  @param mp Mutex to unlock. Has to be previously locked
+ *            by calling thread
+ *
+ *  @return Void
+ *  */
+void
+mutex_unlock( mutex_t *mp )
+{
+	mutex_unlock_helper(mp, 0);
+}
+
+void
+switch_safe_mutex_unlock( mutex_t *mp )
+{
+	mutex_unlock_helper(mp, 1);
+}
 
 static void
 store_tcb_in_mutex_queue( tcb_t *tcb, void *data )

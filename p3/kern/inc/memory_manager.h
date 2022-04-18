@@ -31,7 +31,8 @@
 #endif
 
 
-void init_vm( void );
+void initialize_zero_frame( void );
+
 /** Whether page is read only or also writable. */
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE };
@@ -52,10 +53,11 @@ int is_user_pointer_allocated( void *ptr );
 int is_valid_user_pointer( void *ptr, write_mode_t write_mode );
 int is_valid_user_string( char *s, int max_len );
 int is_valid_null_terminated_user_string( char *s, int max_len );
-int is_valid_user_argvec( char *execname,  char **argvec );
+int is_valid_user_argvec( char *execname, char **argvec );
 void free_pd_memory( void *pd );
 
-int allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
+int allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
+							  uint32_t sys_prog_flag );
 void unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
 
 void *get_pd( void );

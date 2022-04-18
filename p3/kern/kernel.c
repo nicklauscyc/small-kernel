@@ -31,8 +31,10 @@
 #include <console.h>    	/* init_console() */
 #include <scheduler.h>  	/* scheduler_on_tick() */
 #include <task_manager.h>	/* task_manager_init() */
+#include <memory_manager.h>	/* initialize_zero_frame() */
 #include <keybd_driver.h>	/* readline() */
 #include <lib_thread_management/sleep.h>	/* sleep_on_tick() */
+#include <simics.h>
 
 volatile static int __kernel_all_done = 0;
 
@@ -45,7 +47,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 2;
+int log_level = 3;
 
 void tick(unsigned int numTicks) {
 	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow
@@ -61,14 +63,47 @@ void tick(unsigned int numTicks) {
 	 * to (in most cases). */
 	sleep_on_tick(numTicks);
 
+	//if (get_running_thread()) {
+	//	assert(*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+	//	== 0xcafebabe);
+	//	assert(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+	//	== 0xdeadbeef);
+
+	//}
+	if (get_running_thread()) {
+		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		!= 0xcafebabe) {
+			MAGIC_BREAK;
+		}
+
+		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		!= 0xdeadbeef) {
+			MAGIC_BREAK;
+		}
+	}
+
 	/* Scheduler tick handler should be last, as it triggers context_switch */
 	scheduler_on_tick(numTicks);
+	if (get_running_thread()) {
+		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		!= 0xcafebabe) {
+			MAGIC_BREAK;
+		}
+
+		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		!= 0xdeadbeef) {
+			MAGIC_BREAK;
+		}
+	}
+
+
+
 }
 
 void hard_code_test( char *s )
 {
-	char *user_argv = (char *)s;
-	execute_user_program(s, 1, &user_argv);
+	char *argv[] = {s, 0};
+	execute_user_program(s, 1, argv);
 }
 
 /** @brief Kernel entrypoint.
@@ -93,38 +128,15 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	init_console();
 
 	task_manager_init();
-	//test_physalloc(); // TODO put in test suite
 
-
-    //TODO: Run shell once exec and fork are working
+	// TODO: maybe should be somewhere else
+	initialize_zero_frame();
 
 	log("this is DEBUG");
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-    while (!__kernel_all_done) {
-		// Used for development to run a certain test straightaway
-		//hard_code_test("exec_basic");
-
-        int n = MAX_EXECNAME_LEN;
-        char s[n];
-
-        /* Display prompt */
-        printf("pebbles>");
-        int res = readline(s, n);
-
-        if (res == n)
-            continue; /* Executable name too large */
-
-        /* Swap \n returned by readline for null-terminator */
-        s[res - 1] = '\0';
-
-        char *user_argv = (char *)s;
-
-        execute_user_program(s, 1, &user_argv);
-
-
-    }
-
+	char *args[] = {"init", 0};
+	execute_user_program("init", 1, args);
     return 0;
 }
