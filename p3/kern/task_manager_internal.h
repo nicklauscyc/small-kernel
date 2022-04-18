@@ -19,9 +19,20 @@ Q_NEW_HEAD(owned_threads_queue_t, tcb);
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
+Q_NEW_HEAD(vanished_child_tasks_list_t, pcb);
+Q_NEW_HEAD(waiting_threads_list_t, tcb);
+
 /** @brief Task control block */
 struct pcb {
+	/* For set_status(), vanish(), wait() */
 	mutex_t set_status_vanish_wait_mux;
+	vanished_child_tasks_list_t vanished_child_tasks_list;
+	waiting_threads_list_t waiting_threads_list;
+
+	/* When the last thread of this task has vanished, this link is used
+	 * to put the PCB on its parent task's vanished_child_tasks_list */
+	Q_NEW_LINK(pcb) vanished_child_tasks_link;
+
 	//mutex_t thread_list_mux; // TODO enable mutex
 	void *pd; /* page directory */
 	owned_threads_queue_t owned_threads; /* list of owned threads */
@@ -34,6 +45,10 @@ struct pcb {
 
 /** @brief Thread control block */
 struct tcb {
+	/* When this thread calls wait(), this link is used to put the TCB on its
+	 * owning_task's waiting_threads_list */
+	Q_NEW_LINK(tcb) waiting_threads_link;
+
 	Q_NEW_LINK(tcb) scheduler_queue; /* Link for queues in scheduler */
 	Q_NEW_LINK(tcb) tid2tcb_queue; /* Link for hashmap of TCB queues */
 	Q_NEW_LINK(tcb) owning_task_thread_list; /* Link for TCB queue in PCB */

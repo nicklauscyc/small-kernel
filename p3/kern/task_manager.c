@@ -5,7 +5,7 @@
 //
 #include <task_manager.h>
 #include <task_manager_internal.h>
-
+#include <assert.h> /* affirm() */
 
 #include <scheduler.h>	/* add_tcb_to_run_queue() */
 #include <eflags.h>	/* get_eflags*/
@@ -287,10 +287,14 @@ create_pcb( uint32_t *pid, void *pd )
 	Q_INIT_HEAD(&(pcb->owned_threads));
 	pcb->num_threads = 0;
 
-	/* Initialize set_status_vanish_wait_mux */
+	/* Initialize set_status_vanish_wait_mux and other structures for
+	 * set_status(), vanish(), wait() */
 	if (mutex_init(&(pcb->set_status_vanish_wait_mux)) < 0) {
 		return -1;
 	}
+	Q_INIT_HEAD(&(pcb->vanished_child_tasks_list));
+	Q_INIT_HEAD(&(pcb->waiting_threads_list));
+
 
 	/* Add to pcb linked list*/
 	mutex_lock(&pcb_list_mux);
@@ -356,6 +360,9 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	 *		 For now, this just checks that we're not
 	 *		 adding a second thread to an existing task. */
 	affirm(!Q_GET_FRONT(&owning_task->owned_threads));
+
+	/* Link for when this thread calls wait() */
+	Q_INIT_ELEM(tcb, waiting_threads_link);
 
 	/* Add to owning task's list of threads, increment num_threads not DEAD */
 	//mutex_lock(&owning_task->thread_list_mux);
@@ -519,6 +526,23 @@ get_pid( void )
 	assert(pcb);
 	uint32_t pid = pcb->pid;
 	return pid;
+}
+
+/** @brief Frees a TCB
+ *
+ *  @pre TCB must not be in any list/queue
+ *  @param tcb Pointer to TCB to be freed
+ *  @return Void.
+ */
+void
+free_tcb(tcb_t *tcb)
+{
+	affirm(tcb);
+	affirm(!(Q_IN_SOME_QUEUE(tcb, waiting_threads_link)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, owning_task_thread_list)));
+	sfree(tcb, sizeof(tcb));
 }
 
 
