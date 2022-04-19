@@ -14,7 +14,8 @@
 #include <lib_thread_management/mutex.h> /* mutex_t */
 
 /* PCB owned threads queue definition */
-Q_NEW_HEAD(owned_threads_queue_t, tcb);
+Q_NEW_HEAD(active_threads_list_t, tcb);
+Q_NEW_HEAD(vanished_threads_list_t, tcb);
 
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
@@ -34,16 +35,23 @@ struct pcb {
 	 * to put the PCB on its parent task's vanished_child_tasks_list */
 	Q_NEW_LINK(pcb) vanished_child_tasks_link;
 
+	uint32_t total_threads; /* total threads every created */
+
+	active_threads_list_t active_threads_list; /* list of owned threads */
+	uint32_t num_active_threads; /* number of threads not DEAD */
+
+	vanished_threads_list_t vanished_threads_list;
+	uint32_t num_vanished_threads;
+
+	uint32_t first_thread_tid;
+
 	//mutex_t thread_list_mux; // TODO enable mutex
 	void *pd; /* page directory */
-	owned_threads_queue_t owned_threads; /* list of owned threads */
-	uint32_t num_threads; /* number of threads not DEAD */
 	Q_NEW_LINK(pcb) task_link; // Embedded list of tasks
 	uint32_t pid; /* Task/process ID */
 	int prepared; /* Whether this task's VM has been initialized */
 	int exit_status; /* Task exit status */
 };
-
 /** @brief Thread control block */
 struct tcb {
 	/* When this thread calls wait(), this link is used to put the TCB on its
@@ -52,7 +60,14 @@ struct tcb {
 
 	Q_NEW_LINK(tcb) scheduler_queue; /* Link for queues in scheduler */
 	Q_NEW_LINK(tcb) tid2tcb_queue; /* Link for hashmap of TCB queues */
-	Q_NEW_LINK(tcb) owning_task_thread_list; /* Link for TCB queue in PCB */
+
+	/* This link is for the owning task's active_threads_list or
+	 * vanished_threads_list. Using the same link name enforces that
+	 * a TCB can be put on at most one type of list at any one time */
+	Q_NEW_LINK(tcb) task_thread_link; /* Link for TCB queue in PCB */
+
+
+
 	status_t status; /* Thread's status */
 	pcb_t *owning_task; /* PCB of process that owns this thread */
 	uint32_t tid; /* Thread ID */
@@ -67,7 +82,6 @@ struct tcb {
 	                           /* that is stack aligned */
 
 
-	tcb_t *previous_thread_to_cleanup;
 
 	/* Info for syscalls */
 	uint32_t sleep_expiry_date;

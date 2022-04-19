@@ -61,7 +61,7 @@ exec( char *execname, char **argvec )
 
 	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-	int num_threads = get_num_threads_in_owning_task(tcb);
+	int num_threads = get_num_active_threads_in_owning_task(tcb);
 	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	log("Exec() task with number of threads:%ld", num_threads);

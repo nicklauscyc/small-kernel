@@ -284,8 +284,14 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 	pcb->prepared = 0;
 
 	/* Initialize thread queue */
-	Q_INIT_HEAD(&(pcb->owned_threads));
-	pcb->num_threads = 0;
+	Q_INIT_HEAD(&(pcb->active_threads_list));
+	pcb->num_active_threads = 0;
+
+	Q_INIT_HEAD(&(pcb->vanished_threads_list));
+	pcb->num_vanished_threads = 0;
+
+	pcb->total_threads = 0;
+
 
 	/* Initialize set_status_vanish_wait_mux and other structures for
 	 * set_status(), vanish(), wait() */
@@ -365,19 +371,24 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	/* TODO: Add mutex to pcb struct and lock it here.
 	 *		 For now, this just checks that we're not
 	 *		 adding a second thread to an existing task. */
-	affirm(!Q_GET_FRONT(&owning_task->owned_threads));
+	affirm(!Q_GET_FRONT(&owning_task->active_threads_list));
 
 	/* Link for when this thread calls wait() */
 	Q_INIT_ELEM(tcb, waiting_threads_link);
 
-	/* Add to owning task's list of threads, increment num_threads not DEAD */
-	//mutex_lock(&owning_task->thread_list_mux);
-	Q_INIT_ELEM(tcb, scheduler_queue);
+	/* Add to owning task's list of threads, increment num_active_threads not DEAD */
+		Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INIT_ELEM(tcb, tid2tcb_queue);
-	Q_INIT_ELEM(tcb, owning_task_thread_list);
-	Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
-	++(owning_task->num_threads);
-	//mutex_unlock(&owning_task->thread_list_mux);
+
+
+
+	Q_INIT_ELEM(tcb, task_thread_link);
+
+	//mutex_lock(&owning_task->set_status_vanish_wait_mux);
+	Q_INSERT_TAIL(&(owning_task->active_threads_list), tcb, task_thread_link);
+	++(owning_task->num_active_threads);
+	++(owning_task->total_threads);
+	//mutex_unlock(&owning_task->set_status_vanish_wait_mux);
 
 	log("Inserting thread with tid %lu", tcb->tid);
 	mutex_lock(&tcb_map_mux);
@@ -402,7 +413,6 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	*(tcb->kernel_stack_hi) = 0xcafebabe;
 	*(tcb->kernel_stack_lo) = 0xdeadbeef;
 
-	tcb->previous_thread_to_cleanup = NULL;
 
 	return 0;
 }
@@ -410,23 +420,23 @@ create_tcb( uint32_t pid, uint32_t *tid )
 /** @brief Returns number of threads in the owning task
  *
  *	The return value cannot be zero. The moment a tcb_t is initialize it
- *	is immediately added to its owning_task's owned_threads field, which is
+ *	is immediately added to its owning_task's active_threads field, which is
  *	a list of threads owned by that task.
  *
  *	@param tcbp Pointer to tcb
  *	@return Number of threads in owning task
  */
 int
-get_num_threads_in_owning_task( tcb_t *tcbp )
+get_num_active_threads_in_owning_task( tcb_t *tcbp )
 {
 	/* Argument checks */
 	affirm_msg(tcbp, "Given tcb pointer cannot be NULL!");
 	affirm_msg(tcbp->owning_task, "Tcb pointer to owning task cannot be NULL!");
 
 	/* Check that we have a legal number of threads and return */
-	uint32_t num_threads = tcbp->owning_task->num_threads;
-	affirm_msg(num_threads >= 0, "Owning task must have non-negative threads!");
-	return num_threads;
+	uint32_t num_active_threads = tcbp->owning_task->num_active_threads;
+	affirm_msg(num_active_threads >= 0, "Owning task must have non-negative threads!");
+	return num_active_threads;
 }
 
 /** @brief Gets the highest writable address of the kernel stack for thread
@@ -547,34 +557,20 @@ free_tcb(tcb_t *tcb)
 	affirm(!(Q_IN_SOME_QUEUE(tcb, waiting_threads_link)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));
-	affirm(!(Q_IN_SOME_QUEUE(tcb, owning_task_thread_list)));
+	//affirm(!(Q_IN_SOME_QUEUE(tcb, task_thread_link)));
 	affirm(tcb->status == DEAD);
+
 	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);
+
+	/* remove tcb from hashmap and free memory */
+	map_remove(tcb->tid);
 	sfree(tcb->kernel_stack_lo, KERNEL_THREAD_STACK_SIZE);
 	sfree(tcb, sizeof(tcb));
+
 	log_warn("free_tcb(): cleaned up thread tid:%d", tcb->tid);
 
 }
 
-/** @brief Cleans up memory of previous thread's TCB if there is a
- *         previous thread to clean up after
- *
- *  @return Void. Crashes the kernel on error
- */
-void
-clean_up_previous_thread( void )
-{
-	tcb_t *tcb = get_running_thread();
-	affirm(tcb);
-	if (tcb->previous_thread_to_cleanup) {
-
-		/* remove tcb from hashmap and free memory */
-		map_remove(tcb->previous_thread_to_cleanup->tid);
-		free_tcb(tcb->previous_thread_to_cleanup);
-	}
-	/* Mark cleanup as done */
-	tcb->previous_thread_to_cleanup = NULL;
-}
 
 
 

@@ -36,12 +36,6 @@
 #include <task_manager_internal.h>
 #include <lib_thread_management/hashmap.h>
 
-void
-signal_clean_up_previous_thread(tcb_t *running, tcb_t *to_run, void *unused)
-{
-	affirm(to_run);
-	to_run->previous_thread_to_cleanup = running;
-}
 
 void
 _vanish( void ) // int on_error )
@@ -56,17 +50,23 @@ _vanish( void ) // int on_error )
 
 	/* Remove from PCB's list of threads and update PCB's thread count */
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
-	if (owning_task->num_threads == 1) {
-		affirm(Q_GET_FRONT(&(owning_task->owned_threads)) == tcb);
+	if (owning_task->num_active_threads == 1) {
+		affirm(Q_GET_FRONT(&(owning_task->active_threads_list)) == tcb);
 	}
-	Q_REMOVE(&(owning_task->owned_threads), tcb, owning_task_thread_list);
-	(owning_task->num_threads)--;
+	Q_REMOVE(&(owning_task->active_threads_list), tcb, task_thread_link);
+	(owning_task->num_active_threads)--;
+
+	Q_INSERT_TAIL(&(owning_task->vanished_threads_list), tcb, task_thread_link);
+	(owning_task->num_vanished_threads)++;
+
+	affirm(owning_task->num_active_threads + owning_task->num_vanished_threads
+	       == owning_task->total_threads);
+
 	mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
 	/* Not the last task, clean up and yield execution */
-	if (get_num_threads_in_owning_task(tcb) > 0) {
-			affirm(yield_execution(DEAD, -1, signal_clean_up_previous_thread,
-			       NULL) == 0);
+	if (get_num_active_threads_in_owning_task(tcb) > 0) {
+			affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
 
 	/* Last task thread contacts parent PCB */
 	} else {
@@ -91,8 +91,7 @@ _vanish( void ) // int on_error )
 					 waiting_threads_link);
 		}
 		mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
-		affirm(yield_execution(DEAD, parent_tid,
-		       signal_clean_up_previous_thread, NULL) == 0);
+		affirm(yield_execution(DEAD, parent_tid, NULL, NULL) == 0);
 	}
 }
 

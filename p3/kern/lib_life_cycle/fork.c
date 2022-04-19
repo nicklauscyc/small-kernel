@@ -67,7 +67,7 @@ fork( void )
 
 
 
-	int num_threads = get_num_threads_in_owning_task(parent_tcb);
+	int num_threads = get_num_active_threads_in_owning_task(parent_tcb);
 	log_info("fork(): "
 			 "Forking task with number of threads:%ld", num_threads);
 
@@ -145,6 +145,8 @@ fork( void )
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 	//affirm(is_valid_pd(parent_pd));
 	//affirm(is_valid_pd(child_pd));
+	//
+
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0)
