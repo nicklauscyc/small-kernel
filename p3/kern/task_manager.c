@@ -209,7 +209,7 @@ task_set_active( uint32_t tid )
 	 * to check this?
 	 */
 	if (tcb->status == UNINITIALIZED) {
-		make_thread_runnable(tid);
+		make_thread_runnable(tcb);
 	}
 }
 

@@ -141,7 +141,7 @@ yield_execution( status_t store_status, int tid,
 	if (tid == -1)
 		tcb = get_next_run();
 	else {
-		/* find_tcb() is already guarded by a mutex */
+		// FIXME: find_tcb is guarded by a mutex, but currently interrupts disabled
 		tcb = find_tcb(tid);
 		if (!tcb) {
 			log_warn("Trying to yield_execution to non-existent"
@@ -205,13 +205,12 @@ init_scheduler( void )
 }
 
 static int
-make_thread_runnable_helper( uint32_t tid, int switch_safe )
+make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 {
-	log("Making thread %d runnable", tid);
-
-	tcb_t *tcbp = find_tcb(tid);
 	if (!tcbp)
 		return -1;
+
+	log("Making thread %d runnable", tcbp->tid);
 
 	if (!scheduler_init) {
 		init_scheduler();
@@ -224,7 +223,7 @@ make_thread_runnable_helper( uint32_t tid, int switch_safe )
 	disable_interrupts();
 
 	if (tcbp->status == RUNNABLE || tcbp->status == RUNNING) {
-		log_warn("Trying to make runnable thread %d runnable again", tid);
+		log_warn("Trying to make runnable thread %d runnable again", tcbp->tid);
 		if (!switch_safe)
 			enable_interrupts();
 		return -1;
@@ -247,9 +246,9 @@ make_thread_runnable_helper( uint32_t tid, int switch_safe )
 }
 
 int
-switch_safe_make_thread_runnable( uint32_t tid )
+switch_safe_make_thread_runnable( tcb_t *tcbp )
 {
-	return make_thread_runnable_helper(tid, 1);
+	return make_thread_runnable_helper(tcbp, 1);
 }
 
 /** @brief Registers thread with scheduler. After this call,
@@ -260,9 +259,9 @@ switch_safe_make_thread_runnable( uint32_t tid )
  *	@return 0 on success, negative value on error */
 /* TODO: Think of synchronization here*/
 int
-make_thread_runnable( uint32_t tid )
+make_thread_runnable( tcb_t *tcbp )
 {
-	return make_thread_runnable_helper(tid, 0);
+	return make_thread_runnable_helper(tcbp, 0);
 }
 
 void

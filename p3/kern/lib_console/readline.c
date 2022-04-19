@@ -179,7 +179,7 @@ readline_char_arrived_handler( void )
 	 * keybd interrupt, leading to a race condition. A simple way to ensure
 	 * make_runnable is called only once is a CAS on curr_blocked. */
 	if (compare_and_swap_atomic(&curr_blocked, 1, 0)) {
-		switch_safe_make_thread_runnable(readline_curr->tid);
+		switch_safe_make_thread_runnable(readline_curr);
 	}
 }
 

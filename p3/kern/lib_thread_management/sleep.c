@@ -7,30 +7,32 @@
 #include <assert.h>				/* affirm */
 #include <scheduler.h>			/* get_running_thread(), queue_t */
 #include <timer_driver.h>		/* get_total_ticks() */
+#include <atomic_utils.h>		/* compare_and_swap_atomic() */
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <task_manager_internal.h> /* Q MACROS on tcb */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
 
 /* Using linked list as a naive priority queue implementation.
- * TODO: Use a heap instead! (or something else, like fibonnaci heaps...)
- * */
+ * TODO: Use a heap instead! (or something else, like fibonnaci heaps...) */
 
-/** @brief Mux for sleep queue and earlies expiry date */
+/** @brief Whether someone is handling the sleep queue.
+ *  Acts as a guard for mux since muxes are not re-entrant
+ *  but timer interrupts are. */
+static uint32_t handling_sleep_queue;
+
+/** @brief mux for sleep queue and earliest expiry date */
 static mutex_t sleep_mux;
 
+/** @brief Earliest date a thread should be woken up, out of all sleeping
+ *  threads*/
 static unsigned int earliest_expiry_date;
 
-/* Queue for all sleeping threads. Sorted by sleep expiration date */
+/* Queue for all sleeping threads. */
 static queue_t sleep_q;
 
 /* 0 if uninitialized, 1 if initialized, -1 if failed to initialize */
 static int sleep_initialized = 0;
-
-/* Id of thread currently running sleep wakeup routine (owner of sleep_mux).
- * This is used to avoid a given thread from interleaving sleep_on_tick calls
- * and thus trying to reacquire the mux. */
-static int sleep_tick_handler_tid = -1;
 
 static void store_tcb_in_sleep_queue( tcb_t *tcb, void *data );
 
@@ -41,6 +43,7 @@ init_sleep( void )
 	Q_INIT_HEAD(&sleep_q);
 	mutex_init(&sleep_mux);
 	earliest_expiry_date = UINT_MAX;
+	handling_sleep_queue = 0;
 	sleep_initialized = 1;
 }
 
@@ -61,15 +64,12 @@ sleep_on_tick( unsigned int total_ticks )
 	if (!sleep_initialized)
 		init_sleep();
 
-	if (sleep_tick_handler_tid == get_running_tid())
+	/* Guard with CAS because locks are not re-entrant */
+	if (compare_and_swap_atomic(&handling_sleep_queue, 0, 1) == 1)
 		return;
 
-	mutex_lock(&sleep_mux);
-	sleep_tick_handler_tid = get_running_tid();
-
 	if (total_ticks < earliest_expiry_date) {
-		sleep_tick_handler_tid = -1;
-		mutex_unlock(&sleep_mux);
+		handling_sleep_queue = 0;
 		return;
 	}
 
@@ -77,9 +77,7 @@ sleep_on_tick( unsigned int total_ticks )
 	 * remove earliest expired thread(s) */
 	earliest_expiry_date = UINT_MAX;
 
-	// FIXME: what if we context swap and someone calls
-	// sleep, therefore modifying the sleep_q halfway
-	// through our read
+	mutex_lock(&sleep_mux);
 	tcb_t *curr = Q_GET_FRONT(&sleep_q);
 	tcb_t *next;
 	while (curr) {
@@ -89,16 +87,17 @@ sleep_on_tick( unsigned int total_ticks )
 		next = Q_GET_NEXT(curr, scheduler_queue);
 		if (curr->sleep_expiry_date <= total_ticks) {
 			Q_REMOVE(&sleep_q, curr, scheduler_queue);
-			make_thread_runnable(curr->tid);
+			make_thread_runnable(curr);
 		} else {
 			if (curr->sleep_expiry_date < earliest_expiry_date)
 				earliest_expiry_date = curr->sleep_expiry_date;
 		}
 		curr = next;
 	}
-
-	sleep_tick_handler_tid = -1;
 	mutex_unlock(&sleep_mux);
+
+	/* Release CAS lock */
+	handling_sleep_queue = 0;
 }
 
 int
