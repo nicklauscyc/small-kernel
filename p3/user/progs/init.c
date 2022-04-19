@@ -17,6 +17,8 @@ main()
 		exec(idle, args);
 	}
 
+	MAGIC_BREAK;
+
 //	int pid2 = fork();
 //
 //	if (!pid2) {

@@ -27,6 +27,11 @@ static queue_t sleep_q;
 /* 0 if uninitialized, 1 if initialized, -1 if failed to initialize */
 static int sleep_initialized = 0;
 
+/* Id of thread currently running sleep wakeup routine (owner of sleep_mux).
+ * This is used to avoid a given thread from interleaving sleep_on_tick calls
+ * and thus trying to reacquire the mux. */
+static int sleep_tick_handler_tid = -1;
+
 static void store_tcb_in_sleep_queue( tcb_t *tcb, void *data );
 
 static void
@@ -56,9 +61,14 @@ sleep_on_tick( unsigned int total_ticks )
 	if (!sleep_initialized)
 		init_sleep();
 
+	if (sleep_tick_handler_tid == get_running_tid())
+		return;
+
 	mutex_lock(&sleep_mux);
+	sleep_tick_handler_tid = get_running_tid();
 
 	if (total_ticks < earliest_expiry_date) {
+		sleep_tick_handler_tid = -1;
 		mutex_unlock(&sleep_mux);
 		return;
 	}
@@ -87,6 +97,7 @@ sleep_on_tick( unsigned int total_ticks )
 		curr = next;
 	}
 
+	sleep_tick_handler_tid = -1;
 	mutex_unlock(&sleep_mux);
 }
 
@@ -129,7 +140,6 @@ store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
 	if (tcb->sleep_expiry_date < earliest_expiry_date)
 		earliest_expiry_date = tcb->sleep_expiry_date;
 	/* Since thread not running, might as well use the scheduler queue link! */
-	Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INSERT_TAIL(&sleep_q, tcb, scheduler_queue);
 	switch_safe_mutex_unlock(&sleep_mux);
 }

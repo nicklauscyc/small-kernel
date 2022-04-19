@@ -3,5 +3,6 @@
 
 int _fork( void );
 int _exec( void );
+int _vanish( void );
 
 #endif /* LIFE_CYCLE_H_ */

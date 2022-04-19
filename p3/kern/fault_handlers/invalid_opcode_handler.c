@@ -3,6 +3,7 @@
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
 #include <assert.h> /* panic() */
+#include <panic_thread.h> /* panic_thread() */
 
 void
 invalid_opcode_handler( int eip, int cs )
@@ -13,6 +14,6 @@ invalid_opcode_handler( int eip, int cs )
 	}
 	/* TODO: acknowledge signal and call user handler  */
 
-	panic("Unhandled invalid opcode fault encountered at 0x%x", eip);
+	panic_thread("Unhandled invalid opcode fault encountered at 0x%x", eip);
 
 }

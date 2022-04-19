@@ -7,13 +7,9 @@
 #include <timer_driver.h>		/* get_total_ticks() */
 #include <scheduler.h>			/* yield_execution() */
 
-//static mutex_t hacky_vanish_mux;
-//static int hacky_vanish_mux_init = 0;
-
 void
 _vanish( void )
 {
-	log_warn("Vanishing");
 	affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
 }
 
@@ -26,6 +22,3 @@ vanish( void )
 	log_info("call vanish");
 	_vanish();
 }
-
-
-

@@ -3,6 +3,7 @@
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
 #include <assert.h> /* panic() */
+#include <panic_thread.h> /* panic_thread() */
 
 void
 float_handler( int eip, int cs )
@@ -16,6 +17,6 @@ float_handler( int eip, int cs )
 	 * OR
 	 * acknowledge signal and just kill user thread? */
 
-	panic("Unhandled device not available fault (due to floating-point op)"
-			" at instruction 0x%x", eip);
+	panic_thread("Unhandled device not available fault "
+			"(due to floating-point op) at instruction 0x%x", eip);
 }
