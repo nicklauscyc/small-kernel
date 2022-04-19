@@ -146,7 +146,7 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 		return -1;
 	}
 
-	if (create_pcb(pid, pd) < 0) {
+	if (create_pcb(pid, pd, NULL) < 0) {
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
@@ -271,7 +271,7 @@ find_tcb( uint32_t tid )
  *	@return 0 on success, negative value on error
  */
 int
-create_pcb( uint32_t *pid, void *pd )
+create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 {
 	pcb_t *pcb = smalloc(sizeof(pcb_t));
 	if (!pcb)
@@ -294,6 +294,12 @@ create_pcb( uint32_t *pid, void *pd )
 	}
 	Q_INIT_HEAD(&(pcb->vanished_child_tasks_list));
 	Q_INIT_HEAD(&(pcb->waiting_threads_list));
+
+	if (parent_pcb) {
+		pcb->parent_pcb = parent_pcb;
+	}
+	Q_INIT_ELEM(pcb, vanished_child_tasks_link);
+
 
 
 	/* Add to pcb linked list*/
@@ -331,25 +337,25 @@ create_tcb( uint32_t pid, uint32_t *tid )
      * memory, followed by PAGE_SIZE of unusable memory to prevent kernel
      * stacks from overlapping onto each other during execution.
      */
-#ifdef DEBUG
-	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
+//#ifdef DEBUG
+//	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
+//	if (!tcb->kernel_stack_lo) {
+//		sfree(tcb, sizeof(tcb_t));
+//		return -1;
+//	}
+//	uint32_t **parent_pd = owning_task->pd;
+//    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
+//	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
+//    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
+//	parent_pt[pt_index] = 0x0;
+//	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
+//#else
+	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
 		return -1;
 	}
-	uint32_t **parent_pd = owning_task->pd;
-    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
-	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
-    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
-	parent_pt[pt_index] = 0x0;
-	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
-#else
-	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
-	if (!tcb->kernel_stack_lo) {
-		sfree(tcb, sizeof(tcb_t));
-		return -1;
-	}
-#endif
+//#endif
 
 	tcb->status = UNINITIALIZED;
 
@@ -419,7 +425,7 @@ get_num_threads_in_owning_task( tcb_t *tcbp )
 
 	/* Check that we have a legal number of threads and return */
 	uint32_t num_threads = tcbp->owning_task->num_threads;
-	affirm_msg(num_threads > 0, "Owning task must have at least 1 thread!");
+	affirm_msg(num_threads >= 0, "Owning task must have non-negative threads!");
 	return num_threads;
 }
 
@@ -544,6 +550,8 @@ free_tcb(tcb_t *tcb)
 	affirm(!(Q_IN_SOME_QUEUE(tcb, owning_task_thread_list)));
 	sfree(tcb, sizeof(tcb));
 }
+
+
 
 
 
