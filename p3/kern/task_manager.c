@@ -41,9 +41,16 @@ static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
-static uint32_t next_pid = 0;
-/** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
-static uint32_t next_tid = 0;
+static uint32_t next_pid = 1;
+
+/** @brief Next tid to be assigned. Only to be updated by get_unique_tid
+ *
+ *  This starts from 1 since an uninitialized tid is 0, so we know that
+ *  for any pcb such that pcb->first_thread_tid = 0 we know that within
+ *  a particular call to create_tcb() we are creating the first thread
+ *  of a task
+ */
+static uint32_t next_tid = 1;
 
 void *
 get_tcb_pd(tcb_t *tcb)
@@ -158,6 +165,7 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -282,6 +290,7 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 	pcb->pid = *pid;
 	pcb->pd = pd;
 	pcb->prepared = 0;
+	pcb->first_thread_tid = 0;
 
 	/* Initialize thread queue */
 	Q_INIT_HEAD(&(pcb->active_threads_list));
@@ -373,6 +382,11 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	/* Add to owning task's list of threads */
 	tcb->owning_task = owning_task;
 
+	/* Set a task's first thread's thread id */
+	if (owning_task->first_thread_tid == 0) {
+		owning_task->first_thread_tid = *tid;
+	}
+
 	/* TODO: Add mutex to pcb struct and lock it here.
 	 *		 For now, this just checks that we're not
 	 *		 adding a second thread to an existing task. */
@@ -389,11 +403,17 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	Q_INIT_ELEM(tcb, task_thread_link);
 
-	//mutex_lock(&owning_task->set_status_vanish_wait_mux);
+	mutex_lock(&owning_task->set_status_vanish_wait_mux);
 	Q_INSERT_TAIL(&(owning_task->active_threads_list), tcb, task_thread_link);
 	++(owning_task->num_active_threads);
 	++(owning_task->total_threads);
-	//mutex_unlock(&owning_task->set_status_vanish_wait_mux);
+
+	/* Set first thread tid of pcb */
+	if (owning_task->first_thread_tid == 0) {
+		owning_task->first_thread_tid = *tid;
+	}
+
+	mutex_unlock(&owning_task->set_status_vanish_wait_mux);
 
 	log("Inserting thread with tid %lu", tcb->tid);
 	mutex_lock(&tcb_map_mux);

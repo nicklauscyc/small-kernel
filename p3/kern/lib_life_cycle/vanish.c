@@ -115,6 +115,8 @@ _vanish( void ) // int on_error )
 		free_pd_memory(owning_task->pd);
 		sfree(owning_task->pd, PAGE_SIZE);
 
+		/* Set owning_task->pd to NULL to prevent future free-ing */
+		owning_task->pd = NULL;
 
 		/* TODO Tell all children tasks that their parent is init() now */
 
