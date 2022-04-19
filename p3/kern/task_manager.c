@@ -328,11 +328,14 @@ int
 create_tcb( uint32_t pid, uint32_t *tid )
 {
 	pcb_t *owning_task;
-	if ((owning_task = find_pcb(pid)) == NULL)
+	if ((owning_task = find_pcb(pid)) == NULL) {
+		log_info("create_tcb(): unable to find_pcb()");
 		return -1;
+	}
 
 	tcb_t *tcb = smalloc(sizeof(tcb_t));
 	if (!tcb) {
+		log_info("create_tcb(): smalloc(sizeof(tcb_t)) returned NULL");
 		return -1;
 	}
 
@@ -356,9 +359,11 @@ create_tcb( uint32_t pid, uint32_t *tid )
 //	parent_pt[pt_index] = 0x0;
 //	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
 //#else
-	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, KERNEL_THREAD_STACK_SIZE);
+	tcb->kernel_stack_lo = smalloc(KERNEL_THREAD_STACK_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
+		log_info("create_tcb(): smalloc() kernel stack returned NULL");
+
 		return -1;
 	}
 //#endif
@@ -557,7 +562,7 @@ free_tcb(tcb_t *tcb)
 	affirm(!(Q_IN_SOME_QUEUE(tcb, waiting_threads_link)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));
-	//affirm(!(Q_IN_SOME_QUEUE(tcb, task_thread_link)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, task_thread_link)));
 	affirm(tcb->status == DEAD);
 
 	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);

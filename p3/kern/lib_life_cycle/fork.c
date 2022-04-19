@@ -14,6 +14,7 @@
 #include <string.h> /* memcpy() */
 #include <page.h> /* PAGE_SIZE */
 #include <task_manager.h>
+
 #include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
 #include <scheduler.h>
@@ -66,12 +67,12 @@ fork( void )
 	affirm(parent_pcb);
 
 
-
 	int num_threads = get_num_active_threads_in_owning_task(parent_tcb);
-	log_info("fork(): "
-			 "Forking task with number of threads:%ld", num_threads);
+	log_warn("fork(): "
+		 "Forking task with number of threads:%ld", num_threads);
 
 	if (num_threads > 1) {
+		MAGIC_BREAK;
 		return -1;
 	}
 	//assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
@@ -101,6 +102,7 @@ fork( void )
 	uint32_t child_pid, child_tid;
 	if (create_pcb(&child_pid, child_pd, parent_pcb) < 0) {
 		// TODO: delete page directory
+		MAGIC_BREAK;
 		return -1;
 	}
 	//affirm(is_valid_pd(parent_pd));
@@ -110,6 +112,7 @@ fork( void )
 	if (create_tcb(child_pid, &child_tid) < 0) {
 		// TODO: delete page directory
 		// TODO: delete_pcb of parent
+		MAGIC_BREAK;
 		return -1;
 	}
 	//affirm(is_valid_pd(parent_pd));
@@ -149,8 +152,10 @@ fork( void )
 
 
     /* After setting up child stack and VM, register with scheduler */
-    if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0)
+    if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0) {
+		MAGIC_BREAK;
         return -1;
+	}
 	//affirm(is_valid_pd(parent_pd));
 	//affirm(is_valid_pd(child_pd));
 

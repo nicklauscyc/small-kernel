@@ -38,9 +38,30 @@
 
 
 void
+free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
+{
+	affirm(Q_GET_FRONT(&(owning_task->active_threads_list)) == NULL);
+	affirm(Q_GET_TAIL(&(owning_task->active_threads_list)) == NULL);
+	affirm(owning_task->num_active_threads == 0);
+
+	/* Free TCBs of all sibling threads except for last_tcb */
+	uint32_t removed = 0;
+	tcb_t *curr = Q_GET_FRONT(&(owning_task->vanished_threads_list));
+	while (curr && curr != last_tcb) {
+		Q_REMOVE(&(owning_task->vanished_threads_list), curr, task_thread_link);
+		free_tcb(curr);
+		removed++;
+	}
+	/* The last TCB must be last_tcb */
+	affirm(removed == owning_task->num_vanished_threads - 1);
+	affirm(Q_GET_FRONT(&(owning_task->vanished_threads_list)) == last_tcb);
+	affirm(Q_GET_TAIL(&(owning_task->vanished_threads_list)) == last_tcb);
+}
+
+void
 _vanish( void ) // int on_error )
 {
-	log("_vanish(): started executing _vanish()");
+	log_info("_vanish(): started executing _vanish()");
 
 	// TODO _vanish on error (killed thread)
 
@@ -62,14 +83,22 @@ _vanish( void ) // int on_error )
 	affirm(owning_task->num_active_threads + owning_task->num_vanished_threads
 	       == owning_task->total_threads);
 
-	mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
-	/* Not the last task, clean up and yield execution */
+	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
-			affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
+		log_info("_vanish(): not last task thread");
+		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
+		affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
 
 	/* Last task thread contacts parent PCB */
 	} else {
+		log_info("_vanish(): last task thread");
+
+		/* Free sibling threads TCB */
+		free_sibling_tcb(owning_task, tcb);
+		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
 
 		/* TODO Tell all children tasks that their parent is init() now */
 
