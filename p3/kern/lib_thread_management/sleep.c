@@ -27,7 +27,7 @@ static queue_t sleep_q;
 /* 0 if uninitialized, 1 if initialized, -1 if failed to initialize */
 static int sleep_initialized = 0;
 
-static void store_tcb_in_sleep_queue( tcb_t *tcb, void *data );
+static void store_tcb_in_sleep_queue( tcb_t *tcb, tcb_t *unused, void *data );
 
 static void
 init_sleep( void )
@@ -123,7 +123,7 @@ sleep( int ticks )
 /* Modifications to queue are not guarded by mux since they are done
  * atomically (disable/enable interrupts) inside of yield_execution */
 static void
-store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
+store_tcb_in_sleep_queue( tcb_t *tcb, tcb_t *unused, void *data )
 {
 	affirm(tcb && tcb->status == BLOCKED);
 	if (tcb->sleep_expiry_date < earliest_expiry_date)

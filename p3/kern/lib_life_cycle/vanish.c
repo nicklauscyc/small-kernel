@@ -1,5 +1,32 @@
 /** @file vanish.c
  *  @brief Implements vanish()
+ *
+ *  When implementing vanish(), there are a few natural choices for deciding
+ *  when to clean up resources held by a thread's TCB.
+ *
+ *  The first choice is when the thread calls vanish, it cleans up after
+ *  itself. However, this does not work since we are unable to free the thread's
+ *  kernel execution stack before it context switches away to another thread.
+ *
+ *  The second choice is having the next thread clean up after the vanishing
+ *  thread. However, it is fundamentally impossible to guarantee that the
+ *  next thread was not in the middle of executing a function from the malloc
+ *  family. If it is the case where the next thread was context switched away
+ *  while executing say, smemalign() for example, when we context switch from
+ *  the vanishing thread back to that thread, it can't first run another
+ *  malloc family function such as sfree() or free() on the vanished thread's
+ *  TCB since malloc family functions are not re-entrant.
+ *  Even if we guard the malloc family functions with concurrency primitive(s),
+ *  the same thread which is now waiting to run sfree() or free() cannot make
+ *  progress on its original malloc family function either, and has now
+ *  deadlocked itself.
+ *
+ *  The third feasible choice then is having the last thread of a task that
+ *  calls vanish() clean up after all its sibling threads belonging to the
+ *  same task. Although this operation is linear in the number of sibling
+ *  threads, with the bankers method of determining amortized cost, we
+ *  still run in amortized constant time since freeing each vanished sibling
+ *  TCB has been "paid for" when that sibling called vanish() earlier.
  */
 #include <x86/asm.h>   /* outb() */
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
@@ -7,39 +34,66 @@
 #include <timer_driver.h>		/* get_total_ticks() */
 #include <scheduler.h>			/* yield_execution() */
 #include <task_manager_internal.h>
+#include <lib_thread_management/hashmap.h>
 
-//static mutex_t hacky_vanish_mux;
-//static int hacky_vanish_mux_init = 0;
-
+void
+signal_clean_up_previous_thread(tcb_t *running, tcb_t *to_run, void *unused)
+{
+	affirm(to_run);
+	to_run->previous_thread_to_cleanup = running;
+}
 
 void
 _vanish( void ) // int on_error )
 {
+	log("_vanish(): started executing _vanish()");
+
+	// TODO _vanish on error (killed thread)
+
+	/* Get TCB and PCB and obtain critical section */
 	tcb_t *tcb = get_running_thread();
-	log_warn("Vanishing");
-
-
-	// TODO error checking later
-	/* Check if vanished because of an error or no? */
-	//if (on_error) {
-	//	if (
-
-	//}
-
-
-
-	/* Add to */
 	pcb_t *owning_task = tcb->owning_task;
+
+	/* Remove from PCB's list of threads and update PCB's thread count */
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
+	if (owning_task->num_threads == 1) {
+		affirm(Q_GET_FRONT(&(owning_task->owned_threads)) == tcb);
+	}
+	Q_REMOVE(&(owning_task->owned_threads), tcb, owning_task_thread_list);
+	(owning_task->num_threads)--;
+	mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
-	/* Clean up resources */
+	/* Not the last task, clean up and yield execution */
+	if (get_num_threads_in_owning_task(tcb) > 0) {
+			affirm(yield_execution(DEAD, -1, signal_clean_up_previous_thread,
+			       NULL) == 0);
 
+	/* Last task thread contacts parent PCB */
+	} else {
 
+		/* TODO Tell all children tasks that their parent is init() now */
 
-	/*After we run this we will never be run ever again */
-	/* TODO so when should cleanup happen? */
-	affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
+		/* Insert into parent PCB's list of vanished child tasks */
+		pcb_t *parent_pcb = owning_task->parent_pcb;
+		affirm(parent_pcb);
 
+		mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+		Q_INSERT_TAIL(&(parent_pcb->vanished_child_tasks_list),
+		              owning_task, vanished_child_tasks_link);
+
+		/* Look at list of waiting parent threads, if non-empty, wake them up */
+		int parent_tid = -1;
+		tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
+		if (waiting_tcb) {
+			affirm(waiting_tcb);
+			parent_tid = get_tcb_tid(waiting_tcb);
+			Q_REMOVE(&(parent_pcb->waiting_threads_list), waiting_tcb,
+					 waiting_threads_link);
+		}
+		mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
+		affirm(yield_execution(DEAD, parent_tid,
+		       signal_clean_up_previous_thread, NULL) == 0);
+	}
 }
 
 

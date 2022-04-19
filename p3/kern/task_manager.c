@@ -350,7 +350,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 //	parent_pt[pt_index] = 0x0;
 //	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
 //#else
-	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, PAGE_SIZE);
+	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, KERNEL_THREAD_STACK_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
 		return -1;
@@ -399,11 +399,11 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	log("create_tcb(): tcb->kernel_stack_hi:%p", tcb->kernel_stack_hi);
 
 
-	// set the canary
 	*(tcb->kernel_stack_hi) = 0xcafebabe;
-
 	*(tcb->kernel_stack_lo) = 0xdeadbeef;
-	return 0;
+
+	tcb->previous_thread_to_cleanup = NULL;
+
 	return 0;
 }
 
@@ -548,7 +548,32 @@ free_tcb(tcb_t *tcb)
 	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, owning_task_thread_list)));
+	affirm(tcb->status == DEAD);
+	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);
+	sfree(tcb->kernel_stack_lo, KERNEL_THREAD_STACK_SIZE);
 	sfree(tcb, sizeof(tcb));
+	log_warn("free_tcb(): cleaned up thread tid:%d", tcb->tid);
+
+}
+
+/** @brief Cleans up memory of previous thread's TCB if there is a
+ *         previous thread to clean up after
+ *
+ *  @return Void. Crashes the kernel on error
+ */
+void
+clean_up_previous_thread( void )
+{
+	tcb_t *tcb = get_running_thread();
+	affirm(tcb);
+	if (tcb->previous_thread_to_cleanup) {
+
+		/* remove tcb from hashmap and free memory */
+		map_remove(tcb->previous_thread_to_cleanup->tid);
+		free_tcb(tcb->previous_thread_to_cleanup);
+	}
+	/* Mark cleanup as done */
+	tcb->previous_thread_to_cleanup = NULL;
 }
 
 

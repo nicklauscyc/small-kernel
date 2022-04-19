@@ -25,7 +25,7 @@
 #include <simics.h>
 #include <malloc.h>
 
-static void mark_curr_blocked( tcb_t *tcb, void *data );
+static void mark_curr_blocked( tcb_t *tcb, tcb_t *unused, void *data );
 static int readchar( void );
 static char get_next_char( void );
 static int _readline(char *buf, int len);
@@ -76,6 +76,7 @@ readline( int len, char *buf )
 	/* Acquire readline mux. Put ourselves at the back of the queue. */
 	mutex_lock(&readline_mux);
 
+	//TODO does not seem to be used
 	readline_curr = get_running_thread();
 
 	int res = _readline(buf, len);
@@ -186,7 +187,7 @@ readline_char_arrived_handler( void )
 /* --- HELPERS --- */
 
 static void
-mark_curr_blocked( tcb_t *tcb, void *data )
+mark_curr_blocked( tcb_t *tcb, tcb_t *unused, void *data )
 {
 	assert(readline_curr == tcb);
 	curr_blocked = 1;

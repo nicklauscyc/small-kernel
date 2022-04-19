@@ -13,7 +13,7 @@
 #include <logger.h>     /* log */
 #include <task_manager_internal.h> /* Q MACRO for tcb */
 
-static void store_tcb_in_mutex_queue( tcb_t *tcb, void *data );
+static void store_tcb_in_mutex_queue( tcb_t *tcb, tcb_t *unused, void *data );
 
 /** @brief Initialize a mutex
  *  @param mp Pointer to memory location where mutex should be initialized
@@ -155,7 +155,7 @@ switch_safe_mutex_unlock( mutex_t *mp )
 }
 
 static void
-store_tcb_in_mutex_queue( tcb_t *tcb, void *data )
+store_tcb_in_mutex_queue( tcb_t *tcb, tcb_t *unused, void *data )
 {
 	affirm(tcb && data && tcb->status == BLOCKED);
 	/* Since thread not running, might as well use the scheduler queue link! */

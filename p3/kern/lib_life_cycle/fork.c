@@ -57,14 +57,16 @@ fork( void )
 
 	/* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
-	//assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 
 
 	/* Only allow forking of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
-	//assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
+	affirm(parent_tcb);
+	pcb_t *parent_pcb = get_running_task();
+	affirm(parent_pcb);
 
-	assert(parent_tcb);
+
+
 	int num_threads = get_num_threads_in_owning_task(parent_tcb);
 	log_info("fork(): "
 			 "Forking task with number of threads:%ld", num_threads);
@@ -97,7 +99,7 @@ fork( void )
 
 	/* Create child pcb and tcb */
 	uint32_t child_pid, child_tid;
-	if (create_pcb(&child_pid, child_pd) < 0) {
+	if (create_pcb(&child_pid, child_pd, parent_pcb) < 0) {
 		// TODO: delete page directory
 		return -1;
 	}

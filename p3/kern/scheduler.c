@@ -31,7 +31,7 @@ static queue_t runnable_q;
 static tcb_t *running_thread = NULL; // Currently running thread
 
 static void swap_running_thread( tcb_t *to_run, status_t store_status,
-		void (*callback)(tcb_t *, void *), void *data );
+		void (*callback)(tcb_t *, tcb_t *, void *), void *data );
 static void switch_threads(tcb_t *running, tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
@@ -81,7 +81,7 @@ print_status(status_t status)
  *	@return 0 on success, negative value on error */
 int
 yield_execution( status_t store_status, int tid,
-		void (*callback)(tcb_t *, void *), void *data )
+		void (*callback)(tcb_t *, tcb_t *, void *), void *data )
 {
 	affirm(scheduler_init);
 	if (!scheduler_init) {
@@ -178,6 +178,24 @@ get_running_thread( void )
 {
 	return running_thread;
 }
+
+/** @brief Gets pointer to PCB that currently running thread belongs to
+ *
+ *  @return non-NULL pointer of owning task of currently running thread if
+ *          currently running thread is non-NULL, NULL otherwise
+ */
+pcb_t *
+get_running_task( void )
+{
+	if (!running_thread) {
+		affirm(!scheduler_init);
+		return NULL;
+	} else {
+		affirm(running_thread->owning_task);
+		return running_thread->owning_task;
+	}
+}
+
 
 /** @brief Initializes scheduler and registers its first thread.
  *
@@ -291,7 +309,7 @@ scheduler_on_tick( unsigned int num_ticks )
  */
 static void
 swap_running_thread( tcb_t *to_run, status_t store_status,
-		void (*callback)(tcb_t *, void *), void *data )
+		void (*callback)(tcb_t *, tcb_t *, void *), void *data )
 {
 	assert(to_run);
 	affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
@@ -341,8 +359,14 @@ swap_running_thread( tcb_t *to_run, status_t store_status,
 		Q_INSERT_TAIL(&runnable_q, running, scheduler_queue);
 	else if (callback) {
 		/* FIXME: What happens if the callback calls a yield_execution? */
-		callback(running, data);
+		callback(running, to_run, data);
 	}
+
+	/* FIXME when a thread calls _vanish() on itself, it needs to remain
+	 * RUNNING until it is done free-ing itself, which is called via
+	 * the callback set to free_tcb_callback, so we update running->status
+	 * to DEAD only after free_tcb_callback() has completed */
+
 
 	/* Update running thread after, since callback expects to be called by
 	 * original running thread. */

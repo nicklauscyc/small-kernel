@@ -28,6 +28,7 @@ struct pcb {
 	mutex_t set_status_vanish_wait_mux;
 	vanished_child_tasks_list_t vanished_child_tasks_list;
 	waiting_threads_list_t waiting_threads_list;
+	pcb_t *parent_pcb;
 
 	/* When the last thread of this task has vanished, this link is used
 	 * to put the PCB on its parent task's vanished_child_tasks_list */
@@ -65,6 +66,8 @@ struct tcb {
 	uint32_t *kernel_stack_lo; /* Lowest _writable_ kernel stack address */
 	                           /* that is stack aligned */
 
+
+	tcb_t *previous_thread_to_cleanup;
 
 	/* Info for syscalls */
 	uint32_t sleep_expiry_date;

@@ -11,6 +11,7 @@
 #include <stdint.h>    /* uint32_t */
 #include <elf_410.h>   /* simple_elf_t */
 
+#define KERNEL_THREAD_STACK_SIZE (PAGE_SIZE)
 typedef enum status status_t;
 
 /* PCB and TCB data structures */
@@ -21,7 +22,7 @@ typedef struct tcb tcb_t;
 
 /* Functions for task and thread creation */
 void task_manager_init( void );
-int create_pcb( uint32_t *pid, void *pd );
+int create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb );
 int create_tcb( uint32_t pid , uint32_t *tid );
 int create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf );
 int activate_task_memory( uint32_t pid );
@@ -36,6 +37,7 @@ status_t get_tcb_status( tcb_t *tcb );
 uint32_t get_tcb_tid(tcb_t *tcb);
 void set_task_exit_status( int status );
 
+
 int get_num_threads_in_owning_task( tcb_t *tcbp );
 void *get_kern_stack_lo( tcb_t *tcbp );
 void *get_kern_stack_hi( tcb_t *tcbp );
@@ -43,5 +45,6 @@ void set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp );
 void *swap_task_pd( void *new_pd );
 void *get_tcb_pd(tcb_t *tcb);
 void free_tcb(tcb_t *tcb);
+void clean_up_previous_thread( void );
 
 #endif /* TASK_MANAGER_H_ */

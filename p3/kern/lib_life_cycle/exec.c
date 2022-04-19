@@ -57,9 +57,10 @@ exec( char *execname, char **argvec )
 
 	/* Only allow exec of task that has 1 thread */
 	tcb_t *tcb = get_running_thread();
+	assert(tcb);
+
 	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-	assert(tcb);
 	int num_threads = get_num_threads_in_owning_task(tcb);
 	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 

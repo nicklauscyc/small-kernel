@@ -63,13 +63,6 @@ void tick(unsigned int numTicks) {
 	 * to (in most cases). */
 	sleep_on_tick(numTicks);
 
-	//if (get_running_thread()) {
-	//	assert(*((uint32_t *) get_kern_stack_hi((get_running_thread())))
-	//	== 0xcafebabe);
-	//	assert(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
-	//	== 0xdeadbeef);
-
-	//}
 	if (get_running_thread()) {
 		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
 		!= 0xcafebabe) {
@@ -94,6 +87,10 @@ void tick(unsigned int numTicks) {
 		!= 0xdeadbeef) {
 			MAGIC_BREAK;
 		}
+	}
+	/* cleanup previous thread if needed */
+	if (get_running_thread()) {
+		clean_up_previous_thread();
 	}
 
 
