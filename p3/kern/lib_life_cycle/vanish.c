@@ -35,8 +35,9 @@
 #include <scheduler.h>			/* yield_execution() */
 #include <task_manager_internal.h>
 #include <lib_thread_management/hashmap.h>
-
-
+#include <memory_manager.h> /* get_initial_pd() */
+#include <x86/cr.h>		/* {get,set}_{cr0,cr3} */
+#include <malloc.h> /* sfree() */
 void
 free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 {
@@ -98,6 +99,21 @@ _vanish( void ) // int on_error )
 		/* Free sibling threads TCB */
 		free_sibling_tcb(owning_task, tcb);
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
+		/* Free page directory */
+		uint32_t **initial_pd = get_initial_pd();
+		affirm(initial_pd);
+		uint32_t **current_pd = (uint32_t **) TABLE_ADDRESS(get_cr3());
+
+		affirm(PAGE_ALIGNED(current_pd));
+		affirm(PAGE_ALIGNED(owning_task->pd));
+		affirm(PAGE_ALIGNED(initial_pd));
+
+		affirm(current_pd == owning_task->pd);
+		set_cr3((uint32_t) initial_pd);
+
+		free_pd_memory(owning_task->pd);
+		sfree(owning_task->pd, PAGE_SIZE);
 
 
 		/* TODO Tell all children tasks that their parent is init() now */

@@ -123,8 +123,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
 	task_manager_init();
 
-	// TODO: maybe should be somewhere else
-	initialize_zero_frame();
+	init_memory_manager();
 
 	log("this is DEBUG");
 	log_info("this is INFO");
