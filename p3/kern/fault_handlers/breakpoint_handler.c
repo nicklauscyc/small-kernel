@@ -3,6 +3,7 @@
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
 #include <assert.h> /* panic() */
+#include <panic_thread.h> /* panic_thread() */
 
 void
 breakpoint_handler( int eip, int cs )
@@ -13,5 +14,5 @@ breakpoint_handler( int eip, int cs )
 	}
 	/* TODO: acknowledge signal and call user handler  */
 
-	panic("Unhandled breakpoint fault encountered before 0x%x", eip);
+	panic_thread("Unhandled breakpoint fault encountered before 0x%x", eip);
 }

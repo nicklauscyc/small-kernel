@@ -11,6 +11,7 @@
 #include <assert.h>				/* panic() */
 #include <scheduler.h>			/* get_running_tid */
 #include <common_kern.h>		/* USER_MEM_START  */
+#include <panic_thread.h>		/* panic_thread() */
 #include <memory_manager.h>		/* zero_page_pf_handler */
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
@@ -96,8 +97,7 @@ pagefault_handler( uint32_t *ebp )
 	}
 	/* If the fault happened because reserved bits were accidentally set
 	 * in the page directory, the page directory is corrupted and we need to
-	 * crash.
-	 */
+	 * crash. */
 	if (error_code & RSVD_BIT) {
 
 		/* Get offending page directory entry */
@@ -124,48 +124,40 @@ pagefault_handler( uint32_t *ebp )
 		if (zero_page_pf_handler(faulting_vm_address) == 0) {
 			return;
 		}
-		log_info("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
-				"Writing into read-only page",
-				mode, faulting_vm_address, eip);
-
-
-		_vanish();
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
+					"Writing into read-only page",
+					mode, faulting_vm_address, eip);
 	} else {
 
-		log_info("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
-				"reading permissions wrong",
-				 mode, faulting_vm_address, eip);
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
+					"reading permissions wrong",
+					 mode, faulting_vm_address, eip);
 
-		_vanish();
 	}
 
 
 	if (!(error_code & P_BIT)) {
-		log_info("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
-				 mode, faulting_vm_address, eip,
-				faulting_vm_address < PAGE_SIZE ?
-				"Null dereference." : "Page not present.");
-		_vanish();
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
+					mode, faulting_vm_address, eip,
+					faulting_vm_address < PAGE_SIZE ?
+					"Null dereference." : "Page not present.");
 	} else {
 
-		log_info("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
-				mode, faulting_vm_address, eip,
-				faulting_vm_address < PAGE_SIZE ?
-				"Null dereference." : "page-level protection violation.");
-		_vanish();
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
+					mode, faulting_vm_address, eip,
+					faulting_vm_address < PAGE_SIZE ?
+					"Null dereference." : "page-level protection violation.");
 	}
 
-    // TODO not sure if this is needed
-	/* Jank check but reasonable for now */
 	if (cs == SEGSEL_USER_CS && eip < USER_MEM_START) {
-		log_info("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
-				"User mode trying to access kernel memory",
-				get_running_tid(),mode, faulting_vm_address, eip);
-		_vanish();
+		panic_thread("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
+					"User mode trying to access kernel memory",
+					get_running_tid(),mode, faulting_vm_address, eip);
 	}
 
-	MAGIC_BREAK;
-	panic("PAGEFAULT HANDLER BROKEN!\n "
+	/* NOTREACHED */
+
+	panic("PAGEFAULT HANDLER unknown crash reason!\n "
 				   "error_code:0x%08x\n "
 				   "eip:0x%08x\n "
 				   "cs:0x%08x\n "

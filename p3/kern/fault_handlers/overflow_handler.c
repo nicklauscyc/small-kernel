@@ -3,7 +3,7 @@
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
 #include <assert.h> /* panic() */
-#include <simics.h>
+#include <panic_thread.h> /* panic_thread() */
 
 void
 overflow_handler( int eip, int cs )
@@ -13,5 +13,5 @@ overflow_handler( int eip, int cs )
 	}
 	/* TODO: acknowledge signal and call user handler  */
 
-	panic("[User mode] Unhandled overflow fault encountered at 0x%x", eip);
+	panic_thread("Unhandled overflow fault encountered at 0x%x", eip);
 }

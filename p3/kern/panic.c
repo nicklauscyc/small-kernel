@@ -37,6 +37,7 @@
 #include <stdarg.h> /* va_list(), va_end() */
 #include <logger.h> /* log_crit() */
 #include <asm.h>	/* disable interrupts */
+#include <lib_life_cycle/life_cycle.h> /* _vanish */
 
 /** @brief This function is called by the assert() macro defined in assert.h;
  *         it's also a nice simple general-purpose panic function. Ceases
@@ -50,7 +51,8 @@
  *  @param ... Other arguments put into fmt
  *  @return Void.
  */
-void panic( const char *fmt, ... )
+void
+panic( const char *fmt, ... )
 {
 	/* Print error that occurred */
 	va_list args;
@@ -66,6 +68,20 @@ void panic( const char *fmt, ... )
 		continue;
 	}
     // call halt();
+
+	return;
+}
+
+void
+panic_thread( const char *fmt, ... )
+{
+	/* Print error that occurred */
+	va_list args;
+	va_start(args, fmt);
+	vtprintf(fmt, args, WARN_PRIORITY);
+	va_end(args);
+
+	_vanish();
 
 	return;
 }

@@ -25,5 +25,5 @@ make_runnable( int tid )
 		return -1;
 
 	/* move to runnable queue and mark as runnable */
-	return make_thread_runnable(tid);
+	return make_thread_runnable(tcbp);
 }

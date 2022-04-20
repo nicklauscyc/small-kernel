@@ -226,43 +226,6 @@ configure_stack( int argc, char **argv )
 	log("stack_lo:%p", (char *) *(esp + 4));
 
 	return esp;
-
-
-
-
-    ///* TODO: Consider writing this with asm, as it might be simpler. */
-
-    ///* TODO: In the future, when "receiver" function is implemented, loader
-    // * should also add entry point, user registers and data segment selectors
-    // * on the stack. For registers, just initialize most to 0 or something. */
-
-    ///* As a pointer to uint32_t, it must point to the lowest address of
-    // * the value. */
-    //uint32_t *esp = (uint32_t *)(UINT32_MAX - (sizeof(uint32_t) - 1));
-	//assert((uint32_t) esp % 4 == 0);
-
-    //*esp = argc;
-
-    //if (argc == 0) {
-    //    *(--esp) = 0;
-	//	assert((uint32_t) esp % 4 == 0);
-    //    return esp;
-    //}
-
-    //esp -= argc; /* sizeof(char *) == sizeof(uint32_t *) */
-	//assert((uint32_t) esp % 4 == 0);
-	//// TODO what if argv has a string
-    //memcpy(esp, argv, argc * sizeof(char *)); /* Put argv on stack */
-    //esp--;
-	//assert((uint32_t) esp % 4 == 0);
-
-    //*(esp--) = UINT32_MAX; /* Put stack_high on stack */
-	//assert((uint32_t) esp % 4 == 0);
-
-    //*(esp) = UINT32_MAX - PAGE_SIZE - 1; /* Put stack_low on stack */
-
-	//assert((uint32_t) esp % 4 == 0);
-	//return esp;
 }
 
 /** @brief Run a user program indicated by fname.

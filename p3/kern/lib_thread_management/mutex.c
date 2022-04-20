@@ -86,7 +86,7 @@ mutex_lock( mutex_t *mp )
 
 	enable_interrupts();
 
-    assert(yield_execution(BLOCKED, -1, store_tcb_in_mutex_queue, mp) == 0);
+    assert(yield_execution(BLOCKED, NULL, store_tcb_in_mutex_queue, mp) == 0);
 
 mutex_exit:
 	assert(mp->owned);
@@ -123,10 +123,10 @@ mutex_unlock_helper( mutex_t *mp, int switch_safe )
         Q_REMOVE(&mp->waiters_queue, to_run, scheduler_queue);
         mp->owner_tid = to_run->tid;
 		if (switch_safe) {
-			switch_safe_make_thread_runnable(to_run->tid);
+			switch_safe_make_thread_runnable(to_run);
 		} else {
 			enable_interrupts();
-			make_thread_runnable(to_run->tid);
+			make_thread_runnable(to_run);
 		}
     } else {
         mp->owned = 0;

@@ -209,7 +209,7 @@ task_set_active( uint32_t tid )
 	 * to check this?
 	 */
 	if (tcb->status == UNINITIALIZED) {
-		make_thread_runnable(tid);
+		make_thread_runnable(tcb);
 	}
 }
 
@@ -323,34 +323,32 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	*tid = get_unique_tid();
 	tcb->tid = *tid;
 
-    /* If debug mode is set, we let each kernel stack be PAGE_SIZE of usable
-     * memory, followed by PAGE_SIZE of unusable memory to prevent kernel
-     * stacks from overlapping onto each other during execution.
-     */
-#ifdef DEBUG
-	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
-	if (!tcb->kernel_stack_lo) {
-		sfree(tcb, sizeof(tcb_t));
-		return -1;
-	}
-	uint32_t **parent_pd = owning_task->pd;
-    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
-	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
-    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
-	parent_pt[pt_index] = 0x0;
-	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
-#else
+	tcb->status = UNINITIALIZED;
+	tcb->owning_task = owning_task;
+
+//    /* If debug mode is set, we let each kernel stack be PAGE_SIZE of usable
+//     * memory, followed by PAGE_SIZE of unusable memory to prevent kernel
+//     * stacks from overlapping onto each other during execution.
+//     */
+//#ifdef DEBUG
+//	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
+//	if (!tcb->kernel_stack_lo) {
+//		sfree(tcb, sizeof(tcb_t));
+//		return -1;
+//	}
+//	uint32_t **parent_pd = owning_task->pd;
+//    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
+//	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
+//    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
+//	parent_pt[pt_index] = 0x0;
+//	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
+//#else
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
 		return -1;
 	}
-#endif
-
-	tcb->status = UNINITIALIZED;
-
-	/* Add to owning task's list of threads */
-	tcb->owning_task = owning_task;
+//#endif
 
 	/* TODO: Add mutex to pcb struct and lock it here.
 	 *		 For now, this just checks that we're not
@@ -377,8 +375,6 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
 
 	log("create_tcb(): tcb->stack_lo:%p", tcb->kernel_stack_lo);
-	// FIXME faults here
-
 	tcb->kernel_esp = tcb->kernel_stack_lo;
 	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
 			  PAGE_SIZE - sizeof(uint32_t));
@@ -390,7 +386,13 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	*(tcb->kernel_stack_hi) = 0xcafebabe;
 
 	*(tcb->kernel_stack_lo) = 0xdeadbeef;
-	return 0;
+
+	/* FIXME: Delete this, just logging address for idle tcb */
+	if (tcb->tid == 1) {
+		log_warn("Idle thread at %p", tcb);
+		MAGIC_BREAK;
+	}
+
 	return 0;
 }
 

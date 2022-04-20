@@ -145,7 +145,7 @@ fork( void )
 	//affirm(is_valid_pd(child_pd));
 
     /* After setting up child stack and VM, register with scheduler */
-    if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0)
+    if (make_thread_runnable(child_tcb) < 0)
         return -1;
 	//affirm(is_valid_pd(parent_pd));
 	//affirm(is_valid_pd(child_pd));
