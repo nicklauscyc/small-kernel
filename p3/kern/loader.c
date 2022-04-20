@@ -346,6 +346,8 @@ execute_user_program( char *fname, int argc, char **argv)
 	/* If this is the first task we must activate it */
 	if (first_task) {
         assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
+		/* Calls make_thread_runnable() */
 		task_set_active(tid);
 	}
 	first_task = 0;

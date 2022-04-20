@@ -361,6 +361,8 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	tcb->status = UNINITIALIZED;
 	tcb->owning_task = owning_task;
 
+	tcb->collected_vanished_child = NULL;
+
 	tcb->kernel_stack_lo = smalloc(KERNEL_THREAD_STACK_SIZE);
 
 	if (!tcb->kernel_stack_lo) {

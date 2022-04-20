@@ -92,6 +92,7 @@ add_to_run( tcb_t *tcb )
 /** @brief Yield execution of current thread, storing it at
  *		   the runnable queue if store_status is RUNNABLE.
  *
+ *  @pre scheduler must be initialized
  *	@param store_status Status which currently running thread will take
  *	@param tcb			Thread to yield to, NULL if any
  *	@param callback		Function to be called atomically with tcb of
@@ -102,9 +103,10 @@ int
 yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data )
 {
+
+
 	if (!scheduler_init) {
-		log_warn("Attempting to call yield but scheduler is not initialized");
-		return -1;
+		panic("Attempting to call yield but scheduler is not initialized");
 	}
 
 	/* Validate store status */
@@ -147,7 +149,11 @@ yield_execution( status_t store_status, tcb_t *tcb,
 			return -1;
 		}
 		/* Ensure this thread is no longer in the runnable queue */
-		Q_REMOVE(&runnable_q, tcb, scheduler_queue);
+		/* Some times this is a no-op. In the case for when a waiting thread
+		 * is woken up and yielded to, on wakeup it is not currently in
+		 * any scheduler queue and so this will be a no-op */
+		if (Q_IN_SOME_QUEUE(tcb, scheduler_queue))
+			Q_REMOVE(&runnable_q, tcb, scheduler_queue);
 	}
 
 	swap_running_thread(tcb);
@@ -236,6 +242,7 @@ make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 		return -1;
 	}
 
+	// TODO when will we add an UNINITIALIZED status tcbp to the queue?
 	if (tcbp->status == UNINITIALIZED || switch_safe) {
 		add_to_run(tcbp);
 	} else {

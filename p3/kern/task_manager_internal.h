@@ -118,6 +118,7 @@ struct tcb {
 	 * a TCB can be put on at most one type of list at any one time */
 	Q_NEW_LINK(tcb) task_thread_link; /* Link for TCB queue in PCB */
 
+    pcb_t *collected_vanished_child; /* for use on wait */
 
 
 	status_t status; /* Thread's status */
