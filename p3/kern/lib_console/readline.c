@@ -212,7 +212,7 @@ get_next_char( void )
 	int res;
 	/* If no character, deschedule ourselves and wait for user input. */
 	while ((res = readchar()) == -1) {
-		yield_execution(BLOCKED, -1, mark_curr_blocked, NULL);
+		yield_execution(BLOCKED, NULL, mark_curr_blocked, NULL);
 	}
 	assert(res >= 0);
 

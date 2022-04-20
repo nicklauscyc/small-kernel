@@ -17,7 +17,7 @@ int get_running_tid( void );
 void scheduler_on_tick( unsigned int num_ticks );
 int make_thread_runnable( tcb_t *tcbp );
 int switch_safe_make_thread_runnable( tcb_t *tcbp );
-int yield_execution( status_t store_status, int tid,
+int yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data );
 
 #endif /* SCHEDULER_H_ */

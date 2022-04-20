@@ -18,7 +18,7 @@ _deschedule( int *reject )
 		return -1;
 
 	if (*reject == 0)
-		return yield_execution(DESCHEDULED, -1, NULL, NULL);
+		return yield_execution(DESCHEDULED, NULL, NULL, NULL);
 	return 0;
 }
 

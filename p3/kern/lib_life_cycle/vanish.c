@@ -10,7 +10,7 @@
 void
 _vanish( void )
 {
-	affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
+	affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 }
 
 

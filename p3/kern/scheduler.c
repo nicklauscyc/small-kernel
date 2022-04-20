@@ -93,12 +93,12 @@ add_to_run( tcb_t *tcb )
  *		   the runnable queue if store_status is RUNNABLE.
  *
  *	@param store_status Status which currently running thread will take
- *	@param tid			Id of thread to yield to, -1 if any
+ *	@param tcb			Thread to yield to, NULL if any
  *	@param callback		Function to be called atomically with tcb of
  *						current thread. MUST BE SHORT
  *	@return 0 on success, negative value on error */
 int
-yield_execution( status_t store_status, int tid,
+yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data )
 {
 	if (!scheduler_init) {
@@ -137,26 +137,14 @@ yield_execution( status_t store_status, int tid,
 		callback(running_thread, data);
 
 	/* Get tcb to swap to */
-	tcb_t *tcb;
-	if (tid == -1)
+	if (!tcb)
 		tcb = get_next_run();
 	else {
-		// FIXME: find_tcb is guarded by a mutex, but currently interrupts disabled
-		tcb = find_tcb(tid);
-		if (!tcb) {
-			log_warn("Trying to yield_execution to non-existent"
-					 " thread with tid %d", tid);
-			enable_interrupts();
-			return -1; /* Thread not found */
-		}
 		if (get_tcb_status(tcb) != RUNNABLE) {
 			log_warn("Trying to yield_execution to non-runnable"
-					 " thread with tid %d", tid);
-			enable_interrupts();
+					 " thread with tid %d", tcb->tid);
 			return -1;
 		}
-
-		// TODO: how can we ensure this thread is in the runnable queue?
 		/* Ensure this thread is no longer in the runnable queue */
 		Q_REMOVE(&runnable_q, tcb, scheduler_queue);
 	}

@@ -125,7 +125,7 @@ sleep( int ticks )
 	 * We could lock the sleep_q mux here and release it through the callback?
 	 * This should ensure no conflicts with the sleep q stuff */
 	mutex_lock(&sleep_mux);
-	affirm(yield_execution(BLOCKED, -1, store_tcb_in_sleep_queue, NULL) == 0);
+	affirm(yield_execution(BLOCKED, NULL, store_tcb_in_sleep_queue, NULL) == 0);
 
 	return 0;
 }
