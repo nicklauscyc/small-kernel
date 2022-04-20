@@ -71,6 +71,9 @@ static keyboard_buffer_t key_buf;
 
 int readchar(void);
 
+#include <logger.h>
+
+static int keys = 0;
 /** @brief Interrupt handler which reads in raw bytes from keystrokes. Reads
  *		   incoming bytes to the keyboard buffer key_buf, which has an
  *		   amortized constant time complexity for adding elements. So it
@@ -84,8 +87,11 @@ void keybd_int_handler(void)
 	uint8_t raw_byte = inb(KEYBOARD_PORT);
 	buf_insert(&key_buf, raw_byte);
 
+	keys++;
+	log_warn("keybd_int_handler(): received:%d", keys);
 	/* Acknowledge interrupt */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	log_warn("keybd_int_handler(): ack:%d", keys);
 
 	/* Let readline module know new characters have arrived. */
 	readline_char_arrived_handler();

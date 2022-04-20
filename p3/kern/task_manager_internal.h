@@ -57,6 +57,7 @@ Q_NEW_HEAD(active_child_tasks_list_t, pcb);
  *	@param vanished_threads_list List of vanished threads (DEAD)
  *	@param num_vanished_threads Number of vanished threads
  *	@param first_thread_tid Thread ID of task's first thread
+ *	@param last_thread Last thread to vanish in task
  *  @param task_link Variable queue link for kernel wide list of all running
  *         tasks.
  */
@@ -98,6 +99,7 @@ struct pcb
 	uint32_t num_vanished_threads;
 
 	uint32_t first_thread_tid;
+	tcb_t *last_thread;
 	Q_NEW_LINK(pcb) task_link; /**< Variable queue link for kernel wide list of
 	                             *  all running tasks */
 
@@ -119,6 +121,7 @@ struct tcb {
 	Q_NEW_LINK(tcb) task_thread_link; /* Link for TCB queue in PCB */
 
     pcb_t *collected_vanished_child; /* for use on wait */
+
 
 
 	status_t status; /* Thread's status */

@@ -99,6 +99,7 @@ _vanish( void ) // int on_error )
 		log_info("_vanish(): last task thread");
 
 		/* Free sibling threads TCB */
+		owning_task->last_thread = tcb;
 		free_sibling_tcb(owning_task, tcb);
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
