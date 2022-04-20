@@ -3,6 +3,7 @@
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
 #include <assert.h> /* panic() */
+#include <panic_thread.h> /* panic_thread() */
 
 /** @brief Prints out the offending address on and calls panic()
  *
@@ -17,5 +18,5 @@ divide_handler( int eip, int cs )
 	}
 	/* TODO: acknowledge signal and call user handler  */
 
-	panic("Unhandled divide by 0 exception at instruction 0x%x", eip);
+	panic_thread("Unhandled divide by 0 exception at instruction 0x%x", eip);
 }

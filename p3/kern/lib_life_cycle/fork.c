@@ -136,10 +136,9 @@ fork( void )
 	parent_pcb->num_active_child_tasks++;
 
     /* After setting up child stack and VM, register with scheduler */
-    if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0) {
-		MAGIC_BREAK;
+    if (make_thread_runnable(child_tcb) < 0)
         return -1;
-	}
+
     /* Only parent will return here */
     assert(get_running_tid() == get_tcb_tid(parent_tcb));
 

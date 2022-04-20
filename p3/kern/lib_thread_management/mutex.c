@@ -13,7 +13,7 @@
 #include <logger.h>     /* log */
 #include <task_manager_internal.h> /* Q MACRO for tcb */
 
-static void store_tcb_in_mutex_queue( tcb_t *tcb, tcb_t *unused, void *data );
+static void store_tcb_in_mutex_queue( tcb_t *tcb, void *data );
 
 /** @brief Initialize a mutex
  *  @param mp Pointer to memory location where mutex should be initialized
@@ -86,7 +86,7 @@ mutex_lock( mutex_t *mp )
 
 	enable_interrupts();
 
-    assert(yield_execution(BLOCKED, -1, store_tcb_in_mutex_queue, mp) == 0);
+    assert(yield_execution(BLOCKED, NULL, store_tcb_in_mutex_queue, mp) == 0);
 
 mutex_exit:
 	assert(mp->owned);
@@ -123,10 +123,10 @@ mutex_unlock_helper( mutex_t *mp, int switch_safe )
         Q_REMOVE(&mp->waiters_queue, to_run, scheduler_queue);
         mp->owner_tid = to_run->tid;
 		if (switch_safe) {
-			switch_safe_make_thread_runnable(to_run->tid);
+			switch_safe_make_thread_runnable(to_run);
 		} else {
 			enable_interrupts();
-			make_thread_runnable(to_run->tid);
+			make_thread_runnable(to_run);
 		}
     } else {
         mp->owned = 0;
@@ -155,7 +155,7 @@ switch_safe_mutex_unlock( mutex_t *mp )
 }
 
 static void
-store_tcb_in_mutex_queue( tcb_t *tcb, tcb_t *unused, void *data )
+store_tcb_in_mutex_queue( tcb_t *tcb, void *data )
 {
 	affirm(tcb && data && tcb->status == BLOCKED);
 	/* Since thread not running, might as well use the scheduler queue link! */

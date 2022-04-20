@@ -38,7 +38,6 @@
 #include <memory_manager.h> /* get_initial_pd() */
 #include <x86/cr.h>		/* {get,set}_{cr0,cr3} */
 #include <malloc.h> /* sfree() */
-
 #include <scheduler.h> /* make_thread_runnable() */
 void
 free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
@@ -86,13 +85,12 @@ _vanish( void ) // int on_error )
 	affirm(owning_task->num_active_threads + owning_task->num_vanished_threads
 	       == owning_task->total_threads);
 
-
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
 		log_info("_vanish(): not last task thread");
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
-		affirm(yield_execution(DEAD, -1, NULL, NULL) == 0);
+		affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 
 	/* Last task thread contacts parent PCB */
 	} else {
@@ -138,10 +136,8 @@ _vanish( void ) // int on_error )
 		parent_pcb->num_vanished_child_tasks++;
 
 		/* Look at list of waiting parent threads, if non-empty, wake them up */
-		int parent_tid = -1;
 		tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
 		if (waiting_tcb) {
-			parent_tid = get_tcb_tid(waiting_tcb);
 			Q_REMOVE(&(parent_pcb->waiting_threads_list), waiting_tcb,
 					 waiting_threads_link);
 			parent_pcb->num_waiting_threads--;
@@ -149,7 +145,7 @@ _vanish( void ) // int on_error )
 		mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
 
 		/* Yield to parent task's waiting thread */
-		affirm(yield_execution(DEAD, parent_tid, NULL, NULL) == 0);
+		affirm(yield_execution(DEAD, waiting_tcb, NULL, NULL) == 0);
 	}
 }
 
@@ -162,6 +158,3 @@ vanish( void )
 	log_info("call vanish");
 	_vanish();
 }
-
-
-

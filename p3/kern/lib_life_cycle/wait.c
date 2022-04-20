@@ -14,6 +14,11 @@
 int
 wait (int *status_ptr)
 {
+	// TODO delete me, here only for debugging
+	if (status_ptr) {
+		*status_ptr = -69;
+	}
+	return 42;
 
 	tcb_t *waiting_thread = get_running_thread();
 	affirm(waiting_thread);
@@ -44,7 +49,7 @@ wait (int *status_ptr)
 
 			mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
-			affirm(yield_execution(BLOCKED, -1, NULL, NULL) == 0);
+			affirm(yield_execution(BLOCKED, NULL, NULL, NULL) == 0);
 
 		/* Will definitely never successfully wait for a child task */
 		} else {

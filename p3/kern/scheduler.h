@@ -17,9 +17,12 @@ pcb_t *get_running_task( void );
 
 int get_running_tid( void );
 void scheduler_on_tick( unsigned int num_ticks );
-int make_thread_runnable( uint32_t tid );
-int switch_safe_make_thread_runnable( uint32_t tid );
-int yield_execution( status_t store_status, int tid,
-		void (*callback)(tcb_t *, tcb_t *, void *), void *data );
+int make_thread_runnable( tcb_t *tcbp );
+int switch_safe_make_thread_runnable( tcb_t *tcbp );
+int yield_execution( status_t store_status, tcb_t *tcb,
+		void (*callback)(tcb_t *, void *), void *data );
+
+// TODO would it be useful if the callback could do things to the tcb being
+//      yielded to?
 
 #endif /* SCHEDULER_H_ */

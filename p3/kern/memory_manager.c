@@ -172,11 +172,9 @@ zero_page_pf_handler( uint32_t faulting_address )
 	}
 	uint32_t pt_entry = *ptep;
 
-	/* Page table entry must hold the system wide zero frame */
+	/* Page table entry must hold the system wide zero frame.
+	 * If not, then this is not a ZFOD allocated frame. */
 	if (TABLE_ADDRESS(pt_entry) != sys_zero_frame) {
-		log_warn("zero_page_pf_handler(): "
-                 "page table entry for vm 0x%08lx is not zero frame",
-				 faulting_address);
 		return -1;
 	}
 	/* Page table entry must be user readable since sys wide zero frame */

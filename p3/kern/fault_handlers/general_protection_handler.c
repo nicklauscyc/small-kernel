@@ -5,6 +5,8 @@
 #include <assert.h> /* panic() */
 #include <simics.h>
 #include <stdint.h> /* uint32_t */
+#include <panic_thread.h> /* panic_thread() */
+
 void
 general_protection_handler( uint32_t *ebp )
 {
@@ -18,7 +20,10 @@ general_protection_handler( uint32_t *ebp )
 	if (cs == SEGSEL_USER_CS) {
 		esp = *(ebp + 5);
 		ss = *(ebp + 6);
-		affirm_msg(error_code == 0, "General protection fault while loading a "
+
+		/* Ack + software exn handler*/
+
+		panic_thread("Unhandled general protection fault while loading a "
 	    	       "segment descriptor\n"
 				   "error_code:0x%08x\n "
 				   "eip:0x%08x\n "
@@ -28,15 +33,6 @@ general_protection_handler( uint32_t *ebp )
 				   "ss:0x%08x\n ",
 				   error_code, eip, cs, eflags, esp, ss);
 	} else {
-		affirm_msg(error_code == 0, "General protection fault while loading a "
-	    	       "segment descriptor\n"
-				   "error_code:0x%08x\n "
-				   "eip:0x%08x\n "
-				   "cs:0x%08x\n "
-				   "eflags:0x%08x\n ",
-				   error_code, eip, cs, eflags);
-	}
-	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] General protection fault encountered error at "
 	    	       "segment descriptor\n"
 				   "error_code:0x%08x\n "
@@ -46,14 +42,4 @@ general_protection_handler( uint32_t *ebp )
 				   error_code, eip, cs, eflags);
 
 	}
-	/* TODO: acknowledge signal and call user handler  */
-	panic("[User mode] General protection fault encountered at "
-	    	       "segment descriptor\n"
-				   "error_code:0x%08x\n "
-				   "eip:0x%08x\n "
-				   "cs:0x%08x\n "
-				   "eflags:0x%08x\n ",
-				   error_code, eip, cs, eflags);
-
-
 }

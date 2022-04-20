@@ -25,7 +25,7 @@
 #include <simics.h>
 #include <malloc.h>
 
-static void mark_curr_blocked( tcb_t *tcb, tcb_t *unused, void *data );
+static void mark_curr_blocked( tcb_t *tcb, void *data );
 static int readchar( void );
 static char get_next_char( void );
 static int _readline(char *buf, int len);
@@ -180,14 +180,14 @@ readline_char_arrived_handler( void )
 	 * keybd interrupt, leading to a race condition. A simple way to ensure
 	 * make_runnable is called only once is a CAS on curr_blocked. */
 	if (compare_and_swap_atomic(&curr_blocked, 1, 0)) {
-		switch_safe_make_thread_runnable(readline_curr->tid);
+		switch_safe_make_thread_runnable(readline_curr);
 	}
 }
 
 /* --- HELPERS --- */
 
 static void
-mark_curr_blocked( tcb_t *tcb, tcb_t *unused, void *data )
+mark_curr_blocked( tcb_t *tcb, void *data )
 {
 	assert(readline_curr == tcb);
 	curr_blocked = 1;
@@ -213,7 +213,7 @@ get_next_char( void )
 	int res;
 	/* If no character, deschedule ourselves and wait for user input. */
 	while ((res = readchar()) == -1) {
-		yield_execution(BLOCKED, -1, mark_curr_blocked, NULL);
+		yield_execution(BLOCKED, NULL, mark_curr_blocked, NULL);
 	}
 	assert(res >= 0);
 
