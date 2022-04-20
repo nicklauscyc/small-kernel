@@ -38,6 +38,8 @@
 #include <memory_manager.h> /* get_initial_pd() */
 #include <x86/cr.h>		/* {get,set}_{cr0,cr3} */
 #include <malloc.h> /* sfree() */
+
+#include <scheduler.h> /* make_thread_runnable() */
 void
 free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 {
@@ -125,19 +127,28 @@ _vanish( void ) // int on_error )
 		affirm(parent_pcb);
 
 		mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+
+		/* Transfer from active_child_tasks_list to vanished_child_tasks_list */
+		Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
+		         vanished_child_tasks_link);
+		parent_pcb->num_active_child_tasks--;
+
 		Q_INSERT_TAIL(&(parent_pcb->vanished_child_tasks_list),
 		              owning_task, vanished_child_tasks_link);
+		parent_pcb->num_vanished_child_tasks++;
 
 		/* Look at list of waiting parent threads, if non-empty, wake them up */
 		int parent_tid = -1;
 		tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
 		if (waiting_tcb) {
-			affirm(waiting_tcb);
 			parent_tid = get_tcb_tid(waiting_tcb);
 			Q_REMOVE(&(parent_pcb->waiting_threads_list), waiting_tcb,
 					 waiting_threads_link);
+			parent_pcb->num_waiting_threads--;
 		}
 		mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
+
+		/* Yield to parent task's waiting thread */
 		affirm(yield_execution(DEAD, parent_tid, NULL, NULL) == 0);
 	}
 }

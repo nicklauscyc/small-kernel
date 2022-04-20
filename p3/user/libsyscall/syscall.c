@@ -51,10 +51,10 @@ volatile static int placate_the_compiler;
 //		++placate_the_compiler;
 //}
 
-int wait(int *status_ptr)
-{
-	return -1;
-}
+//int wait(int *status_ptr)
+//{
+//	return -1;
+//}
 
 //int deschedule(int *flag)
 //{

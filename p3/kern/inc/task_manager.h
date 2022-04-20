@@ -44,5 +44,6 @@ void set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp );
 void *swap_task_pd( void *new_pd );
 void *get_tcb_pd(tcb_t *tcb);
 void free_tcb(tcb_t *tcb);
+void free_pcb_but_not_pd(pcb_t *pcb);
 
 #endif /* TASK_MANAGER_H_ */

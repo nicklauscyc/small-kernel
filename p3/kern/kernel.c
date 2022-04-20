@@ -47,7 +47,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 4;
+int log_level = 2;
 
 void tick(unsigned int numTicks) {
 	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow

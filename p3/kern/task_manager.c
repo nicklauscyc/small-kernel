@@ -281,43 +281,50 @@ find_tcb( uint32_t tid )
 int
 create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 {
-	pcb_t *pcb = smalloc(sizeof(pcb_t));
-	if (!pcb)
-		return -1;
-
 	//mutex_init(&thread_list_mux); TODO: Enable this
-	*pid = get_unique_pid();
-	pcb->pid = *pid;
-	pcb->pd = pd;
-	pcb->prepared = 0;
-	pcb->first_thread_tid = 0;
 
-	/* Initialize thread queue */
-	Q_INIT_HEAD(&(pcb->active_threads_list));
-	pcb->num_active_threads = 0;
-
-	Q_INIT_HEAD(&(pcb->vanished_threads_list));
-	pcb->num_vanished_threads = 0;
-
-	pcb->total_threads = 0;
-
-
-	/* Initialize set_status_vanish_wait_mux and other structures for
-	 * set_status(), vanish(), wait() */
+	pcb_t *pcb = smalloc(sizeof(pcb_t));
+	if (!pcb) {
+		return -1;
+	}
 	if (mutex_init(&(pcb->set_status_vanish_wait_mux)) < 0) {
 		return -1;
 	}
-	Q_INIT_HEAD(&(pcb->vanished_child_tasks_list));
-	Q_INIT_HEAD(&(pcb->waiting_threads_list));
+	pcb->pd = pd;
+	*pid = get_unique_pid();
+	pcb->pid = *pid;
+	pcb->exit_status = 0;
 
+	/* Immediate child tasks that have all their threads vanished */
+	Q_INIT_HEAD(&(pcb->vanished_child_tasks_list));
+	pcb->num_vanished_child_tasks = 0;
+
+	/* Immediate child tasks that have at least 1 active thread */
+	Q_INIT_HEAD(&(pcb->active_child_tasks_list));
+	pcb->num_active_child_tasks = 0;
+
+	/* List of task threads waiting for child threads to vanish */
+	Q_INIT_HEAD(&(pcb->waiting_threads_list));
+	pcb->num_waiting_threads = 0;
+
+	/* Set parent task PCB pointer if present */
 	if (parent_pcb) {
 		pcb->parent_pcb = parent_pcb;
+	} else {
+		pcb->parent_pcb = NULL;
 	}
+	/* Link to later put this PCB on its parent's vanished_child_tasks_list */
 	Q_INIT_ELEM(pcb, vanished_child_tasks_link);
+	pcb->total_threads = 0;
 
+	/* Initialize task's active and vanished thread lists */
+	Q_INIT_HEAD(&(pcb->active_threads_list));
+	pcb->num_active_threads = 0;
+	Q_INIT_HEAD(&(pcb->vanished_threads_list));
+	pcb->num_vanished_threads = 0;
+	pcb->first_thread_tid = 0;
 
-
-	/* Add to pcb linked list*/
+	/* Add to pcb linked list */
 	mutex_lock(&pcb_list_mux);
 	Q_INIT_ELEM(pcb, task_link);
 	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
@@ -594,6 +601,17 @@ free_tcb(tcb_t *tcb)
 
 	log_warn("free_tcb(): cleaned up thread tid:%d", tcb->tid);
 
+}
+
+void
+free_pcb_but_not_pd(pcb_t *pcb)
+{
+	/* pd should already be freed and set to NULL */
+	affirm(!pcb->pd);
+	log_warn("free_pcb_but_not_pd(): cleaned up pcb->first_thread_tid:%d",
+			 pcb->first_thread_tid);
+
+	return;
 }
 
 

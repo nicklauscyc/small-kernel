@@ -14,6 +14,7 @@
 #include <string.h> /* memcpy() */
 #include <page.h> /* PAGE_SIZE */
 #include <task_manager.h>
+#include <task_manager_internal.h>
 
 #include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
@@ -54,8 +55,6 @@ log_print_parent_and_child_stacks( tcb_t *parent_tcb, tcb_t *child_tcb )
 int
 fork( void )
 {
-	//assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
-
 	/* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
@@ -75,24 +74,17 @@ fork( void )
 		MAGIC_BREAK;
 		return -1;
 	}
-	//assert(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
-
 	assert(num_threads == 1);
-	//affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 
 	/* Get parent_pd in kernel memory, unaffected by paging */
 	uint32_t cr3 = get_cr3();
-	//affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 
 	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
 	assert((uint32_t) parent_pd < USER_MEM_START);
-	//affirm(is_valid_pd(parent_pd));
 
 
 	/* Create child_pd as a deep copy */
 	uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
 
 	//assert(PAGE_ALIGNED(child_pd));
 	log_info("fork(): "
@@ -105,8 +97,6 @@ fork( void )
 		MAGIC_BREAK;
 		return -1;
 	}
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
 
 
 	if (create_tcb(child_pid, &child_tid) < 0) {
@@ -115,54 +105,43 @@ fork( void )
 		MAGIC_BREAK;
 		return -1;
 	}
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
 
 	tcb_t *child_tcb;
 	assert(child_tcb = find_tcb(child_tid));
+	pcb_t *child_pcb = child_tcb->owning_task;
+
+
+	/* Register this task with simics for better debugging */
 #ifndef NDEBUG
-    /* Register this task with simics for better debugging */
-    sim_reg_child(child_pd, parent_pd);
+        sim_reg_child(child_pd, parent_pd);
 #endif
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
 
-
-	uint32_t *child_kernel_esp_on_ctx_switch;
+		uint32_t *child_kernel_esp_on_ctx_switch;
 	uint32_t *parent_kern_stack_hi = get_kern_stack_hi(parent_tcb);
 	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
 
 	child_kernel_esp_on_ctx_switch = save_child_regs(parent_kern_stack_hi,
 	                                                 child_kern_stack_hi,
 													 child_pd);
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
-
 	/* Set child's kernel esp */
-	//affirm(child_kernel_esp_on_ctx_switch);
+	affirm(child_kernel_esp_on_ctx_switch);
 	set_kern_esp(child_tcb, child_kernel_esp_on_ctx_switch);
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
 
 	/* If logging is set to debug, this will print stuff */
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
-	//
 
+	/* No need for locking as only 1 active thread */
+	Q_INSERT_TAIL(&(parent_pcb->active_child_tasks_list), child_pcb,
+			              vanished_child_tasks_link);
+	parent_pcb->num_active_child_tasks++;
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(get_tcb_tid(child_tcb)) < 0) {
 		MAGIC_BREAK;
         return -1;
 	}
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
-
     /* Only parent will return here */
     assert(get_running_tid() == get_tcb_tid(parent_tcb));
-	//affirm(is_valid_pd(parent_pd));
-	//affirm(is_valid_pd(child_pd));
 
 	return get_tcb_tid(child_tcb);
 }

@@ -13,22 +13,76 @@
 #include <scheduler.h> /* status_t */
 #include <lib_thread_management/mutex.h> /* mutex_t */
 
+typedef struct pcb pcb_t;
+typedef struct tcb tcb_t;
+
 /* PCB owned threads queue definition */
 Q_NEW_HEAD(active_threads_list_t, tcb);
 Q_NEW_HEAD(vanished_threads_list_t, tcb);
 
-typedef struct pcb pcb_t;
-typedef struct tcb tcb_t;
-
-Q_NEW_HEAD(vanished_child_tasks_list_t, pcb);
 Q_NEW_HEAD(waiting_threads_list_t, tcb);
 
-/** @brief Task control block */
-struct pcb {
-	/* For set_status(), vanish(), wait() */
-	mutex_t set_status_vanish_wait_mux;
+Q_NEW_HEAD(vanished_child_tasks_list_t, pcb);
+Q_NEW_HEAD(active_child_tasks_list_t, pcb);
+
+
+/** @brief Task/Process Control Block (PCB)
+ *
+ *  Stores essential information for a task.
+ *
+ *  @param set_status_vanish_wait_mux Mutex for gainig mutual exclusion to
+ *         PCB for when manipulating struct fields in a multi-threaded
+ *         environment.
+ *  @param pd Page directory address that all threads of this task use.
+ *  @param pid Task/Process ID.
+ *  @param exit_status Exit status passed on to waiting threads when this task
+ *         vanishes.
+ *  @param vanished_child_task_list List of vanished child tasks
+ *  @param num_vanished_child_tasks Number of child tasks in list of vanished
+ *                                  child tasks
+ *  @param active_child_tasks_list List of active child tasks
+ *  @param num_active_child_tasks Number of child tasks actively running
+ *  @param waiting_threads_list List of task threads waiting for child tasks
+ *                              to vanish
+ *  @param num_waiting_threads Number of threads waiting for child tasks to
+ *                             vanish.
+ *  @param parent_pcb Pointer to parent task's PCB. If parent task has vanished,
+ *                    this is a pointer to the init executable's PCB.
+ * 	@param vanished_child_tasks_link Variable queue link for inserting this PCB
+ * 	                                 into its parent PCB's vanished child tasks
+ * 	                                 list.
+ *	@param total_threads Total threads every created
+ *	@param active_threads_list List of active threads (not DEAD)
+ *	@param num_active_threads Number of threads not DEAD
+ *	@param vanished_threads_list List of vanished threads (DEAD)
+ *	@param num_vanished_threads Number of vanished threads
+ *	@param first_thread_tid Thread ID of task's first thread
+ *  @param task_link Variable queue link for kernel wide list of all running
+ *         tasks.
+ */
+struct pcb
+{
+	//mutex_t thread_list_mux; // TODO enable mutex
+
+	mutex_t set_status_vanish_wait_mux; /**< Mutex for PCB when manipulating
+	                                      *  struct fields in a multi-threaded
+                                          *  environment */
+	void *pd; /**<  Page directory address that all threads of this task use. */
+	uint32_t pid; /* Task/process ID */
+	int exit_status; /* Task exit status */
+
+	/* Immediate child tasks that have all their threads vanished */
 	vanished_child_tasks_list_t vanished_child_tasks_list;
+	uint32_t num_vanished_child_tasks;
+
+	/* Immediate child tasks that have at least 1 active thread */
+	active_child_tasks_list_t active_child_tasks_list;
+	uint32_t num_active_child_tasks;
+
+	/* List of task threads waiting for child threads to vanish */
 	waiting_threads_list_t waiting_threads_list;
+	uint32_t num_waiting_threads;
+
 	pcb_t *parent_pcb;
 
 	/* When the last thread of this task has vanished, this link is used
@@ -44,13 +98,11 @@ struct pcb {
 	uint32_t num_vanished_threads;
 
 	uint32_t first_thread_tid;
+	Q_NEW_LINK(pcb) task_link; /**< Variable queue link for kernel wide list of
+	                             *  all running tasks */
 
-	//mutex_t thread_list_mux; // TODO enable mutex
-	void *pd; /* page directory */
-	Q_NEW_LINK(pcb) task_link; // Embedded list of tasks
-	uint32_t pid; /* Task/process ID */
-	int prepared; /* Whether this task's VM has been initialized */
-	int exit_status; /* Task exit status */
+
+
 };
 /** @brief Thread control block */
 struct tcb {
