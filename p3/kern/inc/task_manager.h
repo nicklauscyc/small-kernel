@@ -12,6 +12,8 @@
 #include <elf_410.h>   /* simple_elf_t */
 
 #define KERNEL_THREAD_STACK_SIZE (PAGE_SIZE)
+#define USER_THREAD_STACK_SIZE (2 * PAGE_SIZE)
+
 typedef enum status status_t;
 
 /* PCB and TCB data structures */
