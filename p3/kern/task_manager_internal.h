@@ -85,6 +85,7 @@ struct pcb
 	uint32_t num_waiting_threads;
 
 	pcb_t *parent_pcb;
+	uint32_t parent_pid;
 
 	/* When the last thread of this task has vanished, this link is used
 	 * to put the PCB on its parent task's vanished_child_tasks_list */

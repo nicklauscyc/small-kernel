@@ -48,4 +48,5 @@ void *get_tcb_pd(tcb_t *tcb);
 void free_tcb(tcb_t *tcb);
 void free_pcb_but_not_pd(pcb_t *pcb);
 
+void remove_pcb( pcb_t *pcbp );
 #endif /* TASK_MANAGER_H_ */

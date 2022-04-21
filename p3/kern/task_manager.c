@@ -322,8 +322,10 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 	/* Set parent task PCB pointer if present */
 	if (parent_pcb) {
 		pcb->parent_pcb = parent_pcb;
+		pcb->parent_pid = parent_pcb->pid;
 	} else {
 		pcb->parent_pcb = NULL;
+		pcb->parent_pid = 0;
 	}
 	/* Link to later put this PCB on its parent's vanished_child_tasks_list */
 	Q_INIT_ELEM(pcb, vanished_child_tasks_link);
@@ -621,7 +623,6 @@ free_pcb_but_not_pd(pcb_t *pcb)
 	affirm(pcb->last_thread);
 	free_tcb(pcb->last_thread);
 
-	remove_pcb(pcb);
 	sfree(pcb, sizeof(pcb_t));
 	log_info("free_pcb_but_not_pd(): complete cleaned up pcb->first_thread_tid:%d",
 			 pcb->first_thread_tid);

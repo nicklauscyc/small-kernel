@@ -124,7 +124,8 @@ _vanish( void ) // int on_error )
 		/* TODO Tell all children tasks that their parent is init() now */
 
 		/* Insert into parent PCB's list of vanished child tasks */
-		pcb_t *parent_pcb = owning_task->parent_pcb;
+		//pcb_t *parent_pcb = owning_task->parent_pcb;
+		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
 		affirm(parent_pcb);
 
 		mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
