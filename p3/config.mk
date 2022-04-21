@@ -88,6 +88,7 @@ UPDATE_METHOD = afs
 		   mem_permissions cho cho2 cho_variant score make_crash_helper\
 		   knife exec_basic_helper\
 		   remove_pages_test2 \
+		   wild_test1
 
 ###########################################################################
 # Test programs you have written which you wish to run

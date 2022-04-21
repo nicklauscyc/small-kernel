@@ -61,8 +61,6 @@ wait (int *status_ptr)
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 	}
 	/* We've been woken up */
-	log_info("wait(): "
-			 "WOKEN UP");
 
 	affirm(waiting_thread->collected_vanished_child);
 
@@ -74,9 +72,16 @@ wait (int *status_ptr)
 		*status_ptr = waiting_thread->collected_vanished_child->exit_status;
 
 	}
-	log_info("wait(): "
-	         "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
-			 "exit_status:%d", tid, *status_ptr);
+	if (status_ptr) {
+		log_info("wait(): "
+				 "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
+				 "exit_status:%d", tid, *status_ptr);
+	} else {
+		log_info("wait(): "
+				 "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
+				 "exit_status (ignored):%d", tid, waiting_thread->collected_vanished_child->exit_status);
+	}
+
 
 
 	// TODO cleanup

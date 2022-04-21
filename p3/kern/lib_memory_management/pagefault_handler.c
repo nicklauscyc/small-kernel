@@ -87,6 +87,7 @@ pagefault_handler( uint32_t *ebp )
 	 * mode, something really bad happened and we need to crash
 	 */
 	if ((error_code & US_BIT) == 0) {
+		MAGIC_BREAK;
 		panic("pagefault_handler(): %s "
 		      "pagefault while running in kernel mode! "
  	          "error_code:0x%x "
