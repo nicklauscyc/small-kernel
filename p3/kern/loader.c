@@ -253,7 +253,7 @@ execute_user_program( char *fname, int argc, char **argv)
 
 	//log_warn("Executing pointer %s", fname);
 	//enable_interrupts();
-	log_warn("executing task fname:%s", fname);
+	log_warn("executing task fname:'%s'", fname);
 
 	if (!first_task) {
 		/* Validate execname */

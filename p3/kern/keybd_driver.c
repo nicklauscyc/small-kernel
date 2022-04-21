@@ -88,13 +88,15 @@ void keybd_int_handler(void)
 	buf_insert(&key_buf, raw_byte);
 
 	keys++;
-	log_warn("keybd_int_handler(): received:%d", keys);
+	log("keybd_int_handler(): received:%d", keys);
 	/* Acknowledge interrupt */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-	log_warn("keybd_int_handler(): ack:%d", keys);
+	log("keybd_int_handler(): ack:%d", keys);
 
 	/* Let readline module know new characters have arrived. */
 	readline_char_arrived_handler();
+	log("keybd_int_handler(): executed readline_char_arrived()");
+
 }
 
 /** @brief Initialize the keyboard interrupt handler and associated data

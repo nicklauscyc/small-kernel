@@ -62,9 +62,7 @@ wait (int *status_ptr)
 	}
 	/* We've been woken up */
 	log_info("wait(): "
-	         "woken up! "
-			 "waiting_thread->tid:%d, owning_task->first_thread_tid:%d",
-			 waiting_thread->tid, owning_task->first_thread_tid);
+			 "WOKEN UP");
 
 	affirm(waiting_thread->collected_vanished_child);
 
@@ -74,10 +72,12 @@ wait (int *status_ptr)
 	affirm(tid >= 0);
 	if (status_ptr) {
 		*status_ptr = waiting_thread->collected_vanished_child->exit_status;
+
 	}
 	log_info("wait(): "
 	         "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
 			 "exit_status:%d", tid, *status_ptr);
+
 
 	// TODO cleanup
 	free_pcb_but_not_pd(waiting_thread->collected_vanished_child);
@@ -102,6 +102,10 @@ store_waiting_thread( tcb_t *waiting_thread, void *owning_task_mux )
 	Q_INSERT_TAIL(&(owning_task->waiting_threads_list), waiting_thread,
 				  waiting_threads_link);
 	owning_task->num_waiting_threads++;
-	mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
+	mutex_unlock(mux);
+	log_info("store_waiting_thread(): "
+	         "unlocked mux:%p, &waiting_threads_list:%p", mux,
+			 &(owning_task->waiting_threads_list));
 }
 

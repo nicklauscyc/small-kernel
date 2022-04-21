@@ -20,6 +20,7 @@
 #include <memory_manager.h> /* READ_WRITE, is_valid_user_pointer */
 #include <task_manager_internal.h> /* struct tcb */
 #include <lib_thread_management/mutex.h> /* mutex_t */
+#include <logger.h>
 
 // TODO: Delete, debugging
 #include <simics.h>
@@ -76,7 +77,6 @@ readline( int len, char *buf )
 	/* Acquire readline mux. Put ourselves at the back of the queue. */
 	mutex_lock(&readline_mux);
 
-	//TODO does not seem to be used
 	readline_curr = get_running_thread();
 
 	int res = _readline(buf, len);
@@ -179,9 +179,28 @@ readline_char_arrived_handler( void )
 	 * operate on curr_blocked and readline_curr. However, we can get another
 	 * keybd interrupt, leading to a race condition. A simple way to ensure
 	 * make_runnable is called only once is a CAS on curr_blocked. */
+	int curr_blocked_start = curr_blocked;
+
 	if (compare_and_swap_atomic(&curr_blocked, 1, 0)) {
 		switch_safe_make_thread_runnable(readline_curr);
+		log("readline_char_arrived_handler(): "
+				 "curr_blocked_start:%d "
+		         "curr_block:%d "
+		         "readline_curr:%p, "
+		         "readline_curr->tid:%d ",
+		         curr_blocked_start, curr_blocked, readline_curr,
+				 readline_curr->tid);
+	} else {
+		log("readline_char_arrived_handler(): "
+				 "curr_blocked_start:%d "
+				 "NO-OP curr_block:%d, "
+		         "readline_curr:%p"
+				 "readline_curr->tid:%d ",
+		         curr_blocked_start, curr_blocked, readline_curr,
+				 readline_curr->tid);
 	}
+
+
 }
 
 /* --- HELPERS --- */
@@ -213,6 +232,8 @@ get_next_char( void )
 	int res;
 	/* If no character, deschedule ourselves and wait for user input. */
 	while ((res = readchar()) == -1) {
+		log("mark self as blocked, running_thread:%p",
+				get_running_thread());
 		yield_execution(BLOCKED, NULL, mark_curr_blocked, NULL);
 	}
 	assert(res >= 0);
