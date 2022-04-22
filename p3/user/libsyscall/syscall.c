@@ -76,10 +76,10 @@ int wait(int *status_ptr)
 //	return -1;
 //}
 
-int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
-{
-	return -1;
-}
+//int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
+//{
+//	return -1;
+//}
 
 int getchar(void)
 {

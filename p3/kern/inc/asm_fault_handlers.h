@@ -17,5 +17,6 @@ void call_general_protection_handler( void );
 void call_alignment_check_handler( void );
 void call_non_maskable_handler( void );
 void call_machine_check_handler( void );
+void call_simd_handler( void );
 
 #endif /* ASM_FAULT_HANDLERS_H_ */

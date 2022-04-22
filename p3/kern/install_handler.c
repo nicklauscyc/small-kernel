@@ -207,6 +207,11 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
+	if (install_handler(SWEXN_INT, NULL, call_swexn, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
 	if (install_handler(SLEEP_INT, NULL, call_sleep, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
