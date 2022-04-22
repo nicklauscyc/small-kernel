@@ -65,7 +65,7 @@ free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 void
 _vanish( void ) // int on_error )
 {
-	log_info("_vanish(): started executing _vanish()");
+	log_warn("_vanish(): started executing _vanish()");
 
 	// TODO _vanish on error (killed thread)
 
@@ -139,6 +139,8 @@ _vanish( void ) // int on_error )
 		} else {
 			parent_pcb = get_init_pcbp();
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+			log_warn("(init) parent_pcb->execname:%s", parent_pcb->execname);
+
 		}
 		affirm(parent_pcb);
 

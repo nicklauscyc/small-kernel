@@ -62,16 +62,16 @@ fork( void )
 	/* Only allow forking of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
 	affirm(parent_tcb);
+	uint32_t parent_tid = parent_tcb->tid;
 	pcb_t *parent_pcb = get_running_task();
 	affirm(parent_pcb);
 
 
 	int num_threads = get_num_active_threads_in_owning_task(parent_tcb);
-	log_warn("fork(): "
+	log_info("fork(): "
 		 "Forking task with number of threads:%ld", num_threads);
 
 	if (num_threads > 1) {
-		MAGIC_BREAK;
 		return -1;
 	}
 	assert(num_threads == 1);
@@ -94,7 +94,6 @@ fork( void )
 	uint32_t child_pid, child_tid;
 	if (create_pcb(&child_pid, child_pd, parent_pcb) < 0) {
 		// TODO: delete page directory
-		MAGIC_BREAK;
 		return -1;
 	}
 
@@ -102,7 +101,6 @@ fork( void )
 	if (create_tcb(child_pid, &child_tid) < 0) {
 		// TODO: delete page directory
 		// TODO: delete_pcb of parent
-		MAGIC_BREAK;
 		return -1;
 	}
 
@@ -111,7 +109,14 @@ fork( void )
 	pcb_t *child_pcb = child_tcb->owning_task;
 
 	set_task_name(child_pcb, parent_pcb->execname);
+	register_if_init_task(child_pcb->execname, child_pcb->pid);
 
+	log_info("process tid:%d, execname:%s", child_tid, child_pcb->execname);
+
+	if (child_tid == 13) {
+		log_warn("child tid:%d parent execname:%s parent_tid:%d", child_tid,
+		child_pcb->parent_pcb->execname, parent_tid);
+	}
 
 
 	/* Register this task with simics for better debugging */

@@ -318,7 +318,7 @@ execute_user_program( char *fname, int argc, char **argv)
 		sfree(old_pd, PAGE_SIZE);
 	}
 	set_task_name(find_pcb(pid), kern_stack_execname);
-	log_warn("execname:%s", find_pcb(pid)->execname);
+	log_warn("process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
 
 
 #ifdef DEBUG

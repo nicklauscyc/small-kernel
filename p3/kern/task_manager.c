@@ -633,7 +633,13 @@ free_pcb_but_not_pd(pcb_t *pcb)
 
 
 /** @brief Checks if task indicated by given pid is running the 'init' task.
- *         Will only ever register an 'init' task once.
+ *
+ * 	The latest fork() or exec() which is 'init' will be the init task,
+ * 	since 'init' can fork a child, and the child will run init while
+ * 	the parent runs the shell
+ *
+ * 	FIXME: this is fragile because how do we know if the parent or child
+ *  task after a fork runs shell while the other stays as init?
  *
  *  @pre pid must be pid of PCB running kern_stack_execname
  *  @pre kern_stack_execname must be validated
@@ -641,12 +647,8 @@ free_pcb_but_not_pd(pcb_t *pcb)
 void
 register_if_init_task( char *execname, uint32_t pid )
 {
-	/* Only register once so the original 'init' task we run is used */
-	if (init_pcbp)
-		return;
-
+	if (init_pcbp) return;
 	int init_strlen = strlen("init");
-	//int init_strlen = 4;
 	if ((execname[init_strlen] == '\0')
 		&& (strncmp(execname, "init", init_strlen) == 0)) {
 		init_pcbp = find_pcb(pid);
