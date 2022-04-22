@@ -11,6 +11,7 @@
 int
 yield( int tid )
 {
+	log_info("yield(): called with argument tid:%d!", tid);
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
@@ -21,7 +22,7 @@ yield( int tid )
 	/* Else see if given tid is valid */
 	tcb_t *tcb = find_tcb(tid);
 	if (!tcb) {
-		log_warn("Trying to yield to non-existent thread with tid %d", tid);
+		log_info("Trying to yield to non-existent thread with tid %d", tid);
 		return -1;
 	}
 	return yield_execution(RUNNABLE, tcb, NULL, NULL);

@@ -8,6 +8,8 @@
 #include <scheduler.h>			/* make_thread_runnable() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <task_manager.h>       /* get_tcb_status() */
+#include <logger.h>
+
 /** @brief Makes a previously descheduled thread runnable.
  *		   Atomic w.r.t. deschedule.
  *
@@ -17,6 +19,8 @@
 int
 make_runnable( int tid )
 {
+	log_info("make_runnable(): called!");
+
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 

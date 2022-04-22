@@ -71,6 +71,34 @@ print_status(status_t status)
 	}
 }
 
+char *
+status_str(status_t status)
+{
+	switch (status) {
+		case RUNNING:
+			return "RUNNING";
+			break;
+		case RUNNABLE:
+			return "RUNNABLE";
+			break;
+		case DESCHEDULED:
+			return "DESCHEDULED";
+			break;
+		case BLOCKED:
+			return "BLOCKED";
+			break;
+		case DEAD:
+			return "DEAD";
+			break;
+		case UNINITIALIZED:
+			return "UNINITIALIZED";
+			break;
+		default:
+			return "UNKNOWN";
+			break;
+	}
+}
+
 tcb_t *
 get_next_run( void )
 {
@@ -103,8 +131,6 @@ int
 yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data )
 {
-
-
 	if (!scheduler_init) {
 		panic("Attempting to call yield but scheduler is not initialized");
 	}
@@ -129,15 +155,8 @@ yield_execution( status_t store_status, tcb_t *tcb,
 			panic("Trying to store thread with unknown status!");
 			break;
 	}
-
 	disable_interrupts();
 
-	/* Callback/Add self to end of queue */
-	running_thread->status = store_status;
-	if (store_status == RUNNABLE)
-		add_to_run(running_thread);
-	else if (callback)
-		callback(running_thread, data);
 
 	/* Get tcb to swap to */
 	if (!tcb)
@@ -145,16 +164,27 @@ yield_execution( status_t store_status, tcb_t *tcb,
 	else {
 		if (get_tcb_status(tcb) != RUNNABLE) {
 			log_warn("Trying to yield_execution to non-runnable"
-					 " thread with tid %d", tcb->tid);
+					 " thread with tid:%d, tid->status:%s",
+					 tcb->tid, status_str(tcb->status));
+			enable_interrupts();
 			return -1;
 		}
+
 		/* Ensure this thread is no longer in the runnable queue */
-		/* Some times this is a no-op. In the case for when a waiting thread
+		/* Some times the tcb is already not in the runnable queue.
+		 * In the case for when a waiting thread
 		 * is woken up and yielded to, on wakeup it is not currently in
-		 * any scheduler queue and so this will be a no-op */
+		 * any scheduler queue and so we don't remove from scheduler queue */
 		if (Q_IN_SOME_QUEUE(tcb, scheduler_queue))
 			Q_REMOVE(&runnable_q, tcb, scheduler_queue);
 	}
+
+	/* Add self to queue / Callback if no error makes us return early */
+	running_thread->status = store_status;
+	if (store_status == RUNNABLE)
+		add_to_run(running_thread);
+	else if (callback)
+		callback(running_thread, data);
 
 	swap_running_thread(tcb);
 	return 0;
@@ -311,6 +341,7 @@ swap_running_thread( tcb_t *to_run )
 	affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
 			   "swap_running_thread");
 
+	/* TODO i think now this will never be true */
 	/* No-op if we swap with ourselves */
 	if (to_run->tid == running_thread->tid) {
 		affirm(to_run->status == RUNNABLE);
