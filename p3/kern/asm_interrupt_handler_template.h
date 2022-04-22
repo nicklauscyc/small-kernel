@@ -207,9 +207,8 @@ call_ ## HANDLER_NAME ## :;\
 /** @define CALL_FAULT_HANDLER(HANDLER_NAME)
  *  @brief Assembly wrapper for a fault handler.
  *
- *  Error code might be put on stack by processor before calling fault handler
- *  As such, ebp is passed as an argument to c handler, which can then determine
- *  whether there is an error code or not.
+ *  Ebp is passed as an argument to c handler which can then inspect the
+ *  stack for values it desires.
  *
  *  @param HANDLER_NAME handler name to call
  */
@@ -220,6 +219,27 @@ call_ ## HANDLER_NAME ## :;\
 call_ ## HANDLER_NAME ## :;\
 \
 	CALL_FAULT_HANDLER_TEMPLATE(SINGLE_MACRO_ARG_W_COMMAS\
+	(\
+		pushl %ebp;		    /* push ebp onto stack */\
+		call HANDLER_NAME;  /* calls syscall handler */\
+		addl $4, %esp;		/* ignore arguments */\
+	))
+
+/** @define CALL_FAULT_HANDLER_W_ERROR(HANDLER_NAME)
+ *  @brief Assembly wrapper for a fault handler with error code.
+ *
+ *  Ebp is passed as an argument to c handler which can then inspect the
+ *  stack for values it desires.
+ *
+ *  @param HANDLER_NAME handler name to call
+ */
+#define CALL_FAULT_HANDLER_W_ERROR(HANDLER_NAME)\
+\
+/* Declare and define asm function call_HANDLER_NAME */\
+.globl call_##HANDLER_NAME;\
+call_ ## HANDLER_NAME ## :;\
+\
+	CALL_FAULT_HANDLER_TEMPLATE_W_ERROR(SINGLE_MACRO_ARG_W_COMMAS\
 	(\
 		pushl %ebp;		    /* push ebp onto stack */\
 		call HANDLER_NAME;  /* calls syscall handler */\
