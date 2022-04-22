@@ -51,8 +51,12 @@ struct tcb {
 	                           /* that is stack aligned */
 
 
-	/* Info for syscalls */
+	/* When this thread should be woken up (if it is sleeping) */
 	uint32_t sleep_expiry_date;
+
+	/* Handler and stack for software exceptions. NULL if not registered */
+	uint32_t swexn_handler;
+	uint32_t swexn_stack;
 };
 #endif /* TASK_MANAGER_INTERNAL_H_ */
 
