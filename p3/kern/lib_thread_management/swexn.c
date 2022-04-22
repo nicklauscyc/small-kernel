@@ -1,6 +1,14 @@
 #include <ureg.h>
 
-int
+/** @brief Sets registers according to newureg. Assumes
+ *		   newureg is valid (non-NULL and won't crash iret)
+ *		   and travels back to user mode with these registers.
+ *
+ *	Defined in kern/lib_thread_management/swexn_set_regs.S */
+void
+swexn_set_regs( ureg_t *newureg );
+
+static int
 valid_handler( void *esp3, swexn_handler_t eip )
 {
 	if (!esp3 && !eip)
@@ -12,15 +20,18 @@ valid_handler( void *esp3, swexn_handler_t eip )
 	/* TODO: If want to register, ensure validity of pointers */
 }
 
-int valid_newureg( ureg_t *newureg )
+static int
+valid_newureg( ureg_t *newureg )
 {
 	if (!newureg)
 		return 1;
 
-	/* TODO: Check for valid register values */
+	/* TODO: Check for valid register values. Namely, register
+	 * values for cs, eip, eflags, ss and eip should be legal
+	 * for iret invocation. */
 }
 
-int
+static int
 cause_has_error_code( unsigned int cause )
 {
 	return cause == SWEXN_CAUSE_SEGFAULT || cause == SWEXN_CAUSE_STACKFAULT ||
@@ -28,7 +39,7 @@ cause_has_error_code( unsigned int cause )
 			cause == SWEXN_CAUSE_ALIGNFAULT;
 }
 
-void
+static void
 fill_ureg( ureg_t *ureg, uint32_t *ebp, unsigned int cause, unsigned int cr2 )
 {
 	ureg->cause = cause;

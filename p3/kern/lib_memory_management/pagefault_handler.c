@@ -52,7 +52,7 @@
  *  @return Void.
  */
 void
-pagefault_handler( uint32_t *ebp )
+pagefault_handler( int *ebp )
 {
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);

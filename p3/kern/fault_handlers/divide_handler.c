@@ -10,8 +10,11 @@
  *  @return Void.
  */
 void
-divide_handler( int eip, int cs )
+divide_handler( int *ebp )
 {
+	int eip	= *(ebp + 1);
+	int cs	= *(ebp + 2);
+
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Divide by 0 exception at 0x%x."
 				"Please contact kernel developers.", eip);
