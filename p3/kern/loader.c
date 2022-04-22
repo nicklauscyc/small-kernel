@@ -246,14 +246,6 @@ configure_stack( int argc, char **argv )
 int
 execute_user_program( char *fname, int argc, char **argv)
 {
-	//disable_interrupts();// FIXME why is this here gg
-	//if (first_task)
-	//	log_warn("Executing first task");
-	//else
-	//	log_warn("Executing not-first task");
-
-	//log_warn("Executing pointer %s", fname);
-	//enable_interrupts();
 	log_warn("executing task fname:'%s'", fname);
 
 	if (!first_task) {
@@ -325,6 +317,8 @@ execute_user_program( char *fname, int argc, char **argv)
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 	}
+	set_task_name(find_pcb(pid), kern_stack_execname);
+	log_warn("execname:%s", find_pcb(pid)->execname);
 
 
 #ifdef DEBUG

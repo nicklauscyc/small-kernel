@@ -110,6 +110,9 @@ fork( void )
 	assert(child_tcb = find_tcb(child_tid));
 	pcb_t *child_pcb = child_tcb->owning_task;
 
+	set_task_name(child_pcb, parent_pcb->execname);
+
+
 
 	/* Register this task with simics for better debugging */
 #ifndef NDEBUG

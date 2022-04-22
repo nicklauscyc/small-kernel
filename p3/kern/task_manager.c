@@ -661,5 +661,15 @@ get_init_pcbp( void )
 }
 
 
-
-
+/** @brief sets the task name
+ *
+ *  @pre execname must be validated
+ */
+void
+set_task_name( pcb_t *pcbp, char *execname )
+{
+	affirm(pcbp);
+	affirm(execname);
+	memset(pcbp->execname, 0, USER_STR_LEN);
+	memcpy(pcbp->execname, execname, strlen(execname));
+}

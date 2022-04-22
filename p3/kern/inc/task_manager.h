@@ -52,4 +52,5 @@ void remove_pcb( pcb_t *pcbp );
 pcb_t *get_init_pcbp( void );
 void register_if_init_task( char *execname, uint32_t pid );
 
+void set_task_name( pcb_t *pcbp, char *execname );
 #endif /* TASK_MANAGER_H_ */

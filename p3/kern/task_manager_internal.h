@@ -12,6 +12,7 @@
 #include <variable_queue.h> /* Q_NEW_LINK */
 #include <scheduler.h> /* status_t */
 #include <lib_thread_management/mutex.h> /* mutex_t */
+#include <memory_manager.h> /* USER_STR_LEN */
 
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
@@ -71,6 +72,8 @@ struct pcb
 	void *pd; /**<  Page directory address that all threads of this task use. */
 	uint32_t pid; /* Task/process ID */
 	int exit_status; /* Task exit status */
+
+	char execname[USER_STR_LEN]; // For debugging, executable name
 
 	/* Immediate child tasks that have all their threads vanished */
 	vanished_child_tasks_list_t vanished_child_tasks_list;
