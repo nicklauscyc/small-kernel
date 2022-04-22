@@ -1,11 +1,14 @@
 /** @file general_protection_handler.c
  *  @brief Functions for alignment check faults
  */
-#include <seg.h>	/* SEGSEL_KERNEL_CS */
-#include <assert.h> /* panic() */
-#include <simics.h>
-#include <stdint.h> /* uint32_t */
-#include <panic_thread.h> /* panic_thread() */
+#include <seg.h>			/* SEGSEL_KERNEL_CS */
+#include <asm.h>			/* outb() */
+#include <ureg.h>			/* SWEXN_CAUSE_ */
+#include <swexn.h>			/* handle_exn */
+#include <assert.h>			/* panic() */
+#include <stdint.h>			/* uint32_t */
+#include <panic_thread.h>	/* panic_thread() */
+#include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
 void
 general_protection_handler( int *ebp )
@@ -32,7 +35,10 @@ general_protection_handler( int *ebp )
 	esp = *(ebp + 5);
 	ss = *(ebp + 6);
 
-	/* TODO: Ack + software exn handler*/
+	/* If not a kernel exception, acknowledge interrupt */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	handle_exn(ebp, SWEXN_CAUSE_PROTFAULT, 0);
 
 	panic_thread("Unhandled general protection fault while loading a "
 			   "segment descriptor\n"

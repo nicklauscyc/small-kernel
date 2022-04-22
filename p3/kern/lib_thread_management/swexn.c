@@ -58,7 +58,7 @@ cause_has_error_code( unsigned int cause )
 }
 
 static void
-fill_ureg( ureg_t *ureg, uint32_t *ebp, unsigned int cause, unsigned int cr2 )
+fill_ureg( ureg_t *ureg, int *ebp, unsigned int cause, unsigned int cr2 )
 {
 	ureg->cause = cause;
 
@@ -73,7 +73,7 @@ fill_ureg( ureg_t *ureg, uint32_t *ebp, unsigned int cause, unsigned int cr2 )
 	ureg->gs = SEGSEL_USER_DS;
 
 	/* Fault handler asm wrapper does a pusha on entry */
-	uint32_t *ebp_temp = ebp;
+	int *ebp_temp = ebp;
 	ureg->eax = *(--ebp_temp);
 	ureg->ecx = *(--ebp_temp);
 	ureg->edx = *(--ebp_temp);
@@ -108,7 +108,7 @@ fill_ureg( ureg_t *ureg, uint32_t *ebp, unsigned int cause, unsigned int cr2 )
  *	@arg cr2	If this is called because of a pagefault, cr2 should
  *				be the vm address which triggered the fault. */
 void
-handle_exn( uint32_t *ebp, unsigned int cause, unsigned int cr2 )
+handle_exn( int *ebp, unsigned int cause, unsigned int cr2 )
 {
 	uint32_t cs, eflags;
 

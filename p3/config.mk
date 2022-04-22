@@ -165,6 +165,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_thread_management/deschedule.o \
 			  lib_thread_management/sleep.o \
 			  lib_thread_management/swexn.o \
+			  lib_thread_management/swexn_set_regs.o \
 			  lib_thread_management/hashmap.o \
 			  lib_thread_management/mutex.o \
 			  \

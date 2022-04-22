@@ -8,6 +8,8 @@
 #include <asm.h>				/* outb() */
 #include <seg.h>				/* SEGSEL_USER_CS */
 #include <page.h>				/* PAGE_SIZE */
+#include <ureg.h>				/* SWEXN_CAUSE_ */
+#include <swexn.h>				/* handle_exn */
 #include <assert.h>				/* panic() */
 #include <scheduler.h>			/* get_running_tid */
 #include <common_kern.h>		/* USER_MEM_START  */
@@ -54,9 +56,6 @@
 void
 pagefault_handler( int *ebp )
 {
-	/* Acknowledge interrupt immediately */
-	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-
 	int error_code = *(ebp + 1);
 	int eip = *(ebp + 2);
 	int cs = *(ebp + 3);
@@ -72,11 +71,6 @@ pagefault_handler( int *ebp )
 	(void) ss;
 
 	uint32_t faulting_vm_address = get_cr2();
-
-	// TODO Add the swexn() execution here
-	/* TODO: acknowledge signal and call user handler  */
-
-	(void)cs;
 
 	char user_mode[] = "[USER-MODE]";
 	char supervisor_mode[] = "[SUPERVISOR-MODE]";
@@ -95,6 +89,10 @@ pagefault_handler( int *ebp )
  	          "faulting_vm_address:%p",
               mode, error_code, eip, cs, faulting_vm_address);
 	}
+
+	/* If not a kernel exception, acknowledge interrupt */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
 	/* If the fault happened because reserved bits were accidentally set
 	 * in the page directory, the page directory is corrupted and we need to
 	 * crash. */
@@ -117,42 +115,34 @@ pagefault_handler( int *ebp )
               mode, error_code, eip, cs, faulting_vm_address, pd_entry);
 	}
 
-	/* Fault was a write */
+	/* Page not present */
+	if (!(error_code & P_BIT)) {
+		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
+					mode, faulting_vm_address, eip,
+					faulting_vm_address < PAGE_SIZE ?
+					"Null dereference." : "Page not present.");
+	}
+
+	/* Protection violation */
+	if (cs == SEGSEL_USER_CS && eip < USER_MEM_START) {
+		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
+					"User mode trying to access kernel memory",
+					mode, faulting_vm_address, eip);
+	}
+
+	/* Fault was a write and page was present and in user memory */
 	if (error_code & WR_BIT) {
 		/* Check if this was a ZFOD allocated page, since those pages are
 		 * marked as read-only in the page directory */
 		if (zero_page_pf_handler(faulting_vm_address) == 0) {
 			return;
 		}
+		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);
 		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
 					"Writing into read-only page",
 					mode, faulting_vm_address, eip);
-	} else {
-
-		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
-					"reading permissions wrong",
-					 mode, faulting_vm_address, eip);
-
-	}
-
-
-	if (!(error_code & P_BIT)) {
-		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
-					mode, faulting_vm_address, eip,
-					faulting_vm_address < PAGE_SIZE ?
-					"Null dereference." : "Page not present.");
-	} else {
-
-		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
-					mode, faulting_vm_address, eip,
-					faulting_vm_address < PAGE_SIZE ?
-					"Null dereference." : "page-level protection violation.");
-	}
-
-	if (cs == SEGSEL_USER_CS && eip < USER_MEM_START) {
-		panic_thread("[tid %d] %s Page fault at vm address:0x%lx at instruction 0x%lx! "
-					"User mode trying to access kernel memory",
-					get_running_tid(),mode, faulting_vm_address, eip);
 	}
 
 	/* NOTREACHED */
