@@ -6,8 +6,12 @@
 #include <panic_thread.h> /* panic_thread() */
 
 void
-stack_fault_handler( int error_code, int eip, int cs )
+stack_fault_handler( int *ebp )
 {
+	int error_code	= *(ebp + 1);
+	int eip			= *(ebp + 2);
+	int cs			= *(ebp + 3);
+
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Stack fault encountered at 0x%x "
 				"for stack with segment %d", eip, error_code);

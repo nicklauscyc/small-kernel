@@ -6,8 +6,11 @@
 #include <panic_thread.h> /* panic_thread() */
 
 void
-overflow_handler( int eip, int cs )
+overflow_handler( int *ebp )
 {
+	int eip	= *(ebp + 1);
+	int cs	= *(ebp + 2);
+
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Overflow encountered at 0x%x.", eip);
 	}

@@ -157,34 +157,33 @@ yield_execution( status_t store_status, tcb_t *tcb,
 	}
 	disable_interrupts();
 
-
-	/* Get tcb to swap to */
-	if (!tcb)
-		tcb = get_next_run();
-	else {
-		if (get_tcb_status(tcb) != RUNNABLE) {
-			log_warn("Trying to yield_execution to non-runnable"
-					 " thread with tid:%d, tid->status:%s",
-					 tcb->tid, status_str(tcb->status));
-			enable_interrupts();
-			return -1;
-		}
-
-		/* Ensure this thread is no longer in the runnable queue */
-		/* Some times the tcb is already not in the runnable queue.
-		 * In the case for when a waiting thread
-		 * is woken up and yielded to, on wakeup it is not currently in
-		 * any scheduler queue and so we don't remove from scheduler queue */
-		if (Q_IN_SOME_QUEUE(tcb, scheduler_queue))
-			Q_REMOVE(&runnable_q, tcb, scheduler_queue);
+	if (tcb && (get_tcb_status(tcb) != RUNNABLE)
+		&& (get_tcb_status(tcb) != RUNNING)) {
+		log_warn("Trying to yield_execution to non-runnable or running"
+				 " thread with tid %d", tcb->tid);
+		enable_interrupts();
+		return -1;
 	}
 
-	/* Add self to queue / Callback if no error makes us return early */
+	/* Callback/Add self to end of queue */
 	running_thread->status = store_status;
 	if (store_status == RUNNABLE)
 		add_to_run(running_thread);
 	else if (callback)
 		callback(running_thread, data);
+
+	/* Get tcb to swap to */
+	if (!tcb)
+		tcb = get_next_run();
+
+	else {
+		/* Ensure this thread is no longer in the runnable queue */
+		/* In the case where a waiting thread is made runnable by a vanished
+		 * child task thread that wakes it up, the waiting thread's TCB
+		 * will not be in the runnable_q and so no removing is needed */
+		if (Q_IN_SOME_QUEUE(tcb, scheduler_queue))
+			Q_REMOVE(&runnable_q, tcb, scheduler_queue);
+	}
 
 	swap_running_thread(tcb);
 	return 0;
