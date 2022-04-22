@@ -41,6 +41,8 @@ static pcb_list_t pcb_list;
 static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
+static pcb_t *init_pcbp = NULL;
+
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
 static uint32_t next_pid = 1;
 
@@ -630,6 +632,33 @@ free_pcb_but_not_pd(pcb_t *pcb)
 }
 
 
+/** @brief Checks if task indicated by given pid is running the 'init' task.
+ *         Will only ever register an 'init' task once.
+ *
+ *  @pre pid must be pid of PCB running kern_stack_execname
+ *  @pre kern_stack_execname must be validated
+ */
+void
+register_if_init_task( char *execname, uint32_t pid )
+{
+	/* Only register once so the original 'init' task we run is used */
+	if (init_pcbp)
+		return;
+
+	int init_strlen = strlen("init");
+	//int init_strlen = 4;
+	if ((execname[init_strlen] == '\0')
+		&& (strncmp(execname, "init", init_strlen) == 0)) {
+		init_pcbp = find_pcb(pid);
+	}
+}
+
+pcb_t *
+get_init_pcbp( void )
+{
+	affirm(init_pcbp);
+	return init_pcbp;
+}
 
 
 

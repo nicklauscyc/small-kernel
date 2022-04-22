@@ -334,6 +334,10 @@ execute_user_program( char *fname, int argc, char **argv)
 	sim_reg_process(get_tcb_pd(tcb), kern_stack_execname);
 #endif
 
+	/* If this is the init task, let the world know */
+	register_if_init_task(kern_stack_execname, pid);
+
+
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
 		return -1;

@@ -49,4 +49,7 @@ void free_tcb(tcb_t *tcb);
 void free_pcb_but_not_pd(pcb_t *pcb);
 
 void remove_pcb( pcb_t *pcbp );
+pcb_t *get_init_pcbp( void );
+void register_if_init_task( char *execname, uint32_t pid );
+
 #endif /* TASK_MANAGER_H_ */

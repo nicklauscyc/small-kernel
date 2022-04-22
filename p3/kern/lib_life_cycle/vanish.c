@@ -97,6 +97,7 @@ _vanish( void ) // int on_error )
 	/* Last task thread contacts parent PCB */
 	} else {
 		log_info("_vanish(): last task thread");
+		remove_pcb(owning_task);
 
 		/* Free sibling threads TCB */
 		owning_task->last_thread = tcb;
@@ -126,15 +127,20 @@ _vanish( void ) // int on_error )
 		/* Insert into parent PCB's list of vanished child tasks */
 		//pcb_t *parent_pcb = owning_task->parent_pcb;
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
+
+		if (parent_pcb) {
+
+			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+
+			/* Remove from active_child_tasks_list to vanished_child_tasks_list */
+			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
+					 vanished_child_tasks_link);
+			parent_pcb->num_active_child_tasks--;
+		} else {
+			parent_pcb = get_init_pcbp();
+			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+		}
 		affirm(parent_pcb);
-
-		mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-
-		/* Transfer from active_child_tasks_list to vanished_child_tasks_list */
-		Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
-		         vanished_child_tasks_link);
-		parent_pcb->num_active_child_tasks--;
-
 
 		/* Look at list of waiting parent threads, if non-empty, wake them up */
 		tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
