@@ -3,15 +3,22 @@
 
 #include <seg.h>			/* SEGSEL_USER_CS */
 #include <ureg.h>			/* ureg_t */
+#include <eflags.h>			/* get_eflags, EFL_* */
 #include <stdint.h>			/* uint32_t  */
 #include <syscall.h>		/* swexn_handler_t */
 #include <scheduler.h>		/* get_running_thread */
 #include <iret_travel.h>	/* iret_travel */
 #include <task_manager.h>	/* tcb_t */
 #include <atomic_utils.h>	/* compare_and_swap_atomic */
+#include <memory_manager.h> /* is_valid_user_pointer, READ_ONLY, READ_WRITE */
 
 #include <logger.h>
 #include <simics.h>
+
+#define EFLAGS_RESERVED_BITS \
+	(EFL_RESV1 | EFL_RESV2 | EFL_RESV3 | EFL_IF | \
+	EFL_IOPL_RING3 | EFL_NT | EFL_RESV4 | EFL_VM | \
+	EFL_VIF | EFL_VIP | EFL_ID)
 
 /* FIXME: Proper abstraction? */
 #include <task_manager_internal.h>
@@ -24,9 +31,23 @@
 void
 swexn_set_regs( ureg_t *newureg );
 
-void
-noop() {
-	return;
+static int
+valid_handler_code_and_stack( void *esp, swexn_handler_t eip )
+{
+	/* Ensure eip points to allocated, read only region */
+	if (!is_valid_user_pointer((void *)eip, READ_ONLY)) {
+		log_info("[Swexn] Invalid ureg->eip: %p", (void *)eip);
+		return 0;
+	}
+
+	/* Ensure stack is writable. If the user picked too small a stack,
+	 * that is their problem. */
+	if (!is_valid_user_pointer(esp, READ_WRITE)) {
+		log_info("[Swexn] Invalid ureg->esp: %p", (void *)esp);
+		return 0;
+	}
+
+	return 1;
 }
 
 static int
@@ -38,10 +59,7 @@ valid_handler( void *esp3, swexn_handler_t eip )
 	if ((!esp3 && eip) || (esp3 && !eip))
 		return 0;
 
-	/* TODO: If want to register, ensure validity of pointers */
-
-
-	return 1;
+	return valid_handler_code_and_stack(esp3, eip);
 }
 
 static int
@@ -50,11 +68,25 @@ valid_newureg( ureg_t *newureg )
 	if (!newureg)
 		return 1;
 
-	/* TODO: Check for valid register values. Namely, register
-	 * values for cs, eip, eflags, ss and eip should be legal
-	 * for iret invocation. */
+	if (newureg->ds != SEGSEL_USER_DS || newureg->es != SEGSEL_USER_DS ||
+		newureg->fs != SEGSEL_USER_DS || newureg->gs != SEGSEL_USER_DS) {
+		log_warn("[Swexn] Invalid data segment values");
+		return 0;
+	}
 
-	return 1;
+	/* No need to check gp-registers as those only affect user mode execution */
+
+	/* Check for register values used by iret which could potentially crash
+	 * the kernel or create security vulnerabilities (by letting user
+	 * applications modify protected values) */
+	uint32_t eflags = get_eflags();
+	uint32_t new_eflags = newureg->eflags;
+	uint32_t violations = (eflags ^ new_eflags) & EFLAGS_RESERVED_BITS;
+
+	return valid_handler_code_and_stack((void *)newureg->esp,
+			(swexn_handler_t)newureg->eip)
+		&& newureg->ss == SEGSEL_USER_DS && newureg->cs == SEGSEL_USER_CS
+		&& !violations;
 }
 
 static int
@@ -175,8 +207,6 @@ swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 	tcb->swexn_stack		= (uint32_t)esp3;
 	tcb->swexn_arg			= arg;
 	tcb->has_swexn_handler	= !!eip;
-
-	noop();
 
 	/* Set user registers, if they were provided */
 	if (newureg) /* This won't return */

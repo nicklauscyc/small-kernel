@@ -14,7 +14,7 @@
 int
 _deschedule( int *reject )
 {
-	if (!is_valid_user_pointer(reject, READ_ONLY))
+	if (!is_valid_user_pointer(reject, READ))
 		return -1;
 
 	if (*reject == 0)
