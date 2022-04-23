@@ -10,6 +10,9 @@
 #include <task_manager.h>	/* tcb_t */
 #include <atomic_utils.h>	/* compare_and_swap_atomic */
 
+#include <logger.h>
+#include <simics.h>
+
 /* FIXME: Proper abstraction? */
 #include <task_manager_internal.h>
 
@@ -20,6 +23,11 @@
  *	Defined in kern/lib_thread_management/swexn_set_regs.S */
 void
 swexn_set_regs( ureg_t *newureg );
+
+void
+noop() {
+	return;
+}
 
 static int
 valid_handler( void *esp3, swexn_handler_t eip )
@@ -74,12 +82,13 @@ fill_ureg( ureg_t *ureg, int *ebp, unsigned int cause, unsigned int cr2 )
 
 	/* Fault handler asm wrapper does a pusha on entry */
 	int *ebp_temp = ebp;
+	ureg->ebp = *ebp;
+
 	ureg->eax = *(--ebp_temp);
 	ureg->ecx = *(--ebp_temp);
 	ureg->edx = *(--ebp_temp);
 	ureg->ebx = *(--ebp_temp);
 	ureg->zero = 0; --ebp_temp; // temp/esp
-	ureg->ebp = *(--ebp_temp);
 	ureg->esi = *(--ebp_temp);
 	ureg->edi = *(--ebp_temp);
 
@@ -88,8 +97,8 @@ fill_ureg( ureg_t *ureg, int *ebp, unsigned int cause, unsigned int cr2 )
 	else
 		ureg->error_code = 0;
 
-	ureg->eip = *(++ebp);
-	ureg->cs = *(++ebp);
+	ureg->eip	 = *(++ebp);
+	ureg->cs	 = *(++ebp);
 	ureg->eflags = *(++ebp);
 
 	/* Since this handler is only for exceptions caused in user mode, esp
@@ -124,6 +133,7 @@ handle_exn( int *ebp, unsigned int cause, unsigned int cr2 )
 		return;
 
 	tcb_t *tcb = get_running_thread();
+
 	/* Avoid concurrency issues among different interrupts */
 	if (compare_and_swap_atomic((uint32_t *)&(tcb->has_swexn_handler), 1, 0)) {
 		/* Set up handler stack */
@@ -150,6 +160,8 @@ handle_exn( int *ebp, unsigned int cause, unsigned int cr2 )
 int
 swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 {
+	log_warn("Esp3 is %p", esp3);
+
 	/* Since arg is only ever used by the user software exception handler,
 	 * no validation of it need be done. */
 	/* Ensure valid combination of requests */
@@ -163,6 +175,8 @@ swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 	tcb->swexn_stack		= (uint32_t)esp3;
 	tcb->swexn_arg			= arg;
 	tcb->has_swexn_handler	= !!eip;
+
+	noop();
 
 	/* Set user registers, if they were provided */
 	if (newureg) /* This won't return */
