@@ -125,7 +125,9 @@ pagefault_handler( int *ebp )
 	}
 
 	/* Protection violation */
-	if (cs == SEGSEL_USER_CS && (eip < USER_MEM_START || faulting_vm_address < USER_MEM_START)) {
+
+	if (cs == SEGSEL_USER_CS && (eip < USER_MEM_START
+				|| faulting_vm_address < USER_MEM_START)) {
 		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);
 		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
 					"User mode trying to access kernel memory",
