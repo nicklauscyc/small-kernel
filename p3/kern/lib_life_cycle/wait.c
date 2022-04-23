@@ -17,6 +17,9 @@ static void store_waiting_thread( tcb_t *waiting_thread,
 int
 wait (int *status_ptr)
 {
+	if (!is_valid_user_pointer(status_ptr, READ_WRITE))
+		return -1;
+
 	tcb_t *waiting_thread = get_running_thread();
 	affirm(waiting_thread);
 	affirm(!(waiting_thread->collected_vanished_child));

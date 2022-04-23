@@ -136,8 +136,8 @@ int main(int argc, char **argv) {
   // Since this test is meant to be run instead of init (before the shell is
   // functional), this program must be persistent.
   int status = 0;
-  while (wait(&status)) continue;
+  while (wait(&status) >= 0) continue;
 
-  lprintf("score: collected all tasks");
+  lprintf("myscore: collected all tasks");
   return -42;  // Hopefully not.
 }

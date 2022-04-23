@@ -97,7 +97,7 @@ UPDATE_METHOD = afs
 # directory.
 #
 STUDENTTESTS = test_suite exec_args_test exec_args_test_helper new_pages_test\
-               myscore
+               myscore bad_status_ptr
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk
