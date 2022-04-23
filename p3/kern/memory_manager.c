@@ -430,16 +430,24 @@ is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 	if ((uint32_t)ptr < USER_MEM_START)
 		return 0;
 
+	/* TODO: Allocation check should accept zero_page filled stuff!!!! */
+
 	/* Check if allocated */
 	if (!is_user_pointer_allocated(ptr)) {
+		lprintf("is_user_pointer_allocated failed");
 		return 0;
 	}
+
 	/* Check for correct write_mode */
 	uint32_t **pd = (uint32_t **)TABLE_ADDRESS(get_cr3());
 	uint32_t pd_index = PD_INDEX(ptr);
 	uint32_t pt_index = PT_INDEX(ptr);
 	uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
-	if (write_mode == READ_WRITE && !(pt[pt_index] & RW_FLAG))
+
+	/* If looking for read write, ensure it's fully allocated or
+	 * we have allocated with ZFOD. */
+	if (write_mode == READ_WRITE && !((pt[pt_index] & RW_FLAG)
+				|| TABLE_ADDRESS(pt[pt_index]) == sys_zero_frame))
 		return 0;
 
 	if (write_mode == READ_ONLY && (pt[pt_index] & RW_FLAG))
