@@ -40,10 +40,13 @@ valid_handler_code_and_stack( void *esp, swexn_handler_t eip )
 		return 0;
 	}
 
-	/* Ensure stack is writable. If the user picked too small a stack,
-	 * that is their problem. */
-	if (!is_valid_user_pointer(esp, READ_WRITE)) {
-		log_info("[Swexn] Invalid ureg->esp: %p", (void *)esp);
+	char *c_esp = (char *)esp;
+	c_esp -= 4; /* esp points to 1 word higher than first writable location */
+
+	/* Ensure stack is writable. Check 1 word lower than input esp.
+	 * If the user picked too small a stack, that is their problem. */
+	if (!is_valid_user_pointer((void *)c_esp, READ_WRITE)) {
+		log_info("[Swexn] Invalid ureg->esp: %p", (void *)c_esp);
 		return 0;
 	}
 
