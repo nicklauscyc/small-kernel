@@ -129,6 +129,14 @@ yield_execution( status_t store_status, tcb_t *tcb,
 
 	disable_interrupts();
 
+	if (tcb && (get_tcb_status(tcb) != RUNNABLE)
+		&& (get_tcb_status(tcb) != RUNNING)) {
+		log_warn("Trying to yield_execution to non-runnable or running"
+				 " thread with tid %d", tcb->tid);
+		enable_interrupts();
+		return -1;
+	}
+
 	/* Callback/Add self to end of queue */
 	running_thread->status = store_status;
 	if (store_status == RUNNABLE)
@@ -139,15 +147,10 @@ yield_execution( status_t store_status, tcb_t *tcb,
 	/* Get tcb to swap to */
 	if (!tcb)
 		tcb = get_next_run();
-	else {
-		if (get_tcb_status(tcb) != RUNNABLE) {
-			log_warn("Trying to yield_execution to non-runnable"
-					 " thread with tid %d", tcb->tid);
-			return -1;
-		}
+	else
 		/* Ensure this thread is no longer in the runnable queue */
 		Q_REMOVE(&runnable_q, tcb, scheduler_queue);
-	}
+
 
 	swap_running_thread(tcb);
 	return 0;

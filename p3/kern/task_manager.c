@@ -326,29 +326,11 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	tcb->status = UNINITIALIZED;
 	tcb->owning_task = owning_task;
 
-//    /* If debug mode is set, we let each kernel stack be PAGE_SIZE of usable
-//     * memory, followed by PAGE_SIZE of unusable memory to prevent kernel
-//     * stacks from overlapping onto each other during execution.
-//     */
-//#ifdef DEBUG
-//	tcb->kernel_stack_lo = smemalign(PAGE_SIZE, 2 * PAGE_SIZE);
-//	if (!tcb->kernel_stack_lo) {
-//		sfree(tcb, sizeof(tcb_t));
-//		return -1;
-//	}
-//	uint32_t **parent_pd = owning_task->pd;
-//    uint32_t pd_index = PD_INDEX(tcb->kernel_stack_lo);
-//	uint32_t *parent_pt = (uint32_t *) TABLE_ADDRESS(parent_pd[pd_index]);
-//    uint32_t pt_index = PT_INDEX(tcb->kernel_stack_lo);
-//	parent_pt[pt_index] = 0x0;
-//	tcb->kernel_stack_lo += PAGE_SIZE / sizeof(uint32_t);
-//#else
 	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
 		return -1;
 	}
-//#endif
 
 	/* TODO: Add mutex to pcb struct and lock it here.
 	 *		 For now, this just checks that we're not
@@ -381,17 +363,16 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	tcb->kernel_stack_hi = tcb->kernel_esp;
 	log("create_tcb(): tcb->kernel_stack_hi:%p", tcb->kernel_stack_hi);
 
+	/* Set swexn info */
+	tcb->has_swexn_handler = 0;
+	tcb->swexn_handler = 0;
+	tcb->swexn_stack = 0;
+	tcb->swexn_arg = NULL;
 
 	// set the canary
 	*(tcb->kernel_stack_hi) = 0xcafebabe;
 
 	*(tcb->kernel_stack_lo) = 0xdeadbeef;
-
-	/* FIXME: Delete this, just logging address for idle tcb */
-	if (tcb->tid == 1) {
-		log_warn("Idle thread at %p", tcb);
-		MAGIC_BREAK;
-	}
 
 	return 0;
 }

@@ -12,3 +12,5 @@ CALL_W_SINGLE_ARG(deschedule)
 CALL_W_SINGLE_ARG(make_runnable)
 
 CALL_W_SINGLE_ARG(sleep)
+
+CALL_W_FOUR_ARG(swexn)
