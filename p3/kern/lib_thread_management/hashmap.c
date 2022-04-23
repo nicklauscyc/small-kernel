@@ -14,6 +14,7 @@
 #include <stdlib.h> /* malloc, free */
 #include <string.h> /* memset */
 #include <assert.h> /* affirm */
+#include <logger.h>
 
 /** @brief Hash for placement into map
  *
@@ -75,6 +76,7 @@ map_get(uint32_t tid)
 tcb_t *
 map_remove(uint32_t tid)
 {
+	log_info("map_remove(): remove tid:%d from tid2tcb hashmap", tid);
     uint32_t index = hash(tid) % NUM_BUCKETS;
     hashmap_queue_t *headp = &map.buckets[index];
 

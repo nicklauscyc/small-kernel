@@ -45,9 +45,19 @@ void
 noop (void ){
 	return;
 }
+
+/** @brief Frees all TCBs in a task except the last running thread's TCB
+ *
+ *  @pre There are no more active threads in the task
+ *
+ *  @param owning_task PCB of task to free TCBs from
+ *  @param last_tcb TCB of last running thread of owning_task
+ *  @return Void.
+ */
 void
 free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 {
+	/* Check preconditions */
 	affirm(Q_GET_FRONT(&(owning_task->active_threads_list)) == NULL);
 	affirm(Q_GET_TAIL(&(owning_task->active_threads_list)) == NULL);
 	affirm(owning_task->num_active_threads == 0);

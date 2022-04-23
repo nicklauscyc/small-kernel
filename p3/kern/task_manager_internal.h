@@ -126,8 +126,6 @@ struct tcb {
 
     pcb_t *collected_vanished_child; /* for use on wait */
 
-
-
 	status_t status; /* Thread's status */
 	pcb_t *owning_task; /* PCB of process that owns this thread */
 	uint32_t tid; /* Thread ID */

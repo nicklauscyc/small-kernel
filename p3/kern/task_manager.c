@@ -572,9 +572,13 @@ get_pid( void )
 	return pid;
 }
 
-/** @brief Frees a TCB
+/** @brief Frees a TCB and removes the TCB from tid2tcb hashmap list
  *
- *  @pre TCB must not be in any list/queue
+ *
+ *  @pre TCB must not be in any list/queue except for the tid2tcb hashmap list
+ *  @pre TCB must not be holding on to any vanished child taskss
+ *  @pre TCB must be DEAD
+ *
  *  @param tcb Pointer to TCB to be freed
  *  @return Void.
  */
@@ -582,6 +586,8 @@ void
 free_tcb(tcb_t *tcb)
 {
 	affirm(tcb);
+	affirm(!tcb->collected_vanished_child);
+	affirm(tcb->status == DEAD);
 	affirm(!(Q_IN_SOME_QUEUE(tcb, waiting_threads_link)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));
