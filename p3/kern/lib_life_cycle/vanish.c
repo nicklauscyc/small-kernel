@@ -42,6 +42,10 @@
 #include <simics.h>
 
 void
+noop (void ){
+	return;
+}
+void
 free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 {
 	affirm(Q_GET_FRONT(&(owning_task->active_threads_list)) == NULL);
@@ -132,12 +136,14 @@ _vanish( void ) // int on_error )
 
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 
-			/* Remove from active_child_tasks_list to vanished_child_tasks_list */
+			/* Remove from active_child_tasks_list */
 			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
 					 vanished_child_tasks_link);
 			parent_pcb->num_active_child_tasks--;
+
 		} else {
 			parent_pcb = get_init_pcbp();
+			assert(parent_pcb);
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			log_warn("(init) parent_pcb->execname:%s", parent_pcb->execname);
 
@@ -150,18 +156,23 @@ _vanish( void ) // int on_error )
 			Q_REMOVE(&(parent_pcb->waiting_threads_list), waiting_tcb,
 					 waiting_threads_link);
 			parent_pcb->num_waiting_threads--;
+
 			/* Waiting thread must not be on the scheduler queue or any other
 			 * queues that use the same link name eg mutex queue */
-			affirm(!Q_IN_SOME_QUEUE(waiting_tcb, scheduler_queue));
-			affirm(waiting_tcb->status == BLOCKED);
+			affirm_msg(!Q_IN_SOME_QUEUE(waiting_tcb, scheduler_queue),
+			"waiting_tcb:%p in scheduler queue!", waiting_tcb);
+			affirm(!Q_IN_SOME_QUEUE(waiting_tcb, waiting_threads_link));
+
+			if (!(waiting_tcb->status == BLOCKED)) {
+				noop();
+			}
 
 			/* Make waiting thread runnable */
 			waiting_tcb->status = RUNNABLE;
 			waiting_tcb->collected_vanished_child = owning_task;
-			log_info("_vanish(): "
-					 "owning_task->first_thread_tid:%d, exit_status:%d",
+			log_warn("_vanish(): "
+					 "collected owning_task->first_thread_tid:%d, exit_status:%d",
 					 owning_task->first_thread_tid, owning_task->exit_status);
-
 
 		/* No parent threads waiting, add self to vanished child list */
 		} else {

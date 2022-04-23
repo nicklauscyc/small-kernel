@@ -125,14 +125,19 @@ pagefault_handler( int *ebp )
 		if (zero_page_pf_handler(faulting_vm_address) == 0) {
 			return;
 		}
+		MAGIC_BREAK;
 		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
 					"Writing into read-only page",
 					mode, faulting_vm_address, eip);
 	} else {
-
-		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
-					"reading permissions wrong",
-					 mode, faulting_vm_address, eip);
+		MAGIC_BREAK;
+		panic_thread("pagefault_handler(): %s "
+		             "pagefault on read insruction "
+ 	                 "error_code:0x%x "
+                     "eip:0x%x "
+                     "cs:0x%x "
+ 	                 "faulting_vm_address:%p ",
+                     mode, error_code, eip, cs, faulting_vm_address);
 
 	}
 

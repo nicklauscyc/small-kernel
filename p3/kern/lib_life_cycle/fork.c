@@ -62,16 +62,13 @@ fork( void )
 	/* Only allow forking of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
 	affirm(parent_tcb);
-	uint32_t parent_tid = parent_tcb->tid;
 	pcb_t *parent_pcb = get_running_task();
 	affirm(parent_pcb);
 
-
 	int num_threads = get_num_active_threads_in_owning_task(parent_tcb);
-	log_info("fork(): "
-		 "Forking task with number of threads:%ld", num_threads);
 
 	if (num_threads > 1) {
+		log_info("fork(): cannot fork when > 1 active thread in task");
 		return -1;
 	}
 	assert(num_threads == 1);
@@ -93,14 +90,17 @@ fork( void )
 	/* Create child pcb and tcb */
 	uint32_t child_pid, child_tid;
 	if (create_pcb(&child_pid, child_pd, parent_pcb) < 0) {
-		// TODO: delete page directory
+		log_info("fork(): unable to create child PCB");
 		return -1;
 	}
 
 
 	if (create_tcb(child_pid, &child_tid) < 0) {
+		log_info("fork(): unable to create child TCB");
 		// TODO: delete page directory
 		// TODO: delete_pcb of parent
+		//
+
 		return -1;
 	}
 
@@ -110,13 +110,6 @@ fork( void )
 
 	set_task_name(child_pcb, parent_pcb->execname);
 	register_if_init_task(child_pcb->execname, child_pcb->pid);
-
-	log_info("process tid:%d, execname:%s", child_tid, child_pcb->execname);
-
-	if (child_tid == 13) {
-		log_warn("child tid:%d parent execname:%s parent_tid:%d", child_tid,
-		child_pcb->parent_pcb->execname, parent_tid);
-	}
 
 
 	/* Register this task with simics for better debugging */
@@ -144,8 +137,10 @@ fork( void )
 	parent_pcb->num_active_child_tasks++;
 
     /* After setting up child stack and VM, register with scheduler */
-    if (make_thread_runnable(child_tcb) < 0)
+    if (make_thread_runnable(child_tcb) < 0) {
+		log_info("fork(): unable to make child thread runnable");
         return -1;
+	}
 
     /* Only parent will return here */
     assert(get_running_tid() == get_tcb_tid(parent_tcb));

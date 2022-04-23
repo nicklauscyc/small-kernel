@@ -24,7 +24,7 @@ wait (int *status_ptr)
 	pcb_t *owning_task = waiting_thread->owning_task;
 	affirm(owning_task);
 
-	log_info("wait(): "
+	log_info("wait(): beginning wait "
 	         "waiting_thread->tid:%d, "
 			 "waiting_thread->owning_task->first_thread_tid:%d",
 			 waiting_thread->tid, owning_task->first_thread_tid);
@@ -97,6 +97,7 @@ static void
 store_waiting_thread( tcb_t *waiting_thread, void *owning_task_mux )
 {
 	affirm(waiting_thread);
+	affirm(waiting_thread->status == BLOCKED);
 
 	pcb_t *owning_task = waiting_thread->owning_task;
 
@@ -108,8 +109,9 @@ store_waiting_thread( tcb_t *waiting_thread, void *owning_task_mux )
 				  waiting_threads_link);
 	owning_task->num_waiting_threads++;
 
-	mutex_unlock(mux);
-	log_info("store_waiting_thread(): "
+
+	switch_safe_mutex_unlock(mux);
+	log_warn("store_waiting_thread(): "
 	         "unlocked mux:%p, &waiting_threads_list:%p", mux,
 			 &(owning_task->waiting_threads_list));
 }
