@@ -33,7 +33,7 @@ void *malloc(size_t size)
 {
 	LOCK;
 	void *p = _malloc(size);
-	log_warn("malloc returned %p", p);
+	log("malloc returned %p", p);
 	UNLOCK;
     return p;
 }
@@ -42,7 +42,7 @@ void *memalign(size_t alignment, size_t size)
 {
 	LOCK;
 	void *p = _memalign(alignment, size);
-	log_warn("memalign returned %p, size %u", p, size);
+	log("memalign returned %p, size %u", p, size);
 
 	UNLOCK;
 	return p;
@@ -68,7 +68,7 @@ void free(void *buf)
 {
 	LOCK;
 	_free(buf);
-	log_warn("free(): freed %p", buf);
+	log("free(): freed %p", buf);
 
 
 	UNLOCK;
@@ -78,7 +78,7 @@ void *smalloc(size_t size)
 {
 	LOCK;
     void *p = _smalloc(size);
-	log_warn("smalloc returned %p, size %u", p, size);
+	log("smalloc returned %p, size %u", p, size);
 
 
 	UNLOCK;
@@ -89,7 +89,7 @@ void *smemalign(size_t alignment, size_t size)
 {
 	LOCK;
     void *p = _smemalign(alignment, size);
-	log_warn("smemalign returned %p, size %u", p, size);
+	log("smemalign returned %p, size %u", p, size);
 
 
 	UNLOCK;
@@ -100,7 +100,7 @@ void sfree(void *buf, size_t size)
 {
 	LOCK;
 	_sfree(buf, size);
-	log_warn("sfree(): freed %p, size %u", buf, size);
+	log("sfree(): freed %p, size %u", buf, size);
 
 
 	UNLOCK;

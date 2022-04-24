@@ -448,11 +448,16 @@ int
 is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 {
 	/* Check not kern memory and non-NULL */
-	if ((uint32_t)ptr < USER_MEM_START)
+	if ((uint32_t)ptr < USER_MEM_START) {
+		log_info("is_valid_user_pointer(): ptr:%p < USER_MEM_START",
+		         ptr);
 		return 0;
+	}
 
 	/* Check if allocated */
 	if (!is_user_pointer_allocated(ptr)) {
+		log_info("is_valid_user_pointer(): ptr:%p not allocated",
+		         ptr);
 		return 0;
 	}
 	/* Check for correct write_mode */
@@ -460,10 +465,12 @@ is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 	uint32_t pd_index = PD_INDEX(ptr);
 	uint32_t pt_index = PT_INDEX(ptr);
 	uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
-	if (write_mode == READ_WRITE && !(pt[pt_index] & RW_FLAG))
+	if ((write_mode == READ_WRITE) && !(pt[pt_index] & RW_FLAG)) {
+		log_info("is_valid_user_pointer(): ptr:%p RW_FLAG not set, "
+		         "pt[pt_index]:0x%08lx",
+		         ptr, pt[pt_index]);
 		return 0;
-
-
+	}
 	return 1;
 }
 
