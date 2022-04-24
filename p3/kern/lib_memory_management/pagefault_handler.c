@@ -125,6 +125,7 @@ pagefault_handler( int *ebp )
 	}
 
 	/* Protection violation */
+
 	if (cs == SEGSEL_USER_CS && (eip < USER_MEM_START
 				|| faulting_vm_address < USER_MEM_START)) {
 		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);
