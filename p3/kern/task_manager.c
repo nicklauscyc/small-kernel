@@ -594,6 +594,8 @@ get_pid( void )
 void
 free_tcb(tcb_t *tcb)
 {
+	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);
+
 	affirm(tcb);
 	affirm(!tcb->collected_vanished_child);
 	affirm(tcb->status == DEAD);
@@ -603,7 +605,6 @@ free_tcb(tcb_t *tcb)
 	affirm(!(Q_IN_SOME_QUEUE(tcb, task_thread_link)));
 	affirm(tcb->status == DEAD);
 
-	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);
 
 	/* free stack and structure memory */
 	sfree(tcb->kernel_stack_lo, KERNEL_THREAD_STACK_SIZE);

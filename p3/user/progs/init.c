@@ -23,7 +23,7 @@ main()
 
     while(1) {
         pid = fork();
-        if (pid)
+        if (!pid)
             exec(shell, args);
 
 		int child_tid;
