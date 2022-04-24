@@ -76,10 +76,10 @@ volatile static int placate_the_compiler;
 //	return -1;
 //}
 
-int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
-{
-	return -1;
-}
+//int swexn(void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg)
+//{
+//	return -1;
+//}
 
 int getchar(void)
 {

@@ -21,6 +21,9 @@
 #include <scheduler.h>
 #include <x86/asm.h> /* outb() */
 
+/* TODO: Fix abstraction */
+#include <task_manager_internal.h>
+
 // saves regs and returns new esp
 void *save_child_regs(void *parent_kern_esp, void *child_kern_esp,
 					  void *child_cr3 );
@@ -79,11 +82,9 @@ fork( void )
 	uint32_t *parent_pd = (uint32_t *) (cr3 & ~(PAGE_SIZE - 1));
 	assert((uint32_t) parent_pd < USER_MEM_START);
 
-
 	/* Create child_pd as a deep copy */
 	uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 
-	//assert(PAGE_ALIGNED(child_pd));
 	log_info("fork(): "
 			 "new child_pd at address:%p", child_pd);
 
@@ -93,7 +94,6 @@ fork( void )
 		log_info("fork(): unable to create child PCB");
 		return -1;
 	}
-
 
 	if (create_tcb(child_pid, &child_tid) < 0) {
 		log_info("fork(): unable to create child TCB");
@@ -135,6 +135,13 @@ fork( void )
 	Q_INSERT_TAIL(&(parent_pcb->active_child_tasks_list), child_pcb,
 			              vanished_child_tasks_link);
 	parent_pcb->num_active_child_tasks++;
+
+	/* Child inherits parent's software exception handler */
+	child_tcb->swexn_arg		 = parent_tcb->swexn_arg;
+	child_tcb->swexn_stack		 = parent_tcb->swexn_stack;
+	child_tcb->swexn_handler	 = parent_tcb->swexn_handler;
+	child_tcb->has_swexn_handler = parent_tcb->has_swexn_handler;
+
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(child_tcb) < 0) {

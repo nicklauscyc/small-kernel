@@ -117,7 +117,9 @@ STUDENTFILES = readfile_test_data
 ###########################################################################
 # Object files for your thread library
 ###########################################################################
-THREAD_OBJS = malloc.o panic.o
+THREAD_OBJS = malloc.o panic.o mutex.o add_one_atomic.o thread.o \
+              thread_fork.o hashmap.o cond.o rwlock.o thr_internals.o \
+              sem.o
 
 # Thread Group Library Support.
 #
@@ -125,7 +127,7 @@ THREAD_OBJS = malloc.o panic.o
 # P3" we give you can't build libthrgrp.a.  Once you install your thread
 # library and fix THREAD_OBJS above, uncomment this line to enable building
 # libthrgrp.a:
-#410USER_LIBS_EARLY += libthrgrp.a
+410USER_LIBS_EARLY += libthrgrp.a
 
 ###########################################################################
 # Object files for your syscall wrappers
@@ -134,7 +136,7 @@ SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
 			   new_pages.o remove_pages.o readfile.o halt.o vanish.o \
-			   readline.o task_vanish.o set_status.o wait.o
+			   readline.o task_vanish.o set_status.o swexn.o wait.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -165,6 +167,8 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_thread_management/make_runnable.o \
 			  lib_thread_management/deschedule.o \
 			  lib_thread_management/sleep.o \
+			  lib_thread_management/swexn.o \
+			  lib_thread_management/swexn_set_regs.o \
 			  lib_thread_management/hashmap.o \
 			  lib_thread_management/mutex.o \
 			  \
@@ -209,7 +213,8 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  fault_handlers/general_protection_handler.o \
 			  fault_handlers/alignment_check_handler.o \
 			  fault_handlers/non_maskable_handler.o \
-			  fault_handlers/machine_check_handler.o
+			  fault_handlers/machine_check_handler.o \
+			  fault_handlers/simd_handler.o
 
 
 ###########################################################################

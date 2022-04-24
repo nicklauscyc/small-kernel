@@ -2,8 +2,12 @@
  *  @brief Functions for handling device not available faults
  */
 #include <seg.h>	/* SEGSEL_KERNEL_CS */
+#include <asm.h>			/* outb() */
+#include <ureg.h>			/* SWEXN_CAUSE_ */
+#include <swexn.h>			/* handle_exn */
 #include <assert.h> /* panic() */
 #include <panic_thread.h> /* panic_thread() */
+#include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
 void
 float_handler( int *ebp )
@@ -16,10 +20,10 @@ float_handler( int *ebp )
 				"Please contact kernel developers.", eip);
 	}
 
-	/* acknowledge signal and call user handler?
-	 * OR
-	 * acknowledge signal and just kill user thread? */
+	/* If not a kernel exception, acknowledge interrupt */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
+	handle_exn(ebp, SWEXN_CAUSE_NOFPU, 0);
 	panic_thread("Unhandled device not available fault "
 			"(due to floating-point op) at instruction 0x%x", eip);
 }

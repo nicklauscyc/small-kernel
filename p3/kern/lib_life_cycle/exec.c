@@ -15,6 +15,9 @@
 #include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <simics.h>
 
+/* TODO: Fix abstraction */
+#include <task_manager_internal.h>
+
 /** @brief Prints arguments passed to exec() when log level is DEBUG
  *
  *	@param execname Executable name
@@ -53,39 +56,36 @@ exec( char *execname, char **argvec )
 {
 	/* Acknowledge interrupt immediately */
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-//	assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Only allow exec of task that has 1 thread */
 	tcb_t *tcb = get_running_thread();
+
 	assert(tcb);
-
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
 	int num_threads = get_num_active_threads_in_owning_task(tcb);
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-	log_warn("Exec() task with number of threads:%ld", num_threads);
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+	log("Exec() task with number of threads:%ld", num_threads);
 
 	if (num_threads > 1) {
 		MAGIC_BREAK;
 		return -1;
 	}
 	assert(num_threads == 1);
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
 	/* Validate execname */
 	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
 		return -1;
 	}
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 	/* Validate argvec */
 	int argc = 0;
 	if (!(argc = is_valid_user_argvec(execname, argvec))) {
 		return -1;
 	}
-	// TODO ensure no software exception handler registered
-	//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+
+	/* Ensure no software exception handler registered */
+	tcb->has_swexn_handler = 0;
+	tcb->swexn_handler = 0;
+	tcb->swexn_stack = 0;
+	tcb->swexn_arg = NULL;
 
 	log_exec_args(execname, argvec);
 

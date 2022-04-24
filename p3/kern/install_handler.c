@@ -207,6 +207,11 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
+	if (install_handler(SWEXN_INT, NULL, call_swexn, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
 	if (install_handler(SLEEP_INT, NULL, call_sleep, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
@@ -339,13 +344,20 @@ handler_install(void (*tick)(unsigned int))
 		return -1;
 	}
 
-	if (install_handler(IDT_NMI, NULL, call_non_maskable_handler, DPL_3,
+	if (install_handler(IDT_XF, NULL, call_simd_handler, DPL_3,
 		D32_TRAP) < 0) {
 		return -1;
 	}
 
+	/* Install irrecoverable exceptions as interrupt so we can cleanly print
+	 * an error and exit */
+	if (install_handler(IDT_NMI, NULL, call_non_maskable_handler, DPL_3,
+		D32_INTERRUPT) < 0) {
+		return -1;
+	}
+
 	if (install_handler(IDT_MC, NULL, call_machine_check_handler, DPL_3,
-		D32_TRAP) < 0) {
+		D32_INTERRUPT) < 0) {
 		return -1;
 	}
 	return 0;

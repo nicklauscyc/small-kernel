@@ -442,7 +442,7 @@ disable_write_protection( void )
  *	user memory and is in an allocated memory region.
  *
  *	@param ptr Pointer to check
- *	@param read_write Whether to check for write permission
+ *	@param read_write What permission is needed
  *	@return 1 if valid, 0 if not */
 int
 is_valid_user_pointer(void *ptr, write_mode_t write_mode)
@@ -454,23 +454,30 @@ is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 		return 0;
 	}
 
+	/* TODO: Allocation check should accept zero_page filled stuff!!!! */
+
 	/* Check if allocated */
 	if (!is_user_pointer_allocated(ptr)) {
 		log_info("is_valid_user_pointer(): ptr:%p not allocated",
 		         ptr);
 		return 0;
 	}
+
 	/* Check for correct write_mode */
 	uint32_t **pd = (uint32_t **)TABLE_ADDRESS(get_cr3());
 	uint32_t pd_index = PD_INDEX(ptr);
 	uint32_t pt_index = PT_INDEX(ptr);
 	uint32_t *pt = (uint32_t *) TABLE_ADDRESS(pd[pd_index]);
-	if ((write_mode == READ_WRITE) && !(pt[pt_index] & RW_FLAG)) {
-		log_info("is_valid_user_pointer(): ptr:%p RW_FLAG not set, "
-		         "pt[pt_index]:0x%08lx",
-		         ptr, pt[pt_index]);
+
+	/* If looking for read write, ensure it's fully allocated or
+	 * we have allocated with ZFOD. */
+	if (write_mode == READ_WRITE && !((pt[pt_index] & RW_FLAG)
+				|| TABLE_ADDRESS(pt[pt_index]) == sys_zero_frame))
 		return 0;
-	}
+
+	if (write_mode == READ_ONLY && (pt[pt_index] & RW_FLAG))
+		return 0;
+
 	return 1;
 }
 
@@ -520,7 +527,7 @@ is_valid_user_string_helper( char *s, int len, int null_terminated)
 	int i;
 	for (i = 0; i < len; ++i) {
 
-		if (!is_valid_user_pointer(s + i, READ_ONLY)) {
+		if (!is_valid_user_pointer(s + i, READ)) {
 			log_warn("invalid address %p at index %d of user string %s",
 					 s + i, i, s);
 			return 0;
@@ -591,7 +598,7 @@ is_valid_user_argvec( char *execname, char **argvec )
 	for (i = 0; i < NUM_USER_ARGS; ++i) {
 
 		/* Invalid char ** */
-		if (!is_valid_user_pointer(argvec + i, READ_ONLY)) {
+		if (!is_valid_user_pointer(argvec + i, READ)) {
 			log_warn("invalid address %p at index %d of argvec", argvec + i, i);
 			return 0;
 
@@ -795,6 +802,7 @@ static int
 allocate_frame( uint32_t **pd, uint32_t virtual_address,
 				write_mode_t write_mode, uint32_t sys_prog_flag )
 {
+	assert(write_mode == READ_WRITE || write_mode == READ_ONLY);
 	if (!is_valid_sys_prog_flag(sys_prog_flag)) {
 		return -1;
 	}
@@ -1001,6 +1009,7 @@ static int
 allocate_region( uint32_t **pd, void *start, uint32_t len,
                  write_mode_t write_mode )
 {
+	assert(write_mode == READ_WRITE || write_mode == READ_ONLY);
     uint32_t pages_to_alloc = (len + PAGE_SIZE - 1) / PAGE_SIZE;
 
     /* Ensure we have enough free frames to fulfill request */
