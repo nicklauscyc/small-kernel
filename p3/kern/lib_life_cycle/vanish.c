@@ -67,6 +67,7 @@ free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 	tcb_t *curr = Q_GET_FRONT(&(owning_task->vanished_threads_list));
 	while (curr && curr != last_tcb) {
 		Q_REMOVE(&(owning_task->vanished_threads_list), curr, task_thread_link);
+		map_remove(curr->tid);
 		free_tcb(curr);
 		removed++;
 	}
@@ -135,6 +136,21 @@ _vanish( void ) // int on_error )
 
 		/* Set owning_task->pd to NULL to prevent future free-ing */
 		owning_task->pd = NULL;
+
+		/* All my active child tasks will automatically look for init,
+		 * time to clear my active child tasks list */
+		pcb_t *active_child =
+			Q_GET_FRONT(&(owning_task->active_child_tasks_list));
+		while (active_child) {
+			Q_REMOVE( &(owning_task->active_child_tasks_list),
+			         active_child,
+					 vanished_child_tasks_link);
+			owning_task->num_active_child_tasks--;
+			active_child =
+				Q_GET_FRONT(&(owning_task->active_child_tasks_list));
+
+		}
+
 
 		/* Transfer all my vanished children to init in O(1) */
 		pcb_t *init_pcbp = get_init_pcbp();

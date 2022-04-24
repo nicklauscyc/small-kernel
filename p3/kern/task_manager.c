@@ -594,12 +594,11 @@ free_tcb(tcb_t *tcb)
 	affirm(!(Q_IN_SOME_QUEUE(tcb, task_thread_link)));
 	affirm(tcb->status == DEAD);
 
-	log_info("free_tcb(): cleaning up thread tid:%d", tcb->tid);
+	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);
 
-	/* remove tcb from hashmap and free memory */
-	map_remove(tcb->tid);
+	/* free stack and structure memory */
 	sfree(tcb->kernel_stack_lo, KERNEL_THREAD_STACK_SIZE);
-	sfree(tcb, sizeof(tcb));
+	sfree(tcb, sizeof(tcb_t));
 
 	log_info("free_tcb(): cleaned up thread tid:%d", tcb->tid);
 }
@@ -607,19 +606,24 @@ free_tcb(tcb_t *tcb)
 void
 free_pcb_but_not_pd(pcb_t *pcb)
 {
-	return;
 	affirm(pcb);
 
 	/* pd should already be freed and set to NULL */
 	affirm(!pcb->pd);
-	log_info("free_pcb_but_not_pd(): cleaned up pcb->first_thread_tid:%d",
+	log_warn("free_pcb_but_not_pd(): cleaned up pcb->first_thread_tid:%d",
 			 pcb->first_thread_tid);
 
 
 	/* All lists should be empty */
 	affirm(!Q_GET_FRONT(&pcb->vanished_child_tasks_list));
-	affirm(!Q_GET_FRONT(&pcb->active_child_tasks_list));
+
+	//affirm(!Q_GET_FRONT(&pcb->active_child_tasks_list));
+	if(Q_GET_FRONT(&pcb->active_child_tasks_list)) {
+		MAGIC_BREAK;
+	}
+
 	affirm(!Q_GET_FRONT(&pcb->waiting_threads_list));
+
 
 	/* Already removed from vanished_child_tasks_list */
 	affirm(!Q_IN_SOME_QUEUE(pcb, vanished_child_tasks_link));
@@ -629,6 +633,7 @@ free_pcb_but_not_pd(pcb_t *pcb)
 	affirm(Q_GET_FRONT(&pcb->vanished_threads_list) == pcb->last_thread);
 	affirm(Q_GET_TAIL(&pcb->vanished_threads_list) == pcb->last_thread);
 	affirm(pcb->last_thread);
+	map_remove(pcb->last_thread->tid);
 	free_tcb(pcb->last_thread);
 
 	sfree(pcb, sizeof(pcb_t));

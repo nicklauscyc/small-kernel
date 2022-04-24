@@ -15,6 +15,9 @@
 #include <string.h> /* memset */
 #include <assert.h> /* affirm */
 #include <logger.h>
+#include <lib_thread_management/mutex.h>
+
+static mutex_t hashmux;
 
 /** @brief Hash for placement into map
  *
@@ -41,10 +44,13 @@ hash( uint32_t x )
 void
 map_insert( tcb_t *tcb )
 {
+	mutex_lock(&hashmux);
     uint32_t index = hash(tcb->tid) % NUM_BUCKETS;
     hashmap_queue_t *headp = &map.buckets[index];
 
 	Q_INSERT_TAIL(headp, tcb, tid2tcb_queue);
+	mutex_unlock(&hashmux);
+
 }
 
 /** @brief Get status in hashmap.
@@ -55,12 +61,17 @@ map_insert( tcb_t *tcb )
 tcb_t *
 map_get(uint32_t tid)
 {
+	mutex_lock(&hashmux);
+
     uint32_t index = hash(tid) % NUM_BUCKETS;
     hashmap_queue_t *headp = &map.buckets[index];
 
 	tcb_t *curr = Q_GET_FRONT(headp);
-    while (curr && curr->tid != tid)
+    while (curr && curr->tid != tid) {
         curr = Q_GET_NEXT(curr, tid2tcb_queue);
+	}
+
+	mutex_unlock(&hashmux);
 
     return curr;
 }
@@ -76,6 +87,8 @@ map_get(uint32_t tid)
 tcb_t *
 map_remove(uint32_t tid)
 {
+	mutex_lock(&hashmux);
+
 	log_info("map_remove(): remove tid:%d from tid2tcb hashmap", tid);
     uint32_t index = hash(tid) % NUM_BUCKETS;
     hashmap_queue_t *headp = &map.buckets[index];
@@ -85,10 +98,13 @@ map_remove(uint32_t tid)
 	while (curr) {
 		if (curr->tid == tid) {
 			Q_REMOVE(headp, curr, tid2tcb_queue);
+			mutex_unlock(&hashmux);
+
 			return curr;
 		}
 		curr = Q_GET_NEXT(curr, tid2tcb_queue);
 	}
+	mutex_unlock(&hashmux);
 
 	return NULL;
 }
@@ -102,6 +118,7 @@ map_remove(uint32_t tid)
 void
 map_init( void )
 {
+	mutex_init(&hashmux);
     memset(map.buckets, 0, sizeof(hashmap_queue_t) * NUM_BUCKETS);
 	for (int i=0; i < NUM_BUCKETS; ++i)
 		Q_INIT_HEAD(&map.buckets[i]);

@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 
     lprintf("parent pid: %d", gettid());
 
-    while(count < 2) {
+    while(count < 1000) {
         if((pid = fork()) == 0) {
             exit(42);
         }
