@@ -103,14 +103,14 @@ _vanish( void ) // int on_error )
 
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
-		log_info("_vanish(): not last task thread");
+		log_warn("_vanish(): not last task thread");
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
 		affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 
 	/* Last task thread contacts parent PCB */
 	} else {
-		log_info("_vanish(): last task thread");
+		log_warn("_vanish(): last task thread");
 		remove_pcb(owning_task);
 
 		/* Free sibling threads TCB */
@@ -136,7 +136,48 @@ _vanish( void ) // int on_error )
 		/* Set owning_task->pd to NULL to prevent future free-ing */
 		owning_task->pd = NULL;
 
-		/* TODO Tell all children tasks that their parent is init() now */
+		/* Transfer all my vanished children to init in O(1) */
+		pcb_t *init_pcbp = get_init_pcbp();
+		if (Q_GET_FRONT(&(owning_task->vanished_child_tasks_list))) {
+
+			// TODO need to start the parent thread
+
+			mutex_lock(&(init_pcbp->set_status_vanish_wait_mux));
+
+			Q_APPEND(&(init_pcbp->vanished_child_tasks_list),
+					 &(owning_task->vanished_child_tasks_list),
+					 vanished_child_tasks_link);
+			init_pcbp->num_vanished_child_tasks
+				+= owning_task->num_vanished_child_tasks;
+
+			log_warn("_vanishd(): added my children to init_pcbp");
+			noop();
+
+			/* wakeup if there's a waiting init thread */
+			tcb_t *waiting_tcb = Q_GET_FRONT(&(init_pcbp->waiting_threads_list));
+			if (waiting_tcb) {
+				Q_REMOVE(&(init_pcbp->waiting_threads_list), waiting_tcb,
+						 waiting_threads_link);
+				init_pcbp->num_waiting_threads--;
+
+				/* Waiting thread must not be on the scheduler queue or any other
+				 * queues that use the same link name eg mutex queue */
+				affirm_msg(!Q_IN_SOME_QUEUE(waiting_tcb, scheduler_queue),
+				"waiting_tcb:%p in scheduler queue!", waiting_tcb);
+				affirm(!Q_IN_SOME_QUEUE(waiting_tcb, waiting_threads_link));
+				affirm(waiting_tcb->status == BLOCKED);
+
+				pcb_t *first_vanish =
+					Q_GET_FRONT(&(init_pcbp->vanished_child_tasks_list));
+					Q_REMOVE(&(init_pcbp->vanished_child_tasks_list),
+					         first_vanish,
+							 vanished_child_tasks_link);
+				waiting_tcb->collected_vanished_child = first_vanish;
+				make_thread_runnable(waiting_tcb);
+			}
+
+			mutex_unlock(&(init_pcbp->set_status_vanish_wait_mux));
+		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
 		//pcb_t *parent_pcb = owning_task->parent_pcb;
@@ -145,6 +186,8 @@ _vanish( void ) // int on_error )
 		if (parent_pcb) {
 
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+			log_warn("_vanish(): found my parent ");
+			noop();
 
 			/* Remove from active_child_tasks_list */
 			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
@@ -152,13 +195,15 @@ _vanish( void ) // int on_error )
 			parent_pcb->num_active_child_tasks--;
 
 		} else {
-			parent_pcb = get_init_pcbp();
+			parent_pcb = init_pcbp;
 			assert(parent_pcb);
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			log_warn("(init) parent_pcb->execname:%s", parent_pcb->execname);
+			noop();
 
 		}
 		affirm(parent_pcb);
+
 
 		/* Look at list of waiting parent threads, if non-empty, wake them up */
 		tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
@@ -172,14 +217,11 @@ _vanish( void ) // int on_error )
 			affirm_msg(!Q_IN_SOME_QUEUE(waiting_tcb, scheduler_queue),
 			"waiting_tcb:%p in scheduler queue!", waiting_tcb);
 			affirm(!Q_IN_SOME_QUEUE(waiting_tcb, waiting_threads_link));
-
-			if (!(waiting_tcb->status == BLOCKED)) {
-				noop();
-			}
+			affirm(waiting_tcb->status == BLOCKED);
+			waiting_tcb->collected_vanished_child = owning_task;
 
 			/* Make waiting thread runnable */
 			waiting_tcb->status = RUNNABLE;
-			waiting_tcb->collected_vanished_child = owning_task;
 			log_warn("_vanish(): "
 					 "collected owning_task->first_thread_tid:%d, exit_status:%d",
 					 owning_task->first_thread_tid, owning_task->exit_status);
@@ -189,6 +231,8 @@ _vanish( void ) // int on_error )
 			Q_INSERT_TAIL(&(parent_pcb->vanished_child_tasks_list),
 						  owning_task, vanished_child_tasks_link);
 			parent_pcb->num_vanished_child_tasks++;
+			log_warn("_vanish(): no parent waiting for me");
+			noop();
 		}
 		mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
 

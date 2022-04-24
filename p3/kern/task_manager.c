@@ -621,7 +621,7 @@ free_pcb_but_not_pd(pcb_t *pcb)
 	affirm(!Q_GET_FRONT(&pcb->active_child_tasks_list));
 	affirm(!Q_GET_FRONT(&pcb->waiting_threads_list));
 
-	/* Removed from vanished_child_tasks_list */
+	/* Already removed from vanished_child_tasks_list */
 	affirm(!Q_IN_SOME_QUEUE(pcb, vanished_child_tasks_link));
 	affirm(!Q_GET_FRONT(&pcb->active_threads_list));
 

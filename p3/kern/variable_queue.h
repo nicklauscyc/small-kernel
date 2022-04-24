@@ -275,9 +275,9 @@ struct {\
 	affirm_msg((Q_HEAD) != NULL,\
 	           "Variable queue head pointer cannot be NULL!");\
 	affirm_msg((Q_INQ) != NULL,\
-	           "Variable queue element pointer in queue cannot be NULL!")\
+	           "Variable queue element pointer in queue cannot be NULL!");\
 	affirm_msg((Q_TOINSERT) != NULL,\
-	           "Variable queue element pointer to insert cannot be NULL!")\
+	           "Variable queue element pointer to insert cannot be NULL!");\
 \
 	((Q_TOINSERT)->LINK_NAME).prev = Q_INQ;\
 	((Q_TOINSERT)->LINK_NAME).next = ((Q_INQ)->LINK_NAME).next;\
@@ -294,6 +294,51 @@ struct {\
 		((((Q_TOINSERT)->LINK_NAME).next)->LINK_NAME).prev = Q_TOINSERT;\
 	}\
 } while(0)
+
+/** @brief appends Q_HEAD_SUFFIX to Q_HEAD, and makes Q_HEAD_SUFFIX empty after
+ */
+#define Q_APPEND(Q_HEAD, Q_HEAD_SUFFIX, LINK_NAME) do\
+{\
+	/* Pointer argument checks */\
+	affirm_msg((Q_HEAD) != NULL,\
+	           "Variable queue head pointer cannot be NULL!");\
+	affirm_msg((Q_HEAD_SUFFIX) != NULL,\
+	           "Variable queue head suffix pointer in queue cannot be NULL!");\
+\
+	/* Q_HEAD empty and Q_HEAD_SUFFIX empty */\
+	if ((Q_HEAD)->front == NULL && (Q_HEAD_SUFFIX)->front == NULL) {\
+		affirm((Q_HEAD)->tail == NULL && (Q_HEAD_SUFFIX)->tail == NULL);\
+	}\
+	/* Q_HEAD not empty and Q_HEAD_SUFFIX empty */\
+	else if ((Q_HEAD)->front != NULL && (Q_HEAD_SUFFIX)->front == NULL) {\
+		affirm((Q_HEAD)->tail != NULL && (Q_HEAD_SUFFIX)->tail == NULL);\
+	}\
+	/* Q_HEAD empty and Q_HEAD_SUFFIX not empty */\
+	else if ((Q_HEAD)->front == NULL && (Q_HEAD_SUFFIX)->front != NULL) {\
+		affirm((Q_HEAD)->tail == NULL && (Q_HEAD_SUFFIX)->tail != NULL);\
+		(Q_HEAD)->front = (Q_HEAD_SUFFIX)->front;\
+		(Q_HEAD_SUFFIX)->front = NULL;\
+		(Q_HEAD)->tail = (Q_HEAD_SUFFIX)->tail;\
+		(Q_HEAD_SUFFIX)->tail = NULL;\
+	}\
+	/* Q_HEAD not empty and Q_HEAD_SUFFIX not empty */\
+	else {\
+		affirm((Q_HEAD)->front != NULL && (Q_HEAD_SUFFIX)->front != NULL);\
+		affirm((Q_HEAD)->tail != NULL && (Q_HEAD_SUFFIX)->tail != NULL);\
+		((Q_HEAD)->tail->LINK_NAME).next = (Q_HEAD_SUFFIX)->front;\
+		((Q_HEAD_SUFFIX)->front->LINK_NAME).prev = (Q_HEAD)->tail;\
+		(Q_HEAD)->tail = (Q_HEAD_SUFFIX)->tail;\
+		(Q_HEAD_SUFFIX)->front = NULL;\
+		(Q_HEAD_SUFFIX)->tail = NULL;\
+	}\
+} while(0)
+
+
+
+
+
+
+
 
 
 /** @def Q_INSERT_BEFORE(Q_HEAD, Q_INQ, Q_TOINSERT, LINK_NAME)
@@ -317,9 +362,9 @@ struct {\
 	affirm_msg((Q_HEAD) != NULL,\
 	           "Variable queue head pointer cannot be NULL!");\
 	affirm_msg((Q_INQ) != NULL,\
-	           "Variable queue element pointer in queue cannot be NULL!")\
+	           "Variable queue element pointer in queue cannot be NULL!");\
 	affirm_msg((Q_TOINSERT) != NULL,\
-	           "Variable queue element pointer to insert cannot be NULL!")\
+	           "Variable queue element pointer to insert cannot be NULL!");\
 \
 	((Q_TOINSERT)->LINK_NAME).next = Q_INQ;\
 	((Q_TOINSERT)->LINK_NAME).prev = ((Q_INQ)->LINK_NAME).prev;\

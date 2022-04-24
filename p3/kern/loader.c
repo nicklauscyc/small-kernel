@@ -288,17 +288,17 @@ execute_user_program( char *fname, int argc, char **argv)
 	/* Load user program information */
 	simple_elf_t se_hdr;
     if (elf_check_header(kern_stack_execname) == ELF_NOTELF) {
-        return -1;
+		goto cleanup;
 	}
     if (elf_load_helper(&se_hdr, kern_stack_execname) == ELF_NOTELF) {
-        return -1;
+		goto cleanup;
 	}
     uint32_t pid, tid;
 
 	/* First task, so create a new task */
 	if (first_task) {
 		if (create_task(&pid, &tid, &se_hdr) < 0)
-			return -1;
+			goto cleanup;
 
 	/* Not the first task, so we replace the current running task */
 	} else {
@@ -310,7 +310,7 @@ execute_user_program( char *fname, int argc, char **argv)
 		void *new_pd = new_pd_from_elf(&se_hdr, stack_lo,
 		                               USER_THREAD_STACK_SIZE);
 		if (!new_pd) {
-			return -1;
+			goto cleanup;
 		}
 		void *old_pd = swap_task_pd(new_pd);
 		//assert(is_valid_pd(old_pd));
@@ -334,11 +334,11 @@ execute_user_program( char *fname, int argc, char **argv)
 
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
-		return -1;
+		goto cleanup;
 	}
 
     if (transplant_program_memory(&se_hdr) < 0) {
-        return -1;
+		goto cleanup;
 	}
     uint32_t *esp = configure_stack(argc, kern_stack_argvec);
 
@@ -352,8 +352,12 @@ execute_user_program( char *fname, int argc, char **argv)
 	first_task = 0;
 
 	/* Start the task */
+	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
 
 	panic("execute_user_program does not return");
+
+cleanup:
+	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
 	return -1;
 }
