@@ -83,12 +83,10 @@ wait (int *status_ptr)
 	} else {
 		log_info("wait(): "
 				 "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
-				 "exit_status (ignored):%d", tid, waiting_thread->collected_vanished_child->exit_status);
+				 "exit_status (ignored):%d", tid,
+				 waiting_thread->collected_vanished_child->exit_status);
 	}
 
-
-
-	// TODO cleanup
 	free_pcb_but_not_pd(waiting_thread->collected_vanished_child);
 	waiting_thread->collected_vanished_child = NULL;
 	return tid;
