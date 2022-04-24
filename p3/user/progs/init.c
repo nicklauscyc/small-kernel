@@ -31,12 +31,8 @@ main()
         do {
 			child_tid = wait(&exitstatus);
 			if (child_tid >= 0) {
-				lprintf("successfully collected child_tid:%d", child_tid);
 				total_cleanup++;
-			} else {
-				lprintf("wait() failed, no child to collect for now");
 			}
-			lprintf("total cleanup: %d", total_cleanup);
 		} while (child_tid != pid);
 
         printf("Shell exited with status %d; starting it back up...", exitstatus);
