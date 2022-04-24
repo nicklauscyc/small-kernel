@@ -107,6 +107,8 @@ struct pcb
 	Q_NEW_LINK(pcb) task_link; /**< Variable queue link for kernel wide list of
 	                             *  all running tasks */
 
+	Q_NEW_LINK(pcb) init_pcb_link;
+
 
 
 };

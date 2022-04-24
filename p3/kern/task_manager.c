@@ -37,11 +37,14 @@ static uint32_t get_user_eflags( void );
 Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
 
+/* List of PCBs whose running task is init() */
+Q_NEW_HEAD(init_pcb_list_t, pcb);
+static init_pcb_list_t init_pcb_list;
+static mutex_t init_pcb_list_mux;
 
 static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
-static pcb_t *init_pcbp = NULL;
 
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
 static uint32_t next_pid = 1;
@@ -91,6 +94,7 @@ task_manager_init ( void )
 {
 	map_init();
 	mutex_init(&pcb_list_mux);
+	mutex_init(&init_pcb_list_mux);
 	mutex_init(&tcb_map_mux);
 	Q_INIT_HEAD(&pcb_list);
 }
@@ -333,6 +337,9 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 	Q_INIT_ELEM(pcb, vanished_child_tasks_link);
 	pcb->total_threads = 0;
 
+	/* For putting into list of init task PCBs */
+	Q_INIT_ELEM(pcb, init_pcb_link);
+
 	/* Initialize task's active and vanished thread lists */
 	Q_INIT_HEAD(&(pcb->active_threads_list));
 	pcb->num_active_threads = 0;
@@ -401,7 +408,8 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	/* Link for when this thread calls wait() */
 	Q_INIT_ELEM(tcb, waiting_threads_link);
 
-	/* Add to owning task's list of threads, increment num_active_threads not DEAD */
+	/* Add to owning task's list of threads, increment num_active_threads not
+	 * DEAD */
 		Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INIT_ELEM(tcb, tid2tcb_queue);
 
@@ -463,7 +471,8 @@ get_num_active_threads_in_owning_task( tcb_t *tcbp )
 
 	/* Check that we have a legal number of threads and return */
 	uint32_t num_active_threads = tcbp->owning_task->num_active_threads;
-	affirm_msg(num_active_threads >= 0, "Owning task must have non-negative threads!");
+	affirm_msg(num_active_threads >= 0,
+	           "Owning task must have non-negative threads!");
 	return num_active_threads;
 }
 
@@ -658,18 +667,40 @@ free_pcb_but_not_pd(pcb_t *pcb)
 void
 register_if_init_task( char *execname, uint32_t pid )
 {
-	if (init_pcbp) return;
+	mutex_lock(&init_pcb_list_mux);
 	int init_strlen = strlen("init");
 	if ((execname[init_strlen] == '\0')
 		&& (strncmp(execname, "init", init_strlen) == 0)) {
-		init_pcbp = find_pcb(pid);
+
+		pcb_t *pcb = find_pcb(pid);
+		affirm(pcb);
+
+		Q_INSERT_FRONT(&init_pcb_list, pcb, init_pcb_link);
 	}
+	/* Remove any non init pcb */
+	pcb_t *curr = Q_GET_FRONT(&init_pcb_list);
+	while (curr) {
+		pcb_t *next = Q_GET_NEXT(curr, init_pcb_link);
+		if (strcmp(curr->execname, "init") != 0) {
+			Q_REMOVE(&init_pcb_list, curr, init_pcb_link);
+		}
+		curr = next;
+	}
+	mutex_unlock(&init_pcb_list_mux);
+
 }
 
 pcb_t *
 get_init_pcbp( void )
 {
+	mutex_lock(&init_pcb_list_mux);
+
+	pcb_t * init_pcbp = Q_GET_FRONT(&init_pcb_list);
 	affirm(init_pcbp);
+	affirm(strcmp(init_pcbp->execname, "init") == 0);
+
+	mutex_unlock(&init_pcb_list_mux);
+
 	return init_pcbp;
 }
 

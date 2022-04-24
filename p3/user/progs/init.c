@@ -23,7 +23,7 @@ main()
 
     while(1) {
         pid = fork();
-        if (!pid)
+        if (pid)
             exec(shell, args);
 
 		int child_tid;
@@ -32,7 +32,13 @@ main()
 			child_tid = wait(&exitstatus);
 			if (child_tid >= 0) {
 				total_cleanup++;
+				lprintf("init: cleaned up child_tid:%d total_cleanup: %d",
+					    child_tid, total_cleanup);
+			} else {
+			//	lprintf("init: wait for child failed, total_cleanup: %d",
+		//		        total_cleanup);
 			}
+
 		} while (child_tid != pid);
 
         printf("Shell exited with status %d; starting it back up...", exitstatus);

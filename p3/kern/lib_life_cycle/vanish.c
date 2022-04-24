@@ -66,10 +66,12 @@ free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 	uint32_t removed = 0;
 	tcb_t *curr = Q_GET_FRONT(&(owning_task->vanished_threads_list));
 	while (curr && curr != last_tcb) {
+		tcb_t *next = Q_GET_NEXT(curr, task_thread_link);
 		Q_REMOVE(&(owning_task->vanished_threads_list), curr, task_thread_link);
 		map_remove(curr->tid);
 		free_tcb(curr);
 		removed++;
+		curr = next;
 	}
 	/* The last TCB must be last_tcb */
 	affirm(removed == owning_task->num_vanished_threads - 1);
