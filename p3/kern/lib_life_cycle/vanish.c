@@ -46,6 +46,9 @@ noop (void ){
 	return;
 }
 
+void assign_child_task_to_parent_thread( tcb_t *child_last_thread,
+                                    void *v_waiting_thread );
+
 /** @brief Frees all TCBs in a task except the last running thread's TCB
  *
  *  @pre There are no more active threads in the task
@@ -127,33 +130,6 @@ empty_active_child_tasks_list( pcb_t *owning_task )
 	}
 }
 
-/** @brief Assigns the first waiting parent thread a vanished child task
- *
- *  @pre There must be a waiting parent thread
- *  @pre There must be a vanished child task PCB
- *
- *  @param parent_pcb PCB of task with waiting parent threads.
- */
-void
-assign_child_task_to_parent_thread( pcb_t *child_pcb, pcb_t *parent_pcb )
-{
-	affirm(child_pcb);
-	affirm(parent_pcb);
-
-	tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
-	affirm(waiting_tcb);
-
-	Q_REMOVE(&(parent_pcb->waiting_threads_list), waiting_tcb,
-	         waiting_threads_link);
-	parent_pcb->num_waiting_threads--;
-
-	/* Waiting thread must not be on the scheduler queue or any other
-	 * queues that use the same link name eg mutex queue */
-	affirm_msg(!Q_IN_SOME_QUEUE(waiting_tcb, scheduler_queue),
-	           "waiting_tcb:%p in scheduler queue!", waiting_tcb);
-	affirm(waiting_tcb->status == BLOCKED);
-	waiting_tcb->collected_vanished_child = child_pcb;
-}
 
 
 
@@ -229,10 +205,11 @@ _vanish( void )
 						 vanished_child_tasks_link);
 				init_pcbp->num_vanished_child_tasks--;
 
-				assign_child_task_to_parent_thread(child, init_pcbp);
-				make_thread_runnable(waiting_tcb);
+				assign_child_task_to_parent_thread(child->last_thread,
+					waiting_tcb);
+			} else {
+				mutex_unlock(&(init_pcbp->set_status_vanish_wait_mux));
 			}
-			mutex_unlock(&(init_pcbp->set_status_vanish_wait_mux));
 		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
@@ -262,13 +239,14 @@ _vanish( void )
 		/* Look at list of waiting parent threads, if non-empty, wake up */
 		tcb_t *waiting_tcb = Q_GET_FRONT(&(parent_pcb->waiting_threads_list));
 		if (waiting_tcb) {
-			assign_child_task_to_parent_thread(owning_task, parent_pcb);
 
-			/* Make waiting thread runnable */
-			waiting_tcb->status = RUNNABLE;
 			log("_vanish(): "
 			    "collected owning_task->first_thread_tid:%d, exit_status:%d",
 				owning_task->first_thread_tid, owning_task->exit_status);
+
+			/* Yield to parent task's waiting thread */
+			affirm(yield_execution(DEAD, NULL,
+		           assign_child_task_to_parent_thread, waiting_tcb) == 0);
 
 		/* No parent threads waiting, add self to vanished child list */
 		} else {
@@ -276,13 +254,64 @@ _vanish( void )
 						  owning_task, vanished_child_tasks_link);
 			parent_pcb->num_vanished_child_tasks++;
 			log("_vanish(): no parent waiting for me");
-		}
-		mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
 
-		/* Yield to parent task's waiting thread */
-		affirm(yield_execution(DEAD, waiting_tcb, NULL, NULL) == 0);
+			affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
+		}
+
 	}
 }
+
+void
+call_back_mutex_unlock( tcb_t *unused, void *v_parent_pcb_muxp )
+{
+	assert(unused);
+	assert(v_parent_pcb_muxp);
+	mutex_t *parent_pcb_muxp = (mutex_t *) v_parent_pcb_muxp;
+	switch_safe_mutex_unlock(parent_pcb_muxp);
+}
+
+
+/** @brief Assigns the first waiting parent thread a vanished child task
+ *
+ *  @pre There must be a waiting parent thread
+ *  @pre There must be a vanished child task PCB
+ *
+ *  @param parent_pcb PCB of task with waiting parent threads.
+ */
+void
+assign_child_task_to_parent_thread( tcb_t *child_last_thread,
+                                    void *v_waiting_thread )
+{
+	affirm(child_last_thread);
+	affirm(child_last_thread->status == DEAD);
+
+	affirm(v_waiting_thread);
+	tcb_t *waiting_thread = (tcb_t *) v_waiting_thread;
+
+	pcb_t *child_pcb = child_last_thread->owning_task;
+	affirm(child_pcb);
+
+	pcb_t *parent_pcb = waiting_thread->owning_task;
+	affirm(parent_pcb);
+
+	affirm(waiting_thread == Q_GET_FRONT(&(parent_pcb->waiting_threads_list)));
+
+	Q_REMOVE(&(parent_pcb->waiting_threads_list), waiting_thread,
+	         waiting_threads_link);
+	parent_pcb->num_waiting_threads--;
+
+	/* Waiting thread must not be on the scheduler queue or any other
+	 * queues that use the same link name eg mutex queue */
+	affirm_msg(!Q_IN_SOME_QUEUE(waiting_thread, scheduler_queue),
+	           "waiting_tcb:%p in scheduler queue!", waiting_thread);
+	affirm(waiting_thread->status == BLOCKED);
+
+	waiting_thread->collected_vanished_child = child_pcb;
+
+	switch_safe_mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
+	switch_safe_make_thread_runnable(waiting_thread);
+}
+
 
 
 void

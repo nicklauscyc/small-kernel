@@ -58,6 +58,9 @@ wait (int *status_ptr)
 		}
 	/* Collected vanished child on first try, so remove them from vanish list*/
 	} else {
+		affirm(
+			waiting_thread->collected_vanished_child->last_thread->status
+			== DEAD);
 		Q_REMOVE(&(owning_task->vanished_child_tasks_list),
 		         waiting_thread->collected_vanished_child,
                  vanished_child_tasks_link);

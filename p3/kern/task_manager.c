@@ -603,7 +603,11 @@ free_tcb(tcb_t *tcb)
 
 	affirm(tcb);
 	affirm(!tcb->collected_vanished_child);
-	affirm(tcb->status == DEAD);
+	//affirm(tcb->status == DEAD);
+	if (tcb->status != DEAD) {
+		MAGIC_BREAK;
+	}
+
 	affirm(!(Q_IN_SOME_QUEUE(tcb, waiting_threads_link)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
 	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));

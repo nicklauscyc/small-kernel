@@ -345,7 +345,7 @@ new_pd_from_parent( void *v_parent_pd )
 				if (parent_pt[j] & PRESENT_FLAG) {
 					/* Allocate new physical frame for child. */
 					child_pt[j] = physalloc();
-					assert(PAGE_ALIGNED(child_pt[j]));
+					if (!(PAGE_ALIGNED(child_pt[j]))) MAGIC_BREAK;
 					if (!child_pt[j]) {
 						free_pd_memory(child_pd); // Cleanup previous allocs
 
