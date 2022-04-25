@@ -59,7 +59,8 @@ void free_pd_memory( void *pd );
 
 int allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 							  uint32_t sys_prog_flag );
-void unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
+//void unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
+void unallocate_frame( uint32_t **pd, uint32_t virtual_address);
 
 void *get_pd( void );
 int zero_page_pf_handler( uint32_t faulting_address );

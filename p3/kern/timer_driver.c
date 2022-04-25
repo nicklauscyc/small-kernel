@@ -54,7 +54,11 @@ get_total_ticks( void )
  */
 void timer_int_handler(void) {
 	uint32_t current_total_ticks = ++total_ticks;
+	affirm(application_tickback);
+	++total_ticks; // Avoid ghost bug
+	--total_ticks; // Avoid ghost bug
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	// GHOST BUG -> if !affirm sometimes NULL?
 	application_tickback(current_total_ticks);
 	return;
 }

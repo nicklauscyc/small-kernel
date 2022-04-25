@@ -18,7 +18,7 @@ task_vanish( int status )
 
 	// Does not return
 	// TODO is there more to this design?
-	set_status(status);
+	_set_status(status);
 	_vanish();
 
 }

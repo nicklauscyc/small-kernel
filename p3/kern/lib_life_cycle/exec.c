@@ -87,6 +87,9 @@ exec( char *execname, char **argvec )
 	tcb->swexn_stack = 0;
 	tcb->swexn_arg = NULL;
 
+	log_warn("tcb->has_swexn_handler %d, for tcb %p", tcb->has_swexn_handler,
+			tcb);
+
 	log_exec_args(execname, argvec);
 
 	/* Execute */

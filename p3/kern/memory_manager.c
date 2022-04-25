@@ -125,7 +125,10 @@ unallocate_frame( uint32_t **pd, uint32_t virtual_address )
 	affirm(pt_entry & PRESENT_FLAG);
 
 	uint32_t phys_address = TABLE_ADDRESS(pt_entry);
-	physfree(phys_address);
+
+	/* Only physfree physically allocated frames (as opposed to ZFOD frames) */
+	if (phys_address != sys_zero_frame)
+		physfree(phys_address);
 
 	// Zero the entry as well
 	*ptep = 0;
@@ -187,7 +190,8 @@ zero_page_pf_handler( uint32_t faulting_address )
 	assert(is_valid_sys_prog_flag(sys_prog_flag));
 
 	/* Unallocate zero frame */
-	unallocate_user_zero_frame(pd, faulting_address);
+	//unallocate_user_zero_frame(pd, faulting_address);
+	unallocate_frame(pd, faulting_address);
 
 	/* Back up with actual frame */
 	// TODO version of allocate_frame that throws an error if already allocated
@@ -970,35 +974,35 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 	return 0;
 }
 
-void
-unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address)
-{
-	/* is_valid_pd() is expensive, hence the assert() */
-	assert(is_valid_pd(pd));
-	log("unallocate zero frame for vm:%p", (uint32_t *) virtual_address);
-
-	/* pd is NULL, abort with error */
-	affirm_msg(pd, "unallocate_zero_frame pd cannot be NULL!");
-
-	/* Find page table entry corresponding to virtual address */
-	uint32_t *ptep = get_ptep((const uint32_t **) pd, virtual_address);
-	affirm_msg(ptep, "unable to get page table entry");
-
-	uint32_t pt_entry = *ptep;
-
-	/* If page table entry contains a non-NULL address */
-	affirm_msg(TABLE_ADDRESS(pt_entry) == sys_zero_frame,
-			   "should be a zero frame allocated here!");
-
-	/* zero frame should be marked as READ_ONLY for users */
-	affirm_msg((pt_entry & PE_USER_READABLE) == PE_USER_READABLE,
-			   "zero frame should be PE_USER_READABLE");
-
-	/* Unallocate new physical frame */
-	*ptep = 0;
-
-	invalidate_tlb((void *)virtual_address);
-}
+//void
+//unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address)
+//{
+//	/* is_valid_pd() is expensive, hence the assert() */
+//	assert(is_valid_pd(pd));
+//	log("unallocate zero frame for vm:%p", (uint32_t *) virtual_address);
+//
+//	/* pd is NULL, abort with error */
+//	affirm_msg(pd, "unallocate_zero_frame pd cannot be NULL!");
+//
+//	/* Find page table entry corresponding to virtual address */
+//	uint32_t *ptep = get_ptep((const uint32_t **) pd, virtual_address);
+//	affirm_msg(ptep, "unable to get page table entry");
+//
+//	uint32_t pt_entry = *ptep;
+//
+//	/* If page table entry contains a non-NULL address */
+//	affirm_msg(TABLE_ADDRESS(pt_entry) == sys_zero_frame,
+//			   "should be a zero frame allocated here!");
+//
+//	/* zero frame should be marked as READ_ONLY for users */
+//	affirm_msg((pt_entry & PE_USER_READABLE) == PE_USER_READABLE,
+//			   "zero frame should be PE_USER_READABLE");
+//
+//	/* Unallocate new physical frame */
+//	*ptep = 0;
+//
+//	invalidate_tlb((void *)virtual_address);
+//}
 
 /** Allocates a memory region in virtual memory.
  *

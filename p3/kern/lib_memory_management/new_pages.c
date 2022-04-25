@@ -91,7 +91,7 @@ new_pages( void *base, int len )
 
             /* Cleanup */
             for (uint32_t j = 0; j < i; ++j) {
-                unallocate_user_zero_frame((void *)TABLE_ADDRESS(get_cr3()),
+                unallocate_frame((void *)TABLE_ADDRESS(get_cr3()),
                                            (uint32_t) base + (j * PAGE_SIZE));
             }
             return -1;

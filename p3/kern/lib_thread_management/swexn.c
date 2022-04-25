@@ -206,6 +206,7 @@ swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 	tcb_t *tcb = get_running_thread();
 
 	/* Register/Unregister handler */
+	log_warn("Swexn called: Setting handler for tcb %p", tcb);
 	tcb->swexn_handler		= (uint32_t)eip;
 	tcb->swexn_stack		= (uint32_t)esp3;
 	tcb->swexn_arg			= arg;
