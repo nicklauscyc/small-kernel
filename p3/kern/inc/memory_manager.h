@@ -71,5 +71,6 @@ void init_memory_manager( void );
 /** @brief Invalidates vm_addr entry in TLB (INVLPG semantincs) */
 void invalidate_tlb( void *vm_addr );
 
+int safe_strcmp(char *x, char *y);
 
 #endif /* _MEMORY_MANAGER_H */
