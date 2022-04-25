@@ -65,34 +65,23 @@ tick( unsigned int numTicks ) {
 	sleep_on_tick(numTicks);
 
 	if (get_running_thread()) {
-		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
-		!= 0xcafebabe) {
-			MAGIC_BREAK;
-		}
+		affirm (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		== 0xcafebabe);
 
-		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
-		!= 0xdeadbeef) {
-			MAGIC_BREAK;
-		}
+		affirm(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		== 0xdeadbeef);
 	}
 
 	/* Scheduler tick handler should be last, as it triggers context_switch */
 	scheduler_on_tick(numTicks);
+
 	if (get_running_thread()) {
-		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
-		!= 0xcafebabe) {
-			MAGIC_BREAK;
-		}
+		affirm (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		== 0xcafebabe);
 
-		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
-		!= 0xdeadbeef) {
-			MAGIC_BREAK;
-		}
+		affirm(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		== 0xdeadbeef);
 	}
-
-
-
-
 }
 
 void hard_code_test( char *s )

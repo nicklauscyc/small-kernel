@@ -62,13 +62,11 @@ panic( const char *fmt, ... )
 	vtprintf(fmt, args, CRITICAL_PRIORITY);
 	va_end(args);
 
-	MAGIC_BREAK;
-
 	disable_interrupts();
 	while (1) {
 		continue;
 	}
-    // call halt();
+    //TODO call halt();
 
 	return;
 }

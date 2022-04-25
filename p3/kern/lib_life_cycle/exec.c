@@ -66,7 +66,6 @@ exec( char *execname, char **argvec )
 	log("Exec() task with number of threads:%ld", num_threads);
 
 	if (num_threads > 1) {
-		MAGIC_BREAK;
 		return -1;
 	}
 	assert(num_threads == 1);
