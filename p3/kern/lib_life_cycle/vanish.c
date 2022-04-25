@@ -49,6 +49,9 @@ noop (void ){
 void assign_child_task_to_parent_thread( tcb_t *child_last_thread,
                                     void *v_waiting_thread );
 
+void
+call_back_mutex_unlock( tcb_t *unused, void *v_parent_pcb_muxp );
+
 /** @brief Frees all TCBs in a task except the last running thread's TCB
  *
  *  @pre There are no more active threads in the task
@@ -255,7 +258,8 @@ _vanish( void )
 			parent_pcb->num_vanished_child_tasks++;
 			log("_vanish(): no parent waiting for me");
 
-			affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
+			affirm(yield_execution(DEAD, NULL, call_back_mutex_unlock,
+				&(parent_pcb->set_status_vanish_wait_mux)) == 0);
 		}
 
 	}

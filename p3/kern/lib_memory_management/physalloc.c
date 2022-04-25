@@ -123,8 +123,9 @@ physalloc( void )
 	mutex_lock(&mux);
 
 	if (reuse_stack.top > 0) {
+		uint32_t page = reuse_stack.data[--reuse_stack.top];
 		mutex_unlock(&mux);
-		return reuse_stack.data[--reuse_stack.top];
+		return page;
 	}
 
 	if (UNCLAIMED_PAGES == 0) {
