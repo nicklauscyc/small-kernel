@@ -33,6 +33,7 @@
 #include <simics.h>
 #include <ureg.h> /* ureg_t */
 #include <syscall.h> /* PAGE_SIZE */
+#include <stddef.h>		/* NULL */
 #include <stdint.h>  /* uint32_t */
 #include <assert.h> /* assert() */
 #include <thr_internals.h> /* THR_INITIALIZED */
@@ -164,7 +165,9 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	assert(ureg);
 
 	/* If other user threads initialized, don't grow stack */
-	if (THR_INITIALIZED) return;
+	if (THR_INITIALIZED) {
+		Swexn(NULL, NULL, 0, ureg);
+	}
 
 	/* Get relevant info */
 	unsigned int cause = ureg->cause;
@@ -193,17 +196,16 @@ void pf_swexn_handler(void *arg, ureg_t *ureg)
 	} else {
 		if (cause == SWEXN_CAUSE_PAGEFAULT) {
 			if (cr2 < ((unsigned int) global_stack_low) - PAGE_SIZE) {
-				panic("Root thread pagefaulted at address 0x%x that was too "
-				      "far from lowest stack address", cr2);
+				/* Not our problem, let the kernel deal with it (ie kill us) */
+				Swexn(NULL, NULL, 0, ureg);
 			}
 			if (PERMISSION_ERR & error_code) {
-				panic("Root thread pagefaulted at address 0x%x that "
-				      "caused permission access error", cr2);
+				/* Not our problem, let the kernel deal with it (ie kill us) */
+				Swexn(NULL, NULL, 0, ureg);
 			}
 		} else {
-            panic("Non-Pagefault software exception encountered, "
-			      "cause: 0x%x, cr2: 0x%x, error_code: 0x%x", cause, cr2,
-				  error_code);
+			/* Not our problem, let the kernel deal with it (ie kill us) */
+			Swexn(NULL, NULL, 0, ureg);
 		}
 	}
 	return;

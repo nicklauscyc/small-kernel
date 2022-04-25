@@ -47,9 +47,10 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 2;
+int log_level = 4;
 
-void tick(unsigned int numTicks) {
+void
+tick( unsigned int numTicks ) {
 	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow
 	 * and break a lot of things. Let the user know they should be more polite
 	 * and restart their computer every other month! */
@@ -63,41 +64,24 @@ void tick(unsigned int numTicks) {
 	 * to (in most cases). */
 	sleep_on_tick(numTicks);
 
-	//if (get_running_thread()) {
-	//	assert(*((uint32_t *) get_kern_stack_hi((get_running_thread())))
-	//	== 0xcafebabe);
-	//	assert(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
-	//	== 0xdeadbeef);
-
-	//}
 	if (get_running_thread()) {
-		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
-		!= 0xcafebabe) {
-			MAGIC_BREAK;
-		}
+		affirm (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		== 0xcafebabe);
 
-		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
-		!= 0xdeadbeef) {
-			MAGIC_BREAK;
-		}
+		affirm(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		== 0xdeadbeef);
 	}
 
 	/* Scheduler tick handler should be last, as it triggers context_switch */
 	scheduler_on_tick(numTicks);
+
 	if (get_running_thread()) {
-		if (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
-		!= 0xcafebabe) {
-			MAGIC_BREAK;
-		}
+		affirm (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
+		== 0xcafebabe);
 
-		if (*((uint32_t *) get_kern_stack_lo((get_running_thread())))
-		!= 0xdeadbeef) {
-			MAGIC_BREAK;
-		}
+		affirm(*((uint32_t *) get_kern_stack_lo((get_running_thread())))
+		== 0xdeadbeef);
 	}
-
-
-
 }
 
 void hard_code_test( char *s )
@@ -129,8 +113,7 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 
 	task_manager_init();
 
-	// TODO: maybe should be somewhere else
-	initialize_zero_frame();
+	init_memory_manager();
 
 	log("this is DEBUG");
 	log_info("this is INFO");

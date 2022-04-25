@@ -14,6 +14,8 @@
 #include <string.h> /* memcpy() */
 #include <page.h> /* PAGE_SIZE */
 #include <task_manager.h>
+#include <task_manager_internal.h>
+
 #include <memory_manager.h> /* new_pd_from_parent, PAGE_ALIGNED() */
 #include <simics.h>
 #include <scheduler.h>
@@ -59,18 +61,19 @@ fork( void )
 	/* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
+
 	/* Only allow forking of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
+	affirm(parent_tcb);
+	pcb_t *parent_pcb = get_running_task();
+	affirm(parent_pcb);
 
-	assert(parent_tcb);
-	int num_threads = get_num_threads_in_owning_task(parent_tcb);
-	log_info("fork(): "
-			 "Forking task with number of threads:%ld", num_threads);
+	int num_threads = get_num_active_threads_in_owning_task(parent_tcb);
 
 	if (num_threads > 1) {
+		log_info("fork(): cannot fork when > 1 active thread in task");
 		return -1;
 	}
-
 	assert(num_threads == 1);
 
 	/* Get parent_pd in kernel memory, unaffected by paging */
@@ -87,25 +90,34 @@ fork( void )
 
 	/* Create child pcb and tcb */
 	uint32_t child_pid, child_tid;
-	if (create_pcb(&child_pid, child_pd) < 0) {
-		// TODO: delete page directory
+	if (create_pcb(&child_pid, child_pd, parent_pcb) < 0) {
+		log_info("fork(): unable to create child PCB");
 		return -1;
 	}
 
 	if (create_tcb(child_pid, &child_tid) < 0) {
+		log_info("fork(): unable to create child TCB");
 		// TODO: delete page directory
 		// TODO: delete_pcb of parent
+		//
+
 		return -1;
 	}
 
 	tcb_t *child_tcb;
 	assert(child_tcb = find_tcb(child_tid));
+	pcb_t *child_pcb = child_tcb->owning_task;
+
+	set_task_name(child_pcb, parent_pcb->execname);
+	register_if_init_task(child_pcb->execname, child_pcb->pid);
+
+
+	/* Register this task with simics for better debugging */
 #ifndef NDEBUG
-    /* Register this task with simics for better debugging */
-    sim_reg_child(child_pd, parent_pd);
+        sim_reg_child(child_pd, parent_pd);
 #endif
 
-	uint32_t *child_kernel_esp_on_ctx_switch;
+		uint32_t *child_kernel_esp_on_ctx_switch;
 	uint32_t *parent_kern_stack_hi = get_kern_stack_hi(parent_tcb);
 	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
 
@@ -113,7 +125,16 @@ fork( void )
 	                                                 child_kern_stack_hi,
 													 child_pd);
 	/* Set child's kernel esp */
+	affirm(child_kernel_esp_on_ctx_switch);
 	set_kern_esp(child_tcb, child_kernel_esp_on_ctx_switch);
+
+	/* If logging is set to debug, this will print stuff */
+	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
+
+	/* No need for locking as only 1 active thread */
+	Q_INSERT_TAIL(&(parent_pcb->active_child_tasks_list), child_pcb,
+			              vanished_child_tasks_link);
+	parent_pcb->num_active_child_tasks++;
 
 	/* Child inherits parent's software exception handler */
 	child_tcb->swexn_arg		 = parent_tcb->swexn_arg;
@@ -121,12 +142,12 @@ fork( void )
 	child_tcb->swexn_handler	 = parent_tcb->swexn_handler;
 	child_tcb->has_swexn_handler = parent_tcb->has_swexn_handler;
 
-	/* If logging is set to debug, this will print stuff */
-	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
     /* After setting up child stack and VM, register with scheduler */
-    if (make_thread_runnable(child_tcb) < 0)
+    if (make_thread_runnable(child_tcb) < 0) {
+		log_info("fork(): unable to make child thread runnable");
         return -1;
+	}
 
     /* Only parent will return here */
     assert(get_running_tid() == get_tcb_tid(parent_tcb));

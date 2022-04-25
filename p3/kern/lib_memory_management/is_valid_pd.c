@@ -9,7 +9,6 @@
 #include <page.h>		/* PAGE_SIZE */
 #include <assert.h>		/* assert, affirm */
 #include <physalloc.h>  /* is_physframe() */
-#include <simics.h>     /* MAGIC_BREAK */
 #include <memory_manager_internal.h>
 
 /** @brief Checks if paget table at index i of a page directory is valid or not.
@@ -81,7 +80,6 @@ is_valid_pt( uint32_t *pt, int pd_index )
 							 "phys_address:0x%08lx "
 							 "pt_index:0x%08lx",
 							 pt, pd_index, pt_entry, phys_address, i);
-					MAGIC_BREAK;
 					return 0;
 				}
 

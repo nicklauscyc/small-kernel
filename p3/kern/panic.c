@@ -39,6 +39,8 @@
 #include <asm.h>	/* disable interrupts */
 #include <lib_life_cycle/life_cycle.h> /* _vanish */
 
+#include <simics.h>
+
 /** @brief This function is called by the assert() macro defined in assert.h;
  *         it's also a nice simple general-purpose panic function. Ceases
  *         execution of all running threads.
@@ -60,14 +62,11 @@ panic( const char *fmt, ... )
 	vtprintf(fmt, args, CRITICAL_PRIORITY);
 	va_end(args);
 
-#include <simics.h>
-	MAGIC_BREAK;
-
 	disable_interrupts();
 	while (1) {
 		continue;
 	}
-    // call halt();
+    //TODO call halt();
 
 	return;
 }
@@ -81,6 +80,9 @@ panic_thread( const char *fmt, ... )
 	vtprintf(fmt, args, WARN_PRIORITY);
 	va_end(args);
 
+	lprintf("panic thread called");
+
+	_set_status(-2);
 	_vanish();
 
 	return;

@@ -17,10 +17,8 @@ task_vanish( int status )
 	log_info("call task_vanish");
 
 	// Does not return
+	// TODO is there more to this design?
+	_set_status(status);
 	_vanish();
 
-	//while(1)
-	//{
-	//	continue;
-	//}
 }

@@ -64,7 +64,7 @@ is_physframe( uint32_t phys_address )
 		log_warn("0x%08lx is not page aligned!", phys_address);
 		return 0;
 	}
-	if (!(USER_MEM_START <= phys_address && phys_address <= max_free_address)) {
+	if (!(USER_MEM_START < phys_address && phys_address <= max_free_address)) {
 		log_warn("0x%08lx is not in valid address range!", phys_address);
 		return 0;
 	}
@@ -123,8 +123,9 @@ physalloc( void )
 	mutex_lock(&mux);
 
 	if (reuse_stack.top > 0) {
+		uint32_t page = reuse_stack.data[--reuse_stack.top];
 		mutex_unlock(&mux);
-		return reuse_stack.data[--reuse_stack.top];
+		return page;
 	}
 
 	if (UNCLAIMED_PAGES == 0) {

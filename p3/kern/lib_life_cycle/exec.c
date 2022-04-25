@@ -61,7 +61,7 @@ exec( char *execname, char **argvec )
 	tcb_t *tcb = get_running_thread();
 
 	assert(tcb);
-	int num_threads = get_num_threads_in_owning_task(tcb);
+	int num_threads = get_num_active_threads_in_owning_task(tcb);
 
 	log("Exec() task with number of threads:%ld", num_threads);
 
@@ -85,6 +85,9 @@ exec( char *execname, char **argvec )
 	tcb->swexn_handler = 0;
 	tcb->swexn_stack = 0;
 	tcb->swexn_arg = NULL;
+
+	log_warn("tcb->has_swexn_handler %d, for tcb %p", tcb->has_swexn_handler,
+			tcb);
 
 	log_exec_args(execname, argvec);
 

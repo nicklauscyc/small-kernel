@@ -1,7 +1,6 @@
 ###########################################################################
 # This is the include file for the make file.
-# You should have to edit only this file to get things to build.
-###########################################################################
+# You should have to edit only this file to get things to build.  ###########################################################################
 
 ###########################################################################
 # Tab stops
@@ -88,6 +87,7 @@ UPDATE_METHOD = afs
 		   mem_permissions cho cho2 cho_variant score make_crash_helper\
 		   knife exec_basic_helper\
 		   remove_pages_test2 \
+		   wild_test1
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -95,7 +95,8 @@ UPDATE_METHOD = afs
 # A list of the test programs you want compiled in from the user/progs
 # directory.
 #
-STUDENTTESTS = test_suite exec_args_test exec_args_test_helper new_pages_test
+STUDENTTESTS = test_suite exec_args_test exec_args_test_helper new_pages_test\
+               myscore bad_status_ptr fork_exit_bomb_cleanup
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk
@@ -135,7 +136,7 @@ SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
 			   new_pages.o remove_pages.o readfile.o halt.o vanish.o \
-			   readline.o task_vanish.o set_status.o swexn.o
+			   readline.o task_vanish.o set_status.o swexn.o wait.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -178,6 +179,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_life_cycle/vanish.o \
 			  lib_life_cycle/task_vanish.o \
 			  lib_life_cycle/set_status.o \
+			  lib_life_cycle/wait.o \
 			  \
 			  lib_memory_management/asm_memory_management_handlers.o \
 			  lib_memory_management/new_pages.o \
@@ -185,6 +187,8 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_memory_management/physalloc.o \
 			  lib_memory_management/pagefault_handler.o \
 			  lib_memory_management/is_valid_pd.o \
+			  lib_memory_management/safe_strcmp.o \
+			  lib_memory_management/tlb_invalidate.o \
 			  \
 			  lib_console/asm_console_handlers.o \
 			  lib_console/print.o \

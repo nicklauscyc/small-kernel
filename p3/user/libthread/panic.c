@@ -59,7 +59,7 @@ void panic( const char *fmt, ... )
 
 	/* Print that all other threads will crash */
 	tprintf("Crashing, ceasing execution for all other threads in this task");
-	task_vanish(-1);
+	task_vanish(-69);
 
 	return;
 }

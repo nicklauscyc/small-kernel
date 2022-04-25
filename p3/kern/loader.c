@@ -49,6 +49,7 @@ static int first_task = 1;
 #define _MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MIN(A,B) _MIN(A,B)
 
+
 /** Copies data from a file into a buffer.
  *
  *  @param filename   the name of the file to copy data from
@@ -174,7 +175,7 @@ configure_stack( int argc, char **argv )
 	assert((uint32_t) stack_high == 0xFFFFFFFF);
 
 	/* Set lowest addressable byte on stack */
-	char *stack_low = stack_high - PAGE_SIZE + 1;
+	char *stack_low = stack_high - USER_THREAD_STACK_SIZE + 1;
 	assert(PAGE_ALIGNED(stack_low));
 
 	char *esp_char = stack_high - sizeof(uint32_t) + 1;
@@ -245,15 +246,7 @@ configure_stack( int argc, char **argv )
 int
 execute_user_program( char *fname, int argc, char **argv)
 {
-	//disable_interrupts();// FIXME why is this here gg
-	//if (first_task)
-	//	log_warn("Executing first task");
-	//else
-	//	log_warn("Executing not-first task");
-
-	//log_warn("Executing pointer %s", fname);
-	//enable_interrupts();
-	log_warn("executing task fname:%s", fname);
+	log_warn("executing task fname:'%s'", fname);
 
 	if (!first_task) {
 		/* Validate execname */
@@ -295,17 +288,17 @@ execute_user_program( char *fname, int argc, char **argv)
 	/* Load user program information */
 	simple_elf_t se_hdr;
     if (elf_check_header(kern_stack_execname) == ELF_NOTELF) {
-        return -1;
+		goto cleanup;
 	}
     if (elf_load_helper(&se_hdr, kern_stack_execname) == ELF_NOTELF) {
-        return -1;
+		goto cleanup;
 	}
     uint32_t pid, tid;
 
 	/* First task, so create a new task */
 	if (first_task) {
 		if (create_task(&pid, &tid, &se_hdr) < 0)
-			return -1;
+			goto cleanup;
 
 	/* Not the first task, so we replace the current running task */
 	} else {
@@ -313,17 +306,19 @@ execute_user_program( char *fname, int argc, char **argv)
 		tid = get_running_tid();
 
 		/* Create new pd */
-		uint32_t stack_lo = UINT32_MAX - PAGE_SIZE + 1;
-		uint32_t stack_len = PAGE_SIZE;
-		void *new_pd = new_pd_from_elf(&se_hdr, stack_lo, stack_len);
+		uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
+		void *new_pd = new_pd_from_elf(&se_hdr, stack_lo,
+		                               USER_THREAD_STACK_SIZE);
 		if (!new_pd) {
-			return -1;
+			goto cleanup;
 		}
 		void *old_pd = swap_task_pd(new_pd);
 		//assert(is_valid_pd(old_pd));
 		free_pd_memory(old_pd);
 		sfree(old_pd, PAGE_SIZE);
 	}
+	set_task_name(find_pcb(pid), kern_stack_execname);
+	log_warn("process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
 
 
 #ifdef DEBUG
@@ -333,26 +328,36 @@ execute_user_program( char *fname, int argc, char **argv)
 	sim_reg_process(get_tcb_pd(tcb), kern_stack_execname);
 #endif
 
+	/* If this is the init task, let the world know */
+	register_if_init_task(kern_stack_execname, pid);
+
+
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
-		return -1;
+		goto cleanup;
 	}
 
     if (transplant_program_memory(&se_hdr) < 0) {
-        return -1;
+		goto cleanup;
 	}
     uint32_t *esp = configure_stack(argc, kern_stack_argvec);
 
 	/* If this is the first task we must activate it */
 	if (first_task) {
         assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
+		/* Calls make_thread_runnable() */
 		task_set_active(tid);
 	}
 	first_task = 0;
 
 	/* Start the task */
+	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
 
 	panic("execute_user_program does not return");
+
+cleanup:
+	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
 	return -1;
 }

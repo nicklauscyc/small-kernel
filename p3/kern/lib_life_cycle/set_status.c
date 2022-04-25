@@ -7,16 +7,20 @@
 #include <timer_driver.h>		/* get_total_ticks() */
 #include <scheduler.h> /* get_running_thread() */
 #include <task_manager.h> /* set_task_exit_status() */
+
 void
-set_status( int status )
+_set_status( int status )
 {
-	/* Acknowledge interrupt immediately */
-	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-	log_info("set_status(): "
+	log_info("_set_status(): "
 			 "status: %d", status);
 
 	set_task_exit_status(status);
 }
 
-
-
+void
+set_status( int status )
+{
+	/* Acknowledge interrupt immediately */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+	_set_status(status);
+}

@@ -4,6 +4,7 @@
 #include <malloc_internal.h>	/* _malloc family of functions */
 #include <lib_thread_management/mutex.h> /* mutex_t */
 #include <logger.h>
+#include <simics.h>
 
 /* Where to put this mutex? We could initialize it in scheduler init? */
 static mutex_t malloc_mux;
@@ -41,7 +42,8 @@ void *memalign(size_t alignment, size_t size)
 {
 	LOCK;
 	void *p = _memalign(alignment, size);
-	log("memalign returned %p, size 0x%08lx", p, size);
+	log("memalign returned %p, size %u", p, size);
+
 	UNLOCK;
 	return p;
 }
@@ -66,6 +68,9 @@ void free(void *buf)
 {
 	LOCK;
 	_free(buf);
+	log("free(): freed %p", buf);
+
+
 	UNLOCK;
 }
 
@@ -73,7 +78,8 @@ void *smalloc(size_t size)
 {
 	LOCK;
     void *p = _smalloc(size);
-	log("smalloc returned %p, size 0x%08lx", p, size);
+	log("smalloc returned %p, size %u", p, size);
+
 
 	UNLOCK;
 	return p;
@@ -83,7 +89,8 @@ void *smemalign(size_t alignment, size_t size)
 {
 	LOCK;
     void *p = _smemalign(alignment, size);
-	log("smemalign returned %p, size 0x%08lx", p, size);
+	log("smemalign returned %p, size %u", p, size);
+
 
 	UNLOCK;
 	return p;
@@ -93,7 +100,8 @@ void sfree(void *buf, size_t size)
 {
 	LOCK;
 	_sfree(buf, size);
-	log("sfree(): freed %p, size 0x%08lx", buf, size);
+	log("sfree(): freed %p, size %u", buf, size);
+
 
 	UNLOCK;
 }

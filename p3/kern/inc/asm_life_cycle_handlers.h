@@ -12,5 +12,6 @@ extern void call_exec( void );
 extern void call_vanish( void );
 extern void call_task_vanish( void );
 extern void call_set_status( void );
+extern void call_wait( void );
 
 #endif /* ASM_LIFE_CYCLE_HANDLERS_H_ */

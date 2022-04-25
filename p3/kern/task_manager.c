@@ -5,7 +5,7 @@
 //
 #include <task_manager.h>
 #include <task_manager_internal.h>
-
+#include <assert.h> /* affirm() */
 
 #include <scheduler.h>	/* add_tcb_to_run_queue() */
 #include <eflags.h>	/* get_eflags*/
@@ -29,6 +29,7 @@
 
 #define ELF_IF (1 << 9);
 
+
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
 static uint32_t get_user_eflags( void );
@@ -36,14 +37,26 @@ static uint32_t get_user_eflags( void );
 Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
 
+/* List of PCBs whose running task is init() */
+Q_NEW_HEAD(init_pcb_list_t, pcb);
+static init_pcb_list_t init_pcb_list;
+static mutex_t init_pcb_list_mux;
 
 static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
+
 /** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
-static uint32_t next_pid = 0;
-/** @brief Next tid to be assigned. Only to be updated by get_unique_tid */
-static uint32_t next_tid = 0;
+static uint32_t next_pid = 1;
+
+/** @brief Next tid to be assigned. Only to be updated by get_unique_tid
+ *
+ *  This starts from 1 since an uninitialized tid is 0, so we know that
+ *  for any pcb such that pcb->first_thread_tid = 0 we know that within
+ *  a particular call to create_tcb() we are creating the first thread
+ *  of a task
+ */
+static uint32_t next_tid = 1;
 
 void *
 get_tcb_pd(tcb_t *tcb)
@@ -81,6 +94,7 @@ task_manager_init ( void )
 {
 	map_init();
 	mutex_init(&pcb_list_mux);
+	mutex_init(&init_pcb_list_mux);
 	mutex_init(&tcb_map_mux);
 	Q_INIT_HEAD(&pcb_list);
 }
@@ -141,12 +155,14 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 	/* Allocates physical memory to a new page table and enables VM */
 	/* Ensure alignment of page table directory */
 	/* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
-	void *pd = new_pd_from_elf(elf, UINT32_MAX - PAGE_SIZE + 1, PAGE_SIZE);
+	void *pd = new_pd_from_elf(elf, UINT32_MAX - USER_THREAD_STACK_SIZE + 1,
+							   USER_THREAD_STACK_SIZE);
 	if (!pd) {
 		return -1;
 	}
 
-	if (create_pcb(pid, pd) < 0) {
+	if (create_pcb(pid, pd, NULL) < 0) {
+		free_pd_memory(pd);
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
@@ -158,6 +174,7 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -250,6 +267,16 @@ find_pcb( uint32_t pid )
 	return res;
 }
 
+void
+remove_pcb( pcb_t *pcbp )
+{
+	mutex_lock(&pcb_list_mux);
+	Q_REMOVE(&pcb_list, pcbp, task_link);
+	mutex_unlock(&pcb_list_mux);
+}
+
+
+
 /** Looks for tcb with given tid.
  *
  *	@param tid Thread id to look for
@@ -271,28 +298,58 @@ find_tcb( uint32_t tid )
  *	@return 0 on success, negative value on error
  */
 int
-create_pcb( uint32_t *pid, void *pd )
+create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 {
-	pcb_t *pcb = smalloc(sizeof(pcb_t));
-	if (!pcb)
-		return -1;
-
 	//mutex_init(&thread_list_mux); TODO: Enable this
-	*pid = get_unique_pid();
-	pcb->pid = *pid;
-	pcb->pd = pd;
-	pcb->prepared = 0;
 
-	/* Initialize thread queue */
-	Q_INIT_HEAD(&(pcb->owned_threads));
-	pcb->num_threads = 0;
-
-	/* Initialize set_status_vanish_wait_mux */
+	pcb_t *pcb = smalloc(sizeof(pcb_t));
+	if (!pcb) {
+		return -1;
+	}
 	if (mutex_init(&(pcb->set_status_vanish_wait_mux)) < 0) {
 		return -1;
 	}
+	pcb->pd = pd;
+	*pid = get_unique_pid();
+	pcb->pid = *pid;
+	pcb->exit_status = 0;
 
-	/* Add to pcb linked list*/
+	/* Immediate child tasks that have all their threads vanished */
+	Q_INIT_HEAD(&(pcb->vanished_child_tasks_list));
+	pcb->num_vanished_child_tasks = 0;
+
+	/* Immediate child tasks that have at least 1 active thread */
+	Q_INIT_HEAD(&(pcb->active_child_tasks_list));
+	pcb->num_active_child_tasks = 0;
+
+	/* List of task threads waiting for child threads to vanish */
+	Q_INIT_HEAD(&(pcb->waiting_threads_list));
+	pcb->num_waiting_threads = 0;
+
+	/* Set parent task PCB pointer if present */
+	if (parent_pcb) {
+		pcb->parent_pcb = parent_pcb;
+		pcb->parent_pid = parent_pcb->pid;
+	} else {
+		pcb->parent_pcb = NULL;
+		pcb->parent_pid = 0;
+	}
+	/* Link to later put this PCB on its parent's vanished_child_tasks_list */
+	Q_INIT_ELEM(pcb, vanished_child_tasks_link);
+	pcb->total_threads = 0;
+
+	/* For putting into list of init task PCBs */
+	Q_INIT_ELEM(pcb, init_pcb_link);
+
+	/* Initialize task's active and vanished thread lists */
+	Q_INIT_HEAD(&(pcb->active_threads_list));
+	pcb->num_active_threads = 0;
+	Q_INIT_HEAD(&(pcb->vanished_threads_list));
+	pcb->num_vanished_threads = 0;
+	pcb->first_thread_tid = 0;
+	pcb->last_thread = NULL;
+
+	/* Add to pcb linked list */
 	mutex_lock(&pcb_list_mux);
 	Q_INIT_ELEM(pcb, task_link);
 	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
@@ -312,11 +369,14 @@ int
 create_tcb( uint32_t pid, uint32_t *tid )
 {
 	pcb_t *owning_task;
-	if ((owning_task = find_pcb(pid)) == NULL)
+	if ((owning_task = find_pcb(pid)) == NULL) {
+		log_info("create_tcb(): unable to find_pcb()");
 		return -1;
+	}
 
 	tcb_t *tcb = smalloc(sizeof(tcb_t));
 	if (!tcb) {
+		log_info("create_tcb(): smalloc(sizeof(tcb_t)) returned NULL");
 		return -1;
 	}
 
@@ -326,25 +386,49 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	tcb->status = UNINITIALIZED;
 	tcb->owning_task = owning_task;
 
-	tcb->kernel_stack_lo = smalloc(PAGE_SIZE);
+	tcb->collected_vanished_child = NULL;
+
+	tcb->kernel_stack_lo = smalloc(KERNEL_THREAD_STACK_SIZE);
+
 	if (!tcb->kernel_stack_lo) {
 		sfree(tcb, sizeof(tcb_t));
+		log_info("create_tcb(): smalloc() kernel stack returned NULL");
+
 		return -1;
+	}
+	/* Set a task's first thread's thread id */
+	if (owning_task->first_thread_tid == 0) {
+		owning_task->first_thread_tid = *tid;
 	}
 
 	/* TODO: Add mutex to pcb struct and lock it here.
 	 *		 For now, this just checks that we're not
 	 *		 adding a second thread to an existing task. */
-	affirm(!Q_GET_FRONT(&owning_task->owned_threads));
+	affirm(!Q_GET_FRONT(&owning_task->active_threads_list));
 
-	/* Add to owning task's list of threads, increment num_threads not DEAD */
-	//mutex_lock(&owning_task->thread_list_mux);
-	Q_INIT_ELEM(tcb, scheduler_queue);
+	/* Link for when this thread calls wait() */
+	Q_INIT_ELEM(tcb, waiting_threads_link);
+
+	/* Add to owning task's list of threads, increment num_active_threads not
+	 * DEAD */
+		Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INIT_ELEM(tcb, tid2tcb_queue);
-	Q_INIT_ELEM(tcb, owning_task_thread_list);
-	Q_INSERT_TAIL(&(owning_task->owned_threads), tcb, owning_task_thread_list);
-	++(owning_task->num_threads);
-	//mutex_unlock(&owning_task->thread_list_mux);
+
+
+
+	Q_INIT_ELEM(tcb, task_thread_link);
+
+	mutex_lock(&owning_task->set_status_vanish_wait_mux);
+	Q_INSERT_TAIL(&(owning_task->active_threads_list), tcb, task_thread_link);
+	++(owning_task->num_active_threads);
+	++(owning_task->total_threads);
+
+	/* Set first thread tid of pcb */
+	if (owning_task->first_thread_tid == 0) {
+		owning_task->first_thread_tid = *tid;
+	}
+
+	mutex_unlock(&owning_task->set_status_vanish_wait_mux);
 
 	log("Inserting thread with tid %lu", tcb->tid);
 	mutex_lock(&tcb_map_mux);
@@ -354,12 +438,12 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	/* memset the whole thing, TODO delete this in future, only good for
 	 * debugging when printing the whole stack
 	 */
-	memset(tcb->kernel_stack_lo, 0, PAGE_SIZE);
+	memset(tcb->kernel_stack_lo, 0, KERNEL_THREAD_STACK_SIZE);
 
 	log("create_tcb(): tcb->stack_lo:%p", tcb->kernel_stack_lo);
 	tcb->kernel_esp = tcb->kernel_stack_lo;
 	tcb->kernel_esp = (uint32_t *)(((uint32_t)tcb->kernel_esp) +
-			  PAGE_SIZE - sizeof(uint32_t));
+			  KERNEL_THREAD_STACK_SIZE - sizeof(uint32_t));
 	tcb->kernel_stack_hi = tcb->kernel_esp;
 	log("create_tcb(): tcb->kernel_stack_hi:%p", tcb->kernel_stack_hi);
 
@@ -369,9 +453,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	tcb->swexn_stack = 0;
 	tcb->swexn_arg = NULL;
 
-	// set the canary
 	*(tcb->kernel_stack_hi) = 0xcafebabe;
-
 	*(tcb->kernel_stack_lo) = 0xdeadbeef;
 
 	return 0;
@@ -380,23 +462,24 @@ create_tcb( uint32_t pid, uint32_t *tid )
 /** @brief Returns number of threads in the owning task
  *
  *	The return value cannot be zero. The moment a tcb_t is initialize it
- *	is immediately added to its owning_task's owned_threads field, which is
+ *	is immediately added to its owning_task's active_threads field, which is
  *	a list of threads owned by that task.
  *
  *	@param tcbp Pointer to tcb
  *	@return Number of threads in owning task
  */
 int
-get_num_threads_in_owning_task( tcb_t *tcbp )
+get_num_active_threads_in_owning_task( tcb_t *tcbp )
 {
 	/* Argument checks */
 	affirm_msg(tcbp, "Given tcb pointer cannot be NULL!");
 	affirm_msg(tcbp->owning_task, "Tcb pointer to owning task cannot be NULL!");
 
 	/* Check that we have a legal number of threads and return */
-	uint32_t num_threads = tcbp->owning_task->num_threads;
-	affirm_msg(num_threads > 0, "Owning task must have at least 1 thread!");
-	return num_threads;
+	uint32_t num_active_threads = tcbp->owning_task->num_active_threads;
+	affirm_msg(num_active_threads >= 0,
+	           "Owning task must have non-negative threads!");
+	return num_active_threads;
 }
 
 /** @brief Gets the highest writable address of the kernel stack for thread
@@ -504,5 +587,137 @@ get_pid( void )
 	return pid;
 }
 
+/** @brief Frees a TCB and removes the TCB from tid2tcb hashmap list
+ *
+ *
+ *  @pre TCB must not be in any list/queue except for the tid2tcb hashmap list
+ *  @pre TCB must not be holding on to any vanished child taskss
+ *  @pre TCB must be DEAD
+ *
+ *  @param tcb Pointer to TCB to be freed
+ *  @return Void.
+ */
+void
+free_tcb(tcb_t *tcb)
+{
+	log_warn("free_tcb(): cleaning up thread tid:%d", tcb->tid);
+
+	affirm(tcb);
+	affirm(!tcb->collected_vanished_child);
+	affirm(tcb->status == DEAD);
+	affirm(!(Q_IN_SOME_QUEUE(tcb, waiting_threads_link)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, scheduler_queue)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, tid2tcb_queue)));
+	affirm(!(Q_IN_SOME_QUEUE(tcb, task_thread_link)));
+	affirm(tcb->status == DEAD);
 
 
+	/* free stack and structure memory */
+	sfree(tcb->kernel_stack_lo, KERNEL_THREAD_STACK_SIZE);
+	sfree(tcb, sizeof(tcb_t));
+
+	log_info("free_tcb(): cleaned up thread tid:%d", tcb->tid);
+}
+
+void
+free_pcb_but_not_pd(pcb_t *pcb)
+{
+	affirm(pcb);
+
+	/* pd should already be freed and set to NULL */
+	affirm(!pcb->pd);
+	log_warn("free_pcb_but_not_pd(): cleaned up pcb->first_thread_tid:%d",
+			 pcb->first_thread_tid);
+
+
+	/* All lists should be empty */
+	affirm(!Q_GET_FRONT(&pcb->vanished_child_tasks_list));
+
+	affirm(!Q_GET_FRONT(&pcb->active_child_tasks_list));
+
+	affirm(!Q_GET_FRONT(&pcb->waiting_threads_list));
+
+
+	/* Already removed from vanished_child_tasks_list */
+	affirm(!Q_IN_SOME_QUEUE(pcb, vanished_child_tasks_link));
+	affirm(!Q_GET_FRONT(&pcb->active_threads_list));
+
+	/* Left to free the last task thread */
+	affirm(Q_GET_FRONT(&pcb->vanished_threads_list) == pcb->last_thread);
+	affirm(Q_GET_TAIL(&pcb->vanished_threads_list) == pcb->last_thread);
+	affirm(pcb->last_thread);
+	map_remove(pcb->last_thread->tid);
+	free_tcb(pcb->last_thread);
+
+	sfree(pcb, sizeof(pcb_t));
+	log_info("free_pcb_but_not_pd(): complete cleaned up pcb->first_thread_tid:%d",
+			 pcb->first_thread_tid);
+
+}
+
+
+/** @brief Checks if task indicated by given pid is running the 'init' task.
+ *
+ * 	The latest fork() or exec() which is 'init' will be the init task,
+ * 	since 'init' can fork a child, and the child will run init while
+ * 	the parent runs the shell
+ *
+ * 	FIXME: this is fragile because how do we know if the parent or child
+ *  task after a fork runs shell while the other stays as init?
+ *
+ *  @pre pid must be pid of PCB running kern_stack_execname
+ *  @pre kern_stack_execname must be validated
+ */
+void
+register_if_init_task( char *execname, uint32_t pid )
+{
+	mutex_lock(&init_pcb_list_mux);
+	int init_strlen = strlen("init");
+	if ((execname[init_strlen] == '\0')
+		&& (strncmp(execname, "init", init_strlen) == 0)) {
+
+		pcb_t *pcb = find_pcb(pid);
+		affirm(pcb);
+
+		Q_INSERT_FRONT(&init_pcb_list, pcb, init_pcb_link);
+	}
+	/* Remove any non init pcb */
+	pcb_t *curr = Q_GET_FRONT(&init_pcb_list);
+	while (curr) {
+		pcb_t *next = Q_GET_NEXT(curr, init_pcb_link);
+		if (strcmp(curr->execname, "init") != 0) {
+			Q_REMOVE(&init_pcb_list, curr, init_pcb_link);
+		}
+		curr = next;
+	}
+	mutex_unlock(&init_pcb_list_mux);
+
+}
+
+pcb_t *
+get_init_pcbp( void )
+{
+	mutex_lock(&init_pcb_list_mux);
+
+	pcb_t * init_pcbp = Q_GET_FRONT(&init_pcb_list);
+	affirm(init_pcbp);
+	affirm(strcmp(init_pcbp->execname, "init") == 0);
+
+	mutex_unlock(&init_pcb_list_mux);
+
+	return init_pcbp;
+}
+
+
+/** @brief sets the task name
+ *
+ *  @pre execname must be validated
+ */
+void
+set_task_name( pcb_t *pcbp, char *execname )
+{
+	affirm(pcbp);
+	affirm(execname);
+	memset(pcbp->execname, 0, USER_STR_LEN);
+	memcpy(pcbp->execname, execname, strlen(execname));
+}

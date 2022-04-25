@@ -5,6 +5,7 @@
 
 #include <elf_410.h> /* simple_elf_t */
 #include <stdint.h> /* uint32_t */
+#include <page.h>
 
 #define PAGE_DIRECTORY_INDEX 0xFFC00000
 #define PAGE_TABLE_INDEX 0x003FF000
@@ -58,11 +59,18 @@ void free_pd_memory( void *pd );
 
 int allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 							  uint32_t sys_prog_flag );
-void unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address);
+void unallocate_frame( uint32_t **pd, uint32_t virtual_address);
 
 void *get_pd( void );
 int zero_page_pf_handler( uint32_t faulting_address );
+void create_initial_pd( void );
+void *get_initial_pd( void );
 
+void init_memory_manager( void );
 
+/** @brief Invalidates vm_addr entry in TLB (INVLPG semantincs) */
+void invalidate_tlb( void *vm_addr );
+
+int safe_strcmp(char *x, char *y);
 
 #endif /* _MEMORY_MANAGER_H */

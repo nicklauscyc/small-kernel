@@ -71,6 +71,34 @@ print_status(status_t status)
 	}
 }
 
+char *
+status_str(status_t status)
+{
+	switch (status) {
+		case RUNNING:
+			return "RUNNING";
+			break;
+		case RUNNABLE:
+			return "RUNNABLE";
+			break;
+		case DESCHEDULED:
+			return "DESCHEDULED";
+			break;
+		case BLOCKED:
+			return "BLOCKED";
+			break;
+		case DEAD:
+			return "DEAD";
+			break;
+		case UNINITIALIZED:
+			return "UNINITIALIZED";
+			break;
+		default:
+			return "UNKNOWN";
+			break;
+	}
+}
+
 tcb_t *
 get_next_run( void )
 {
@@ -92,18 +120,19 @@ add_to_run( tcb_t *tcb )
 /** @brief Yield execution of current thread, storing it at
  *		   the runnable queue if store_status is RUNNABLE.
  *
+ *  @pre scheduler must be initialized
  *	@param store_status Status which currently running thread will take
  *	@param tcb			Thread to yield to, NULL if any
  *	@param callback		Function to be called atomically with tcb of
  *						current thread. MUST BE SHORT
  *	@return 0 on success, negative value on error */
 int
+
 yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data )
 {
 	if (!scheduler_init) {
-		log_warn("Attempting to call yield but scheduler is not initialized");
-		return -1;
+		panic("Attempting to call yield but scheduler is not initialized");
 	}
 
 	/* Validate store status */
@@ -126,7 +155,6 @@ yield_execution( status_t store_status, tcb_t *tcb,
 			panic("Trying to store thread with unknown status!");
 			break;
 	}
-
 	disable_interrupts();
 
 	if (tcb && (get_tcb_status(tcb) != RUNNABLE)
@@ -147,10 +175,15 @@ yield_execution( status_t store_status, tcb_t *tcb,
 	/* Get tcb to swap to */
 	if (!tcb)
 		tcb = get_next_run();
-	else
-		/* Ensure this thread is no longer in the runnable queue */
-		Q_REMOVE(&runnable_q, tcb, scheduler_queue);
 
+	else {
+		/* Ensure this thread is no longer in the runnable queue */
+		/* In the case where a waiting thread is made runnable by a vanished
+		 * child task thread that wakes it up, the waiting thread's TCB
+		 * will not be in the runnable_q and so no removing is needed */
+		if (Q_IN_SOME_QUEUE(tcb, scheduler_queue))
+			Q_REMOVE(&runnable_q, tcb, scheduler_queue);
+	}
 
 	swap_running_thread(tcb);
 	return 0;
@@ -177,6 +210,24 @@ get_running_thread( void )
 {
 	return running_thread;
 }
+
+/** @brief Gets pointer to PCB that currently running thread belongs to
+ *
+ *  @return non-NULL pointer of owning task of currently running thread if
+ *          currently running thread is non-NULL, NULL otherwise
+ */
+pcb_t *
+get_running_task( void )
+{
+	if (!running_thread) {
+		affirm(!scheduler_init);
+		return NULL;
+	} else {
+		affirm(running_thread->owning_task);
+		return running_thread->owning_task;
+	}
+}
+
 
 /** @brief Initializes scheduler and registers its first thread.
  *
@@ -220,6 +271,7 @@ make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 		return -1;
 	}
 
+	// TODO when will we add an UNINITIALIZED status tcbp to the queue?
 	if (tcbp->status == UNINITIALIZED || switch_safe) {
 		add_to_run(tcbp);
 	} else {
@@ -288,6 +340,7 @@ swap_running_thread( tcb_t *to_run )
 	affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
 			   "swap_running_thread");
 
+	/* TODO i think now this will never be true */
 	/* No-op if we swap with ourselves */
 	if (to_run->tid == running_thread->tid) {
 		affirm(to_run->status == RUNNABLE);
@@ -296,7 +349,6 @@ swap_running_thread( tcb_t *to_run )
 	}
 
 	tcb_t *running = running_thread;
-
 	to_run->status = RUNNING;
 	running_thread = to_run;
 

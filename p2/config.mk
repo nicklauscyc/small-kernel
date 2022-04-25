@@ -135,7 +135,8 @@ UPDATE_METHOD = afs
 		   wild_test1 \
 		   beady_test bg bistromath broadcast_test cvar_test \
 		   excellent halt_test join_specific_test juggle largetest \
-		   mandelbrot multitest mutex_destroy_test mutex_test nibbles
+		   mandelbrot multitest mutex_destroy_test mutex_test nibbles \
+		   remove_pages_test2
 
 
 

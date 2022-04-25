@@ -16,6 +16,7 @@
 #include <page.h> /* PAGE_SIZE */
 #include <simics.h>
 #include <physalloc.h>
+#include <memory_manager.h>
 #include <memory_manager_internal.h>
 
 // TODO locking
@@ -77,8 +78,9 @@ remove_pages( void *base )
 	log("remove_pages(): "
 			 "unallocated base:%p, len:%d", base,
 			 curr - ((uint32_t) base));
+
 	/* TODO jank get and set cr3() to flush TLB entries */
-	set_cr3(get_cr3());
+	//set_cr3(get_cr3());
 
     return 0;
 }

@@ -10,10 +10,12 @@
 #include <memory_manager.h>		/* is_valid_user_pointer() */
 #include <install_handler.h>	/* install_handler_in_idt() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
+#include <logger.h>
 
 int
 _deschedule( int *reject )
 {
+
 	if (!is_valid_user_pointer(reject, READ))
 		return -1;
 
