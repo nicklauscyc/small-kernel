@@ -129,6 +129,8 @@ unallocate_frame( uint32_t **pd, uint32_t virtual_address )
 
 	// Zero the entry as well
 	*ptep = 0;
+
+	invalidate_tlb((void *)virtual_address);
 }
 
 
@@ -197,7 +199,8 @@ zero_page_pf_handler( uint32_t faulting_address )
 	}
 
 	/* Flush TLB so we zero out the appropriate physical frame */
-	set_cr3(get_cr3());
+	invalidate_tlb((void *)faulting_address);
+	//set_cr3(get_cr3());
 	log("memsetting faulting_address %p, (table addr %p) to 0.",
 			(void *)faulting_address,(void *)TABLE_ADDRESS(faulting_address));
 	memset((void *)TABLE_ADDRESS(faulting_address), 0, PAGE_SIZE);
@@ -961,6 +964,9 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 
 	/* Mark as READ_ONLY for user */
 	*ptep |= (sys_prog_flag | PE_USER_READABLE);
+
+	invalidate_tlb((void *)virtual_address);
+
 	return 0;
 }
 
@@ -990,6 +996,8 @@ unallocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address)
 
 	/* Unallocate new physical frame */
 	*ptep = 0;
+
+	invalidate_tlb((void *)virtual_address);
 }
 
 /** Allocates a memory region in virtual memory.

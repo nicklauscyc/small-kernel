@@ -23,7 +23,7 @@
 int
 new_pages( void *base, int len )
 {
-    assert(is_valid_pd(get_tcb_pd(get_running_thread())));
+    //assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
@@ -58,15 +58,17 @@ new_pages( void *base, int len )
                  "not enough free frames to satisfy request!");
         return -1;
     }
+
     /* Check if any portion is currently allocated in task address space */
     char *base_char = (char *) base;
-    for (uint32_t i = 0; i < len; ++i) {
-        if (is_user_pointer_allocated(base_char + i)) {
+    for (uint32_t i = 0; i < len / PAGE_SIZE; ++i) {
+        if (is_user_pointer_allocated(base_char + i * PAGE_SIZE)) {
             log_info("new_pages(): "
-                     "%p is already allocated!", base_char + i);
+                     "%p is already allocated!", base_char + i * PAGE_SIZE);
             return -1;
         }
     }
+
     /* Allocate a zero frame to each PAGE_SIZE region of memory */
     int res = 0;
     for (uint32_t i = 0; i < len / PAGE_SIZE; ++i) {
@@ -96,6 +98,6 @@ new_pages( void *base, int len )
         }
     }
 	/* TODO jank get and set cr3() to flush TLB entries */
-	set_cr3(get_cr3());
+	//set_cr3(get_cr3());
     return res;
 }

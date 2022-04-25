@@ -49,7 +49,8 @@ volatile static int __kernel_all_done = 0;
  */
 int log_level = 4;
 
-void tick(unsigned int numTicks) {
+void
+tick( unsigned int numTicks ) {
 	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow
 	 * and break a lot of things. Let the user know they should be more polite
 	 * and restart their computer every other month! */

@@ -53,8 +53,6 @@ get_total_ticks( void )
  *  @return Void.
  */
 void timer_int_handler(void) {
-
-	/* Acknowledging the interrupt before any context switch can take place */
 	uint32_t current_total_ticks = ++total_ticks;
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 	application_tickback(current_total_ticks);
@@ -75,7 +73,7 @@ void timer_int_handler(void) {
  *         timer interrupts.
  *  @return Void.
  */
-void init_timer(void (*tickback)(unsigned int)) {
+void init_timer(void (*volatile tickback)(unsigned int)) {
 
   /* Set application provided tickback function */
   assert(tickback != NULL);

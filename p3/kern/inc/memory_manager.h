@@ -68,4 +68,8 @@ void *get_initial_pd( void );
 
 void init_memory_manager( void );
 
+/** @brief Invalidates vm_addr entry in TLB (INVLPG semantincs) */
+void invalidate_tlb( void *vm_addr );
+
+
 #endif /* _MEMORY_MANAGER_H */
