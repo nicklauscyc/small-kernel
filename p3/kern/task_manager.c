@@ -162,6 +162,7 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 	}
 
 	if (create_pcb(pid, pd, NULL) < 0) {
+		free_pd_memory(pd);
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
