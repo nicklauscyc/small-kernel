@@ -196,6 +196,7 @@ int
 swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 {
 	log_warn("Esp3 is %p", esp3);
+	MAGIC_BREAK; // this causes a triple fault
 
 	/* Since arg is only ever used by the user software exception handler,
 	 * no validation of it need be done. */

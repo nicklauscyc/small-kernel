@@ -239,6 +239,11 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(WAIT_INT, NULL, call_wait, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
+	if (install_handler(THREAD_FORK_INT, NULL, call_setup_thread_fork, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
+
 
 
 
