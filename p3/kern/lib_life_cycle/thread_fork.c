@@ -49,11 +49,13 @@ thread_fork( void )
 	//log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
 	// FIXME: Maybe this should be inside create_tcb
-	mutex_lock(&(pcb->set_status_vanish_wait_mux));
-	Q_INSERT_TAIL(&(pcb->active_child_tasks_list), pcb,
-			              vanished_child_tasks_link);
-	pcb->num_active_child_tasks++;
-	mutex_unlock(&(pcb->set_status_vanish_wait_mux));
+	// FIXED: dw this is for adding tasks, we have a new thread and
+	// create_tcb automatically does this
+	//mutex_lock(&(pcb->set_status_vanish_wait_mux));
+	//Q_INSERT_TAIL(&(pcb->active_child_tasks_list), pcb,
+	//		              vanished_child_tasks_link);
+	//pcb->num_active_child_tasks++;
+	//mutex_unlock(&(pcb->set_status_vanish_wait_mux));
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(child_tcb) < 0) {
