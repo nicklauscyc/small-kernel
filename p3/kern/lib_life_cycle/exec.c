@@ -70,6 +70,7 @@ exec( char *execname, char **argvec )
 	}
 	assert(num_threads == 1);
 
+	//TODO delete this since we validate in execute_user_program?
 	/* Validate execname */
 	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
 		return -1;

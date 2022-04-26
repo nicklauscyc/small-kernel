@@ -32,7 +32,6 @@
 
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
-static uint32_t get_user_eflags( void );
 
 Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
@@ -140,8 +139,7 @@ swap_task_pd( void *new_pd )
  *
  *	@param pid Pointer where task id for new task is stored
  *	@param tid Pointer where thread id for new thread is stored
- *	@param elf Elf header for use in allocating new task's memory
- *
+ *	@param elf Pointer to Elf header for use in allocating new task's memory
  *	@return 0 on success, negative value on failure.
  * */
 int
@@ -149,32 +147,30 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 {
 	if (!pid) return -1;
 	if (!tid) return -1;
-	// TODO: Think about preconditions for this.
-	// Paging fine, how about making it a critical section?
+	if (!elf) return -1;
 
 	/* Allocates physical memory to a new page table and enables VM */
 	/* Ensure alignment of page table directory */
-	/* Create new task. Stack is defined here to be the last PAGE_SIZE bytes. */
 	void *pd = new_pd_from_elf(elf, UINT32_MAX - USER_THREAD_STACK_SIZE + 1,
 							   USER_THREAD_STACK_SIZE);
 	if (!pd) {
 		return -1;
 	}
 
-	if (create_pcb(pid, pd, NULL) < 0) {
+	pcb_t *owning_task = create_pcb(pid, pd, NULL);
+	if (!owning_task) {
 		free_pd_memory(pd);
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
-	pcb_t *pcb = find_pcb(*pid);
-	affirm(pcb);
 
-	if (create_tcb(*pid, tid) < 0) {
-		// TODO: Delete pcb, and return -1
+	tcb_t *new_thread = create_tcb(owning_task, tid);
+	if (!new_thread) {
+		free_pcb_but_not_pd(owning_task);
+		free_pd_memory(pd);
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
-
 	return 0;
 }
 
@@ -231,7 +227,7 @@ task_set_active( uint32_t tid )
 }
 
 void
-task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
+task_start( uint32_t tid, uint32_t user_esp, uint32_t entry_point )
 {
 	tcb_t *tcb;
 	affirm((tcb = find_tcb(tid)) != NULL);
@@ -245,7 +241,7 @@ task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	 * the entry_point. */
 	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 	iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
-		esp, SEGSEL_USER_DS);
+		user_esp, SEGSEL_USER_DS);
 
 	/* NOTREACHED */
 	panic("iret_travel should not return");
@@ -295,19 +291,24 @@ find_tcb( uint32_t tid )
  *
  *	@param pid Pointer to where pid should be stored
  *	@param pd  Pointer to page directory for new task
- *	@return 0 on success, negative value on error
+ *	@return Pointer to new PCB on success, NULL on error
  */
-int
+pcb_t *
 create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 {
-	//mutex_init(&thread_list_mux); TODO: Enable this
+	if (!pid)
+		return NULL;
+
+	if (!pd)
+		return NULL;
 
 	pcb_t *pcb = smalloc(sizeof(pcb_t));
 	if (!pcb) {
-		return -1;
+		return NULL;
 	}
 	if (mutex_init(&(pcb->set_status_vanish_wait_mux)) < 0) {
-		return -1;
+		free_pcb_but_not_pd(pcb);
+		return NULL;
 	}
 	pcb->pd = pd;
 	*pid = get_unique_pid();
@@ -355,7 +356,7 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 	Q_INSERT_TAIL(&pcb_list, pcb, task_link);
 	mutex_unlock(&pcb_list_mux);
 
-	return 0;
+	return pcb;
 }
 
 /** @brief Initializes new tcb. Does not add thread to scheduler.
@@ -363,21 +364,21 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
  *
  *	@param pid Id of owning task
  *	@param tid Pointer to where id of new thread will be stored
- *	@return 0 on success, negative value on failure
- * */
-int
-create_tcb( uint32_t pid, uint32_t *tid )
+ *	@return Pointer to new TCB on success, NULL on error.
+ */
+tcb_t *
+create_tcb( pcb_t *owning_task, uint32_t *tid )
 {
-	pcb_t *owning_task;
-	if ((owning_task = find_pcb(pid)) == NULL) {
-		log_info("create_tcb(): unable to find_pcb()");
-		return -1;
-	}
+	if (!owning_task)
+		return NULL;
+
+	if (!tid)
+		return NULL;
 
 	tcb_t *tcb = smalloc(sizeof(tcb_t));
 	if (!tcb) {
 		log_info("create_tcb(): smalloc(sizeof(tcb_t)) returned NULL");
-		return -1;
+		return NULL;
 	}
 
 	*tid = get_unique_tid();
@@ -394,7 +395,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 		sfree(tcb, sizeof(tcb_t));
 		log_info("create_tcb(): smalloc() kernel stack returned NULL");
 
-		return -1;
+		return NULL;
 	}
 	/* Set a task's first thread's thread id */
 	if (owning_task->first_thread_tid == 0) {
@@ -411,7 +412,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 
 	/* Add to owning task's list of threads, increment num_active_threads not
 	 * DEAD */
-		Q_INIT_ELEM(tcb, scheduler_queue);
+	Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INIT_ELEM(tcb, tid2tcb_queue);
 
 
@@ -456,7 +457,7 @@ create_tcb( uint32_t pid, uint32_t *tid )
 	*(tcb->kernel_stack_hi) = 0xcafebabe;
 	*(tcb->kernel_stack_lo) = 0xdeadbeef;
 
-	return 0;
+	return tcb;
 }
 
 /** @brief Returns number of threads in the owning task
@@ -541,7 +542,7 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 /* ------ HELPER FUNCTIONS ------ */
 
 /** @brief Returns eflags with PL altered to 3 */
-static uint32_t
+uint32_t
 get_user_eflags( void )
 {
 	uint32_t eflags = get_eflags();
@@ -711,13 +712,15 @@ get_init_pcbp( void )
 
 /** @brief sets the task name
  *
- *  @pre execname must be validated
+ *  @pre execname must be a valid non-malicious string
+ *  @return Void.
  */
 void
 set_task_name( pcb_t *pcbp, char *execname )
 {
-	affirm(pcbp);
-	affirm(execname);
+	assert(pcbp);
+	assert(execname);
+
 	memset(pcbp->execname, 0, USER_STR_LEN);
 	memcpy(pcbp->execname, execname, strlen(execname));
 }

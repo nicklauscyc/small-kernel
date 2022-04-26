@@ -233,8 +233,11 @@ initialize_zero_frame( void )
  *	TODO: Implement ZFOD here. (Handler should probably be defined
  *	elsewhere, though)
  *
- *	@return Page directory that is backed by physical memory
- *	*/
+ *
+ *	@return Valid page directory that is backed by physical memory, or NULL
+ *	        if unable
+ *
+ */
 void *
 new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 {
@@ -281,7 +284,7 @@ new_pd_from_elf( simple_elf_t *elf, uint32_t stack_lo, uint32_t stack_len )
 		return NULL;
 	}
 
-	assert(is_valid_pd(pd));
+	affirm(is_valid_pd(pd));
 	return pd;
 }
 
@@ -529,6 +532,7 @@ is_user_pointer_allocated( void *ptr )
 static int
 is_valid_user_string_helper( char *s, int len, int null_terminated)
 {
+	//TODO what happened to USER_STR_LEN?
 	/* Check address of every character in s */
 	int i;
 	for (i = 0; i < len; ++i) {
@@ -546,7 +550,7 @@ is_valid_user_string_helper( char *s, int len, int null_terminated)
 			}
 		}
 	}
-	/* Check length of s */
+	/* Check length of s */ //TODO what does this mean
 	if (i == len && null_terminated) {
 		log_warn("user string of length >= %d, not null-terminated", len);
 		return 0;

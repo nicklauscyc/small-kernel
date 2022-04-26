@@ -21,11 +21,10 @@ typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
 
-
 /* Functions for task and thread creation */
 void task_manager_init( void );
-int create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb );
-int create_tcb( uint32_t pid , uint32_t *tid );
+pcb_t *create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb );
+tcb_t *create_tcb( pcb_t *owning_task, uint32_t *tid );
 int create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf );
 int activate_task_memory( uint32_t pid );
 void task_set_active( uint32_t tid );
@@ -53,4 +52,9 @@ pcb_t *get_init_pcbp( void );
 void register_if_init_task( char *execname, uint32_t pid );
 
 void set_task_name( pcb_t *pcbp, char *execname );
+
+uint32_t get_user_eflags( void );
+
+void set_running_thread( tcb_t *tcbp );
+
 #endif /* TASK_MANAGER_H_ */
