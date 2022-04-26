@@ -1,16 +1,18 @@
 /** @file swexn.c
  *  @brief Swexn syscall and facilities for software exception handling */
 
-#include <seg.h>			/* SEGSEL_USER_CS */
-#include <ureg.h>			/* ureg_t */
-#include <eflags.h>			/* get_eflags, EFL_* */
-#include <stdint.h>			/* uint32_t  */
-#include <syscall.h>		/* swexn_handler_t */
-#include <scheduler.h>		/* get_running_thread */
-#include <iret_travel.h>	/* iret_travel */
-#include <task_manager.h>	/* tcb_t */
-#include <atomic_utils.h>	/* compare_and_swap_atomic */
-#include <memory_manager.h> /* is_valid_user_pointer, READ_ONLY, READ_WRITE */
+#include <seg.h>			   /* SEGSEL_USER_CS */
+#include <ureg.h>			   /* ureg_t */
+#include <eflags.h>			   /* get_eflags, EFL_* */
+#include <stdint.h>			   /* uint32_t  */
+#include <syscall.h>		   /* swexn_handler_t */
+#include <scheduler.h>		   /* get_running_thread */
+#include <iret_travel.h>	   /* iret_travel */
+#include <task_manager.h>	   /* tcb_t */
+#include <atomic_utils.h>	   /* compare_and_swap_atomic */
+#include <memory_manager.h>    /* is_valid_user_pointer, READ_ONLY, READ_WRITE*/
+#include <interrupt_defines.h> /* INT_CTL_PORT */
+#include <asm.h>		       /* outb() */
 
 #include <logger.h>
 #include <simics.h>
@@ -195,6 +197,9 @@ handle_exn( int *ebp, unsigned int cause, unsigned int cr2 )
 int
 swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 {
+	/* Acknowledge interrupt */
+	outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
 	log_warn("Esp3 is %p", esp3);
 
 	/* Since arg is only ever used by the user software exception handler,

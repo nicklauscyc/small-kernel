@@ -521,7 +521,7 @@ is_user_pointer_allocated( void *ptr )
  *		   address. Does not check for write permissions!
  *
  *	@param s String to be checked
- *	@param len Length of string
+ *	@param len Max length of string
  *	@param null_terminated	Whether the string should be checked
  *							for null-termination
  *	@return 1 if valid user string, 0 otherwise
@@ -540,7 +540,7 @@ is_valid_user_string_helper( char *s, int len, int null_terminated)
 
 		} else {
 
-			/* String has ended within USER_STR_LEN */
+			/* String ended early */
 			if (s[i] == '\0') {
 				break;
 			}
@@ -548,7 +548,7 @@ is_valid_user_string_helper( char *s, int len, int null_terminated)
 	}
 	/* Check length of s */
 	if (i == len && null_terminated) {
-		log_warn("user string of length >= USER_STR_LEN");
+		log_warn("user string of length >= %d, not null-terminated", len);
 		return 0;
 	}
 	return 1;
@@ -565,7 +565,7 @@ is_valid_user_string_helper( char *s, int len, int null_terminated)
  *	name. That is done when we try to fill in the ELF header.
  *
  *	@param s String to be checked
- *	@param len Length of string
+ *	@param len Max length of string
  *	@return 1 if valid user string, 0 otherwise
  */
 int
@@ -578,7 +578,7 @@ is_valid_null_terminated_user_string( char *s, int len )
  *		   address. Does not check for write permissions!
  *
  *	@param s String to be checked
- *	@param len Length of string
+ *	@param len Max length of string
  *	@return 1 if valid user string, 0 otherwise
  */
 int
