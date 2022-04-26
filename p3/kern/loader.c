@@ -51,6 +51,9 @@
 int configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
 	uint32_t entry_point, void *user_pd );
 
+int register_with_simics( uint32_t tid, char *fname );
+
+int load_user_program_info(simple_elf_t *se_hdrp, char *fname);
 
 /** Copies data from a file into a buffer.
  *
@@ -289,14 +292,10 @@ execute_user_program( char *fname, int argc, char **argv)
 	}
 	/* Load user program information */
 	simple_elf_t se_hdr;
-    if (elf_check_header(kern_stack_execname) == ELF_NOTELF) {
-		goto cleanup;
-	}
-    if (elf_load_helper(&se_hdr, kern_stack_execname) == ELF_NOTELF) {
+	if (load_user_program_info(&se_hdr, kern_stack_execname) < 0) {
 		goto cleanup;
 	}
     uint32_t pid, tid;
-
 
 	/* Not the first task, so we replace the current running task */
 	pid = get_pid();
@@ -310,20 +309,14 @@ execute_user_program( char *fname, int argc, char **argv)
 		goto cleanup;
 	}
 	void *old_pd = swap_task_pd(new_pd);
-	//assert(is_valid_pd(old_pd));
 	free_pd_memory(old_pd);
 	sfree(old_pd, PAGE_SIZE);
 
 	set_task_name(find_pcb(pid), kern_stack_execname);
+
 	log_warn("process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
 
-
-#ifdef DEBUG
-	tcb_t *tcb = find_tcb(tid);
-	assert(tcb);
-	/* Register this task's new binary with simics */
-	sim_reg_process(get_tcb_pd(tcb), kern_stack_execname);
-#endif
+	register_with_simics(tid, fname);
 
 	/* If this is the init task, let the world know */
 	register_if_init_task(kern_stack_execname, pid);
@@ -365,10 +358,7 @@ load_initial_user_program( char *fname, int argc, char **argv )
 {
 	/* Load user program information */
 	simple_elf_t se_hdr;
-    if (elf_check_header(fname) == ELF_NOTELF) {
-		return -1;
-	}
-    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
+	if (load_user_program_info(&se_hdr, fname) < 0) {
 		return -1;
 	}
     uint32_t pid, tid;
@@ -377,16 +367,10 @@ load_initial_user_program( char *fname, int argc, char **argv )
 		return -1;
 
 	set_task_name(find_pcb(pid), fname);
-	log_warn("liup(): process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
 
-
-#ifdef DEBUG
-	tcb_t *tcb = find_tcb(tid);
-	assert(tcb);
-	/* Register this task's new binary with simics */
-	sim_reg_process(get_tcb_pd(tcb), fname);
-#endif
-
+	if (register_with_simics(tid, fname) < 0) {
+		return -1;
+	}
 	/* If this is the init task, let the world know */
 	register_if_init_task(fname, pid);
 
@@ -400,6 +384,7 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	}
     uint32_t *esp = configure_stack(argc, argv);
 
+	tcb_t *tcb = find_tcb(tid);
 	if (configure_initial_task_stack(tcb, (uint32_t) esp, se_hdr.e_entry,
 		get_tcb_pd(tcb)) < 0) {
 		return -1;
@@ -513,7 +498,53 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
 
 
 
+/** @brief Registers a task with simics if DEBUG flag is set, else this
+ *         function is a no-op
+ *
+ *  @param tid Thread ID of first thread of task
+ *  @param fname Task executable name
+ *  @return 0 on success, -1 on error
+ */
+int
+register_with_simics( uint32_t tid, char *fname )
+{
+#ifdef DEBUG
+	if (tid == 0)
+		return -1;
 
+	if (!fname)
+		return -1;
 
+	tcb_t *tcb = find_tcb(tid);
+	if (!tcb)
+		return -1;
 
+	uint32_t **pd = get_tcb_pd(tcb);
+	if (!pd)
+		return -1;
 
+	/* Register this task's new binary with simics */
+	sim_reg_process(pd, fname);
+#endif
+	return 0;
+}
+
+/* @brief Loads user program information into a simple_elf_t struct
+ *
+ * @param se_hdr Pointer to simple_elf_t struct to be filled
+ * @return 0 on success, -1 on error
+ */
+int
+load_user_program_info(simple_elf_t *se_hdrp, char *fname)
+{
+	if (!se_hdrp)
+		return -1;
+
+	if (elf_check_header(fname) == ELF_NOTELF)
+		return -1;
+
+    if (elf_load_helper(se_hdrp, fname) == ELF_NOTELF)
+		return -1;
+
+	return 0;
+}

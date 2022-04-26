@@ -90,25 +90,26 @@ fork( void )
 
 	/* Create child pcb and tcb */
 	uint32_t child_pid, child_tid;
-	if (create_pcb(&child_pid, child_pd, parent_pcb) < 0) {
+	pcb_t *child_pcb = create_pcb(&child_pid, child_pd, parent_pcb);
+	if (!child_pcb) {
 		log_info("fork(): unable to create child PCB");
 		return -1;
 	}
 
-	if (create_tcb(child_pid, &child_tid) < 0) {
+	tcb_t *child_tcb = create_tcb(child_pcb, &child_tid);
+	if (!child_tcb) {
 		log_info("fork(): unable to create child TCB");
-		// TODO: delete page directory
-		// TODO: delete_pcb of parent
-		//
-
+		free_pcb_but_not_pd(child_pcb);
+		free_pd_memory(child_pd);
+		sfree(child_pd, PAGE_SIZE);
 		return -1;
 	}
 
-	tcb_t *child_tcb;
-	assert(child_tcb = find_tcb(child_tid));
-	pcb_t *child_pcb = child_tcb->owning_task;
+	assert(child_tcb == find_tcb(child_tid));
+	assert(child_pcb == child_tcb->owning_task);
 
 	set_task_name(child_pcb, parent_pcb->execname);
+
 	register_if_init_task(child_pcb->execname, child_pcb->pid);
 
 
@@ -117,7 +118,7 @@ fork( void )
         sim_reg_child(child_pd, parent_pd);
 #endif
 
-		uint32_t *child_kernel_esp_on_ctx_switch;
+	uint32_t *child_kernel_esp_on_ctx_switch;
 	uint32_t *parent_kern_stack_hi = get_kern_stack_hi(parent_tcb);
 	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
 
