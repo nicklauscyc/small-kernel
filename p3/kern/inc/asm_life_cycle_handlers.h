@@ -13,6 +13,6 @@ extern void call_vanish( void );
 extern void call_task_vanish( void );
 extern void call_set_status( void );
 extern void call_wait( void );
-extern void call_setup_thread_fork( void );
+extern void call_thread_fork( void );
 
 #endif /* ASM_LIFE_CYCLE_HANDLERS_H_ */

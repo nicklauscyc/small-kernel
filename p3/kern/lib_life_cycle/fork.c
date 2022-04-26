@@ -61,7 +61,6 @@ fork( void )
 	/* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-
 	/* Only allow forking of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
 	affirm(parent_tcb);

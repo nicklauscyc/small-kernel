@@ -397,15 +397,6 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 
 		return NULL;
 	}
-	/* Set a task's first thread's thread id */
-	if (owning_task->first_thread_tid == 0) {
-		owning_task->first_thread_tid = *tid;
-	}
-
-	/* TODO: Add mutex to pcb struct and lock it here.
-	 *		 For now, this just checks that we're not
-	 *		 adding a second thread to an existing task. */
-	affirm(!Q_GET_FRONT(&owning_task->active_threads_list));
 
 	/* Link for when this thread calls wait() */
 	Q_INIT_ELEM(tcb, waiting_threads_link);
@@ -414,9 +405,6 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 	 * DEAD */
 	Q_INIT_ELEM(tcb, scheduler_queue);
 	Q_INIT_ELEM(tcb, tid2tcb_queue);
-
-
-
 	Q_INIT_ELEM(tcb, task_thread_link);
 
 	mutex_lock(&owning_task->set_status_vanish_wait_mux);
@@ -428,7 +416,6 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 	if (owning_task->first_thread_tid == 0) {
 		owning_task->first_thread_tid = *tid;
 	}
-
 	mutex_unlock(&owning_task->set_status_vanish_wait_mux);
 
 	log("Inserting thread with tid %lu", tcb->tid);

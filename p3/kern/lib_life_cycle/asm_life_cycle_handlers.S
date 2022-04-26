@@ -10,20 +10,26 @@ CALL_W_SINGLE_ARG(wait)
 CALL_W_RETVAL_HANDLER(fork)
 CALL_W_DOUBLE_ARG(exec)
 
-.globl setup_thread_fork
-setup_thread_fork:
+.globl call_thread_fork
 
-	pushl %esi
-	pushl %edi
-	pushl %edx
-	pushl %ecx
-	pushl %ebx
-	call thread_fork
-	addl $20, %esp
-
-	ret
-
-
-
-CALL_W_RETVAL_HANDLER(setup_thread_fork)
+call_thread_fork:
+	pusha /* Pushes all registers onto the stack */
+	pushl %ds
+	pushl %es
+	pushl %fs
+	pushl %gs
+	/* set the new values for ds, es, fs, gs */
+	movl %ss, %ax
+	movl %ax, %ds
+	movl %ax, %es
+	movl %ax, %fs
+	movl %ax, %gs
+	call thread_fork /* calls thread fork handler */
+	popl %gs
+	popl %fs
+	popl %es
+	popl %ds
+	movl %eax, 28(%esp) /* Hijack popa into preserving eax */
+	popa /* Restores all registers onto the stack */
+	iret /* Return to procedure before interrupt */
 

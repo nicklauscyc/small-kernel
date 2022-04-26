@@ -64,8 +64,6 @@ Q_NEW_HEAD(active_child_tasks_list_t, pcb);
  */
 struct pcb
 {
-	//mutex_t thread_list_mux; // TODO enable mutex
-
 	mutex_t set_status_vanish_wait_mux; /**< Mutex for PCB when manipulating
 	                                      *  struct fields in a multi-threaded
                                           *  environment */
