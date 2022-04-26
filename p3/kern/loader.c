@@ -316,7 +316,7 @@ execute_user_program( char *fname, int argc, char **argv)
 
 	log_warn("process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
 
-	register_with_simics(tid, fname);
+	register_with_simics(tid, kern_stack_execname);
 
 	/* If this is the init task, let the world know */
 	register_if_init_task(kern_stack_execname, pid);
