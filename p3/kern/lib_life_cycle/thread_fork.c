@@ -26,22 +26,19 @@ thread_fork( void )
 	pcb_t *pcb = parent_tcb->owning_task;
 	uint32_t child_tid;
 
-	if (create_tcb(pcb, &child_tid) < 0) {
+
+	tcb_t *child_tcb = create_tcb(pcb, &child_tid);
+	if (!child_tcb) {
 		return -1;
 	}
 
-	tcb_t *child_tcb;
-	assert(child_tcb = find_tcb(child_tid));
+	assert(child_tcb == find_tcb(child_tid));
 
 	/* Set up childrens stack. Child should return to user mode with same
 	 * registers as parent. Only %eax will be different. */
 	uint32_t *parent_kern_stack_hi = get_kern_stack_hi(parent_tcb);
 	uint32_t *child_kern_stack_hi = get_kern_stack_hi(child_tcb);
 
-	//child_kernel_esp_on_ctx_switch = save_child_regs(parent_kern_stack_hi,
-	 //                                                child_kern_stack_hi,
-//pcb->pd);
-//
     /* Set up the child's stack */
 	uint32_t *c_esp = child_kern_stack_hi;
 	uint32_t *p_esp = parent_kern_stack_hi;
@@ -89,18 +86,6 @@ thread_fork( void )
 	affirm(STACK_ALIGNED(c_esp));
 	affirm(c_esp);
 	set_kern_esp(child_tcb, c_esp);
-
-	/* TODO: REMOVE? If logging is set to debug, this will print stuff */
-	//log_print_parent_and_child_stacks(parent_tcb, child_tcb );
-
-	// FIXME: Maybe this should be inside create_tcb
-	// FIXED: dw this is for adding tasks, we have a new thread and
-	// create_tcb automatically does this
-	//mutex_lock(&(pcb->set_status_vanish_wait_mux));
-	//Q_INSERT_TAIL(&(pcb->active_child_tasks_list), pcb,
-	//		              vanished_child_tasks_link);
-	//pcb->num_active_child_tasks++;
-	//mutex_unlock(&(pcb->set_status_vanish_wait_mux));
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(child_tcb) < 0) {

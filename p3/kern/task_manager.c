@@ -166,8 +166,8 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 
 	tcb_t *new_thread = create_tcb(owning_task, tid);
 	if (!new_thread) {
-		free_pcb_but_not_pd(owning_task);
 		free_pd_memory(pd);
+		free_pcb_but_not_pd(owning_task);
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
@@ -618,7 +618,7 @@ free_pcb_but_not_pd(pcb_t *pcb)
 	affirm(pcb);
 
 	/* pd should already be freed and set to NULL */
-	affirm(!pcb->pd);
+	affirm_msg(!pcb->pd, "pcb->pd should be null, but pcb->pd:%p", pcb->pd);
 	log_warn("free_pcb_but_not_pd(): cleaned up pcb->first_thread_tid:%d",
 			 pcb->first_thread_tid);
 

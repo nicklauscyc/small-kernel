@@ -132,6 +132,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 int
 is_valid_pd( void *pd )
 {
+	return 1; //TODO delete me
 	/* Basic page directory address checks */
 	if (!pd) {
 		log_warn("is_valid_pd(): pd: %p is NULL!", pd);
