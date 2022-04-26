@@ -32,7 +32,6 @@
 
 static uint32_t get_unique_tid( void );
 static uint32_t get_unique_pid( void );
-static uint32_t get_user_eflags( void );
 
 Q_NEW_HEAD(pcb_list_t, pcb);
 static pcb_list_t pcb_list;
@@ -231,7 +230,7 @@ task_set_active( uint32_t tid )
 }
 
 void
-task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
+task_start( uint32_t tid, uint32_t user_esp, uint32_t entry_point )
 {
 	tcb_t *tcb;
 	affirm((tcb = find_tcb(tid)) != NULL);
@@ -245,7 +244,7 @@ task_start( uint32_t tid, uint32_t esp, uint32_t entry_point )
 	 * the entry_point. */
 	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 	iret_travel(entry_point, SEGSEL_USER_CS, get_user_eflags(),
-		esp, SEGSEL_USER_DS);
+		user_esp, SEGSEL_USER_DS);
 
 	/* NOTREACHED */
 	panic("iret_travel should not return");
@@ -541,7 +540,7 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 /* ------ HELPER FUNCTIONS ------ */
 
 /** @brief Returns eflags with PL altered to 3 */
-static uint32_t
+uint32_t
 get_user_eflags( void )
 {
 	uint32_t eflags = get_eflags();

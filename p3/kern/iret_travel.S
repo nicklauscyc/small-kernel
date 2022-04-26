@@ -10,4 +10,5 @@ iret_travel:
 	movl %ax, %fs
 	movl %ax, %gs
     addl $4, %esp   # Point esp to last argument
+	sti             # Enable interrupts
     iret            # Consume all arguments and go to user mode!

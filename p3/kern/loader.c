@@ -32,15 +32,14 @@
 #include <assert.h> /* assert() */
 #include <simics.h>
 #include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
-
+#include <iret_travel.h> /* iret_travel() */
 #include <task_manager_internal.h>
+#include <eflags.h>	/* get_eflags*/
+#include <seg.h>	/* SEGSEL_... */
+#include <common_kern.h> /* USER_MEM_START */
 
 /* --- Local function prototypes --- */
 
-/* first_task is 1 if there is currently no user task running, so
- * execute_user_program will do some initialization
- */
-static int first_task = 1;
 
 /* TODO: Move this to a helper file.
  *
@@ -48,6 +47,9 @@ static int first_task = 1;
  *  and therefore avoid evaluating A and B multiple times. */
 #define _MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MIN(A,B) _MIN(A,B)
+
+int configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
+	uint32_t entry_point, void *user_pd );
 
 
 /** Copies data from a file into a buffer.
@@ -151,7 +153,10 @@ transplant_program_memory( simple_elf_t *se_hdr )
     /* Re-enable write-protection bit. */
     enable_write_protection();
 
-	enable_interrupts();
+
+	if (is_multi_threads()) {
+		enable_interrupts();
+	}
 
 	assert(is_valid_pd((void *)get_cr3()));
 	return i;
@@ -164,9 +169,6 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *
  *  Requires that argc and argv are validated
  */
-//TODO does not set up stack properly for main
-//void _main(int argc, char *argv[], void *stack_high, void *stack_low)
-//
 static uint32_t *
 configure_stack( int argc, char **argv )
 {
@@ -248,17 +250,17 @@ execute_user_program( char *fname, int argc, char **argv)
 {
 	log_warn("executing task fname:'%s'", fname);
 
-	if (!first_task) {
-		/* Validate execname */
-		if (!is_valid_null_terminated_user_string(fname, USER_STR_LEN)) {
-			return -1;
-		}
-		//assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-		/* Validate argvec */
-		int argc = 0;
-		if (!(argc = is_valid_user_argvec(fname, argv))) {
-			return -1;
-		}
+	/* Validate execname */
+	if (!is_valid_null_terminated_user_string(fname, USER_STR_LEN)) {
+		return -1;
+	}
+	/* Validate argvec */
+	int counted_argc = 0;
+	if (!(counted_argc = is_valid_user_argvec(fname, argv))) {
+		return -1;
+	}
+	if (counted_argc != argc) {
+		return -1;
 	}
 
     /* Transfer execname to kernel stack so unaffected by page directory */
@@ -295,28 +297,23 @@ execute_user_program( char *fname, int argc, char **argv)
 	}
     uint32_t pid, tid;
 
-	/* First task, so create a new task */
-	if (first_task) {
-		if (create_task(&pid, &tid, &se_hdr) < 0)
-			goto cleanup;
 
 	/* Not the first task, so we replace the current running task */
-	} else {
-		pid = get_pid();
-		tid = get_running_tid();
+	pid = get_pid();
+	tid = get_running_tid();
 
-		/* Create new pd */
-		uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
-		void *new_pd = new_pd_from_elf(&se_hdr, stack_lo,
-		                               USER_THREAD_STACK_SIZE);
-		if (!new_pd) {
-			goto cleanup;
-		}
-		void *old_pd = swap_task_pd(new_pd);
-		//assert(is_valid_pd(old_pd));
-		free_pd_memory(old_pd);
-		sfree(old_pd, PAGE_SIZE);
+	/* Create new pd */
+	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
+	void *new_pd = new_pd_from_elf(&se_hdr, stack_lo,
+								   USER_THREAD_STACK_SIZE);
+	if (!new_pd) {
+		goto cleanup;
 	}
+	void *old_pd = swap_task_pd(new_pd);
+	//assert(is_valid_pd(old_pd));
+	free_pd_memory(old_pd);
+	sfree(old_pd, PAGE_SIZE);
+
 	set_task_name(find_pcb(pid), kern_stack_execname);
 	log_warn("process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
 
@@ -331,7 +328,6 @@ execute_user_program( char *fname, int argc, char **argv)
 	/* If this is the init task, let the world know */
 	register_if_init_task(kern_stack_execname, pid);
 
-
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
 		goto cleanup;
@@ -341,15 +337,6 @@ execute_user_program( char *fname, int argc, char **argv)
 		goto cleanup;
 	}
     uint32_t *esp = configure_stack(argc, kern_stack_argvec);
-
-	/* If this is the first task we must activate it */
-	if (first_task) {
-        assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
-
-		/* Calls make_thread_runnable() */
-		task_set_active(tid);
-	}
-	first_task = 0;
 
 	/* Start the task */
 	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
@@ -361,3 +348,172 @@ cleanup:
 	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
 	return -1;
 }
+
+/** @brief Loads an initial user program such as 'idle' or 'init' and makes
+ *         it runnable so that on the next context switch it will run and go
+ *         from kernel mode to user mode to run that task
+ *
+ *  @pre fname, argc, argv must be validated and non-malicious, in kernel
+ *       memory
+ *
+ *  @param fname Executable name
+ *  @param argc Argument count
+ *  @param argv Argument vector
+ */
+int
+load_initial_user_program( char *fname, int argc, char **argv )
+{
+	/* Load user program information */
+	simple_elf_t se_hdr;
+    if (elf_check_header(fname) == ELF_NOTELF) {
+		return -1;
+	}
+    if (elf_load_helper(&se_hdr, fname) == ELF_NOTELF) {
+		return -1;
+	}
+    uint32_t pid, tid;
+
+	if (create_task(&pid, &tid, &se_hdr) < 0)
+		return -1;
+
+	set_task_name(find_pcb(pid), fname);
+	log_warn("liup(): process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
+
+
+#ifdef DEBUG
+	tcb_t *tcb = find_tcb(tid);
+	assert(tcb);
+	/* Register this task's new binary with simics */
+	sim_reg_process(get_tcb_pd(tcb), fname);
+#endif
+
+	/* If this is the init task, let the world know */
+	register_if_init_task(fname, pid);
+
+	/* Update page directory, enable VM if necessary */
+	if (activate_task_memory(pid) < 0) {
+		return -1;
+	}
+
+    if (transplant_program_memory(&se_hdr) < 0) {
+		return -1;
+	}
+    uint32_t *esp = configure_stack(argc, argv);
+
+	if (configure_initial_task_stack(tcb, (uint32_t) esp, se_hdr.e_entry,
+		get_tcb_pd(tcb)) < 0) {
+		return -1;
+	}
+	assert(is_valid_pd(get_tcb_pd(find_tcb(tid))));
+
+	/* Calls make_thread_runnable() */
+	switch_safe_make_thread_runnable(tcb);
+	return 0;
+}
+
+/** @brief Sets up the kernel thread stack for an initial task such as
+ *         'init' or 'idle'
+ *
+ *  @pre Kernel must not have mode switched to user mode before to get the
+ *       correct user eflags
+ *  @pre Interrupts must be disabled
+ */
+int
+configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
+                              uint32_t entry_point, void *user_pd )
+{
+	/* Basic argument validation */
+	if (!tcbp)
+		return -1;
+	if (!STACK_ALIGNED(tcbp->kernel_stack_hi))
+		return -1;
+	if (!STACK_ALIGNED(user_esp))
+		return -1;
+	if (entry_point < USER_MEM_START)
+		return -1;
+	if (!user_pd)
+		return -1;
+	if (!PAGE_ALIGNED(user_pd))
+		return -1;
+
+	/* Begin kernel thread stack setup */
+	uint32_t *kernel_esp = tcbp->kernel_stack_hi;
+	uint32_t kernel_ebp = (uint32_t) kernel_esp;
+
+	/* Set up kernel thread stack for iret_travel */
+ 	*(--kernel_esp) = SEGSEL_USER_DS;
+	log("configure_initial_task_stack "
+		"SEGSEL_USER_DS:%p at %p", (uint32_t *) SEGSEL_USER_DS, kernel_esp);
+
+ 	*(--kernel_esp) = user_esp;
+	log("configure_initial_task_stack "
+		"user_esp:%p at %p", (uint32_t *) user_esp, kernel_esp);
+
+ 	*(--kernel_esp) = get_user_eflags();
+	log("configure_initial_task_stack "
+		"user_eflags:%08lx at %p", get_user_eflags(), kernel_esp);
+
+ 	*(--kernel_esp) = SEGSEL_USER_CS;
+	log("configure_initial_task_stack "
+		"SEGSEL_USER_CS:%08lx at %p",SEGSEL_USER_CS, kernel_esp);
+
+ 	*(--kernel_esp) = entry_point;
+	log("configure_initial_task_stack "
+		"entry_point:%08lx at %p", entry_point, kernel_esp);
+
+	--kernel_esp; /* simulate an iret_travel call's return address */
+	*(--kernel_esp) = (uint32_t) iret_travel;
+	log("configure_initial_task_stack "
+		"iret_tracel:%p at %p", iret_travel, kernel_esp);
+
+
+	/* Set up kernel thread stack for context switch */
+	uint32_t dummy_eax, dummy_ebx, dummy_ecx, dummy_edx, dummy_edi, dummy_esi;
+	dummy_eax = dummy_ebx = dummy_ecx = dummy_edx = dummy_edi = dummy_esi = 0;
+
+	*(--kernel_esp) = kernel_ebp;
+	log("configure_initial_task_stack "
+		"ebp:%x at %p", kernel_ebp, kernel_esp);
+
+	*(--kernel_esp) = dummy_eax;
+	log("configure_initial_task_stack "
+		"dummy_eax:%x at %p", dummy_eax, kernel_esp);
+
+	*(--kernel_esp) = dummy_ebx;
+	log("configure_initial_task_stack "
+		"dummy_ebx:%x at %p", dummy_ebx, kernel_esp);
+
+	*(--kernel_esp) = dummy_ecx;
+	log("configure_initial_task_stack "
+		"dummy_ecx:%x at %p", dummy_ecx, kernel_esp);
+
+	*(--kernel_esp) = dummy_edx;
+	log("configure_initial_task_stack "
+		"dummy_edx:%x at %p", dummy_edx, kernel_esp);
+
+	*(--kernel_esp) = dummy_edi;
+	log("configure_initial_task_stack "
+		"dummy_edi:%x at %p", dummy_edi, kernel_esp);
+
+	*(--kernel_esp) = dummy_esi;
+	log("configure_initial_task_stack "
+		"dummy_esi:%x at %p", dummy_esi, kernel_esp);
+
+	*(--kernel_esp) = (uint32_t) user_pd;
+	log("configure_initial_task_stack "
+		"user_pd:%p at %p", user_pd, kernel_esp);
+
+
+	/* Update tcbp esp */
+	tcbp->kernel_esp = kernel_esp;
+
+	return 0;
+}
+
+
+
+
+
+
+
+

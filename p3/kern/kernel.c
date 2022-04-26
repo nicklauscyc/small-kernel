@@ -47,7 +47,7 @@ volatile static int __kernel_all_done = 0;
  *
  * defining the NDEBUG flag will also turn logging off
  */
-int log_level = 4;
+int log_level = 3;
 
 void
 tick( unsigned int numTicks ) {
@@ -107,7 +107,6 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	if (handler_install(tick) < 0) {
 		panic("cannot install handlers");
 	}
-	enable_interrupts();
 
 	init_console();
 
@@ -119,7 +118,14 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_info("this is INFO");
 	log_warn("this is WARN");
 
-	char *args[] = {"init", 0};
-	execute_user_program("init", 1, args);
+	char *init_args[] = {"init", 0};
+	load_initial_user_program("init", 1, init_args);
+
+	char *idle_args[] = {"idle", 0};
+	load_initial_user_program("idle", 1, idle_args);
+
+
+	start_first_running_thread();
+
     return 0;
 }

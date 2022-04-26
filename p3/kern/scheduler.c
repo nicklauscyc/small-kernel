@@ -17,7 +17,7 @@
 #include <cr.h>				/* get_esp0() */
 #include <logger.h>			/* log_warn() */
 #include <asm.h>			/* enable/disable_interrupts() */
-
+#include <iret_travel.h>
 #include <simics.h>
 
 /* Timer interrupts every ms, we want to swap every 2 ms. */
@@ -25,6 +25,9 @@
 
 /* Whether scheduler has been initialized */
 static int scheduler_init = 0;
+
+/* Whether currently in multi-threaded environment */
+static int multi_threads = 0;
 
 /* Thread queues.*/
 static queue_t runnable_q;
@@ -252,14 +255,13 @@ make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 	if (!tcbp)
 		return -1;
 
-	log("Making thread %d runnable", tcbp->tid);
-
+	/* execute user program calls this with init */
 	if (!scheduler_init) {
 		init_scheduler();
-		tcbp->status = RUNNING;
-		running_thread = tcbp;
-		return 0;
 	}
+
+	log("Making thread %d runnable", tcbp->tid);
+
 
 	/* Add tcb to runnable queue, as any thread starts as runnable */
 	disable_interrupts();
@@ -271,7 +273,8 @@ make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 		return -1;
 	}
 
-	// TODO when will we add an UNINITIALIZED status tcbp to the queue?
+	/* tcbp->status == UNINITIALIZED when first created in
+	 * execute_user_program */
 	if (tcbp->status == UNINITIALIZED || switch_safe) {
 		add_to_run(tcbp);
 	} else {
@@ -306,6 +309,39 @@ make_thread_runnable( tcb_t *tcbp )
 {
 	return make_thread_runnable_helper(tcbp, 0);
 }
+
+/** @brief Sets the very first running thread for the scheduler
+ */
+void
+start_first_running_thread( void )
+{
+	affirm(scheduler_init);
+	tcb_t *first_thread = get_next_run();
+	affirm(first_thread);
+	first_thread->status = RUNNING;
+	running_thread = first_thread;
+
+	affirm(first_thread->owning_task);
+	affirm(activate_task_memory(first_thread->owning_task->pid) >= 0);
+
+	/* Disregard stack setup for context switch and call iret_travel */
+	uint32_t *kernel_stack_hi = first_thread->kernel_stack_hi;
+	uint32_t user_ds = *(--kernel_stack_hi);
+	uint32_t user_esp = *(--kernel_stack_hi);
+	uint32_t user_eflags = *(--kernel_stack_hi);
+	uint32_t user_cs = *(--kernel_stack_hi);
+	uint32_t user_eip = *(--kernel_stack_hi);
+
+    /* Before going to user mode, update esp0, so we know where to go back to */
+	set_esp0((uint32_t)first_thread->kernel_stack_hi);
+
+	multi_threads = 1;
+	iret_travel(user_eip, user_cs, user_eflags, user_esp, user_ds);
+
+	panic("set_first_running_thread does not return");
+}
+
+
 
 void
 scheduler_on_tick( unsigned int num_ticks )
@@ -372,4 +408,9 @@ switch_threads(tcb_t *running, tcb_t *to_run)
 	context_switch((void **)&(running->kernel_esp), to_run->kernel_esp);
 }
 
+int
+is_multi_threads( void )
+{
+	return multi_threads;
+}
 

@@ -87,7 +87,10 @@ UPDATE_METHOD = afs
 		   mem_permissions cho cho2 cho_variant score make_crash_helper\
 		   knife exec_basic_helper\
 		   remove_pages_test2 \
-		   wild_test1
+		   wild_test1\
+		   ack bg bistromath cat chow ck1 coolness deschedule_hang fib\
+		   fork_bomb halt_test mem_eat_test merchant peon slaughter\
+		   swexn_stands_for_swextensible swexn_uninstall_test work\
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -235,7 +238,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 # or init unless you are writing your own, and don't do that unless
 # you have a really good reason to do so.
 #
-410REQPROGS = idle shell
+410REQPROGS = idle shell init
 
 ###########################################################################
 # Mandatory programs whose source is provided by you
@@ -250,4 +253,4 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 # kernel in, or else your tweaked version will run and the test harness
 # won't.
 #
-STUDENTREQPROGS = init
+STUDENTREQPROGS =

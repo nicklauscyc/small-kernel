@@ -57,10 +57,10 @@ mutex_lock( mutex_t *mp )
     affirm(mp && mp->initialized);
 
 	/* To simplify the mutex interface, we let a thread run mutex
-	 * guarded code even if the scheduler is not initialized. This
+	 * guarded code even if we are not in a multi_threaded environment. This
 	 * is fine because, as soon as we have 2 or more threads, the
 	 * scheduler must have been initialized. */
-	if (!is_scheduler_init()) {
+	if (!is_multi_threads()) {
 		mp->owned = 1;
 		mp->owner_tid = get_running_tid();
 		goto mutex_exit;
@@ -105,9 +105,9 @@ mutex_unlock_helper( mutex_t *mp, int switch_safe )
     assert(mp->owned);
 	assert(mp->owner_tid == get_running_tid());
 
-	/* If scheduler is not initialized we must have a single
+	/* If only one thread running so we must have a single
 	 * thread, so no one to make runnable. */
-	if (!is_scheduler_init()) {
+	if (!is_multi_threads()) {
 		mp->owned = 0;
 		return;
 	}

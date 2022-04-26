@@ -142,7 +142,6 @@ fork( void )
 	child_tcb->swexn_handler	 = parent_tcb->swexn_handler;
 	child_tcb->has_swexn_handler = parent_tcb->has_swexn_handler;
 
-
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(child_tcb) < 0) {
 		log_info("fork(): unable to make child thread runnable");

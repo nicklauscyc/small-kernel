@@ -53,4 +53,9 @@ pcb_t *get_init_pcbp( void );
 void register_if_init_task( char *execname, uint32_t pid );
 
 void set_task_name( pcb_t *pcbp, char *execname );
+
+uint32_t get_user_eflags( void );
+
+void set_running_thread( tcb_t *tcbp );
+
 #endif /* TASK_MANAGER_H_ */
