@@ -397,6 +397,11 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 
 		return NULL;
 	}
+	/* Set a task's first thread's thread id */
+	if (owning_task->first_thread_tid == 0) {
+		owning_task->first_thread_tid = *tid;
+	}
+
 
 	/* Link for when this thread calls wait() */
 	Q_INIT_ELEM(tcb, waiting_threads_link);
