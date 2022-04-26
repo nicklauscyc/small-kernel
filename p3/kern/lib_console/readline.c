@@ -190,17 +190,7 @@ readline_char_arrived_handler( void )
 		         "readline_curr->tid:%d ",
 		         curr_blocked_start, curr_blocked, readline_curr,
 				 readline_curr->tid);
-	} else {
-		log("readline_char_arrived_handler(): "
-				 "curr_blocked_start:%d "
-				 "NO-OP curr_block:%d, "
-		         "readline_curr:%p"
-				 "readline_curr->tid:%d ",
-		         curr_blocked_start, curr_blocked, readline_curr,
-				 readline_curr->tid);
 	}
-
-
 }
 
 /* --- HELPERS --- */
