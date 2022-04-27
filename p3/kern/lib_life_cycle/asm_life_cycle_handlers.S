@@ -19,11 +19,11 @@ call_thread_fork:
 	pushl %fs
 	pushl %gs
 	/* set the new values for ds, es, fs, gs */
-	movl %ss, %ax
-	movl %ax, %ds
-	movl %ax, %es
-	movl %ax, %fs
-	movl %ax, %gs
+	mov %ss, %ax
+	mov %ax, %ds
+	mov %ax, %es
+	mov %ax, %fs
+	mov %ax, %gs
 	call thread_fork /* calls thread fork handler */
 	popl %gs
 	popl %fs

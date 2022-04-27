@@ -218,10 +218,6 @@ task_set_active( uint32_t tid )
 	affirm((tcb = find_tcb(tid)) != NULL);
 
 	/* Let scheduler know it can now run this thread */
-	/* Let scheduler know it can now run this thread if it doesn't know */
-	/* TODO in a bit of a pickle because we need to call disable_interrupts()
-	 * to check this?
-	 */
 	if (tcb->status == UNINITIALIZED) {
 		make_thread_runnable(tcb);
 	}

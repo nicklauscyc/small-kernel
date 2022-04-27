@@ -27,8 +27,8 @@
 #include <malloc.h>
 
 static void mark_curr_blocked( tcb_t *tcb, void *data );
-static int readchar( void );
 static char get_next_char( void );
+static int readchar( void );
 static int _readline(char *buf, int len);
 
 /** @brief Queue of threads blocked on readline call. */
@@ -202,19 +202,6 @@ mark_curr_blocked( tcb_t *tcb, void *data )
 	curr_blocked = 1;
 }
 
-static int
-readchar( void )
-{
-	aug_char next_char;
-	while (get_next_aug_char(&next_char) == 0) {
-		if (KH_HASDATA(next_char) && KH_ISMAKE(next_char)) {
-			unsigned char next_char_value = KH_GETCHAR(next_char);
-			return (int) (unsigned int) next_char_value;
-		}
-	}
-	return -1;
-}
-
 static char
 get_next_char( void )
 {
@@ -231,4 +218,18 @@ get_next_char( void )
 	/* Tricky type conversions to avoid undefined behavior */
 	char char_value = (uint8_t) (unsigned int) res;
 	return char_value;
+}
+
+
+static int
+readchar( void )
+{
+	aug_char next_char;
+	while (get_next_aug_char(&next_char) == 0) {
+		if (KH_HASDATA(next_char) && KH_ISMAKE(next_char)) {
+			unsigned char next_char_value = KH_GETCHAR(next_char);
+            return (int) (unsigned int) next_char_value;
+		}
+	}
+	return -1;
 }

@@ -17,7 +17,6 @@ typedef uint8_t raw_byte;
 void init_keybd(void);
 void keybd_int_handler(void);
 int get_next_aug_char( aug_char *next_char );
-//int old_readline(char *buf, int len);
 
 /** @brief unbounded circular array heavily inspired by 15-122 unbounded array
  *

@@ -26,11 +26,11 @@ call_ ## HANDLER_NAME ## :;\
 	pushl %fs;\
 	pushl %gs;\
 	/* set the new values for ds, es, fs, gs */\
-	movl %ss, %ax;\
-	movl %ax, %ds;\
-	movl %ax, %es;\
-	movl %ax, %fs;\
-	movl %ax, %gs;\
+	mov %ss, %ax;\
+	mov %ax, %ds;\
+	mov %ax, %es;\
+	mov %ax, %fs;\
+	mov %ax, %gs;\
 	call HANDLER_NAME; /* calls timer interrupt handler */\
 	popl %gs;\
 	popl %fs;\
@@ -56,11 +56,11 @@ call_ ## HANDLER_NAME ## :;\
 \
 	/* set the new values for ds, es, fs, gs */\
 	/* TODO fix so clang does not complain */\
-	movl %ss, %ax;\
-	movl %ax, %ds;\
-	movl %ax, %es;\
-	movl %ax, %fs;\
-	movl %ax, %gs;\
+	mov %ss, %ax;\
+	mov %ax, %ds;\
+	mov %ax, %es;\
+	mov %ax, %fs;\
+	mov %ax, %gs;\
 \
 	HANDLER_SPECIFIC_CODE\
 \
@@ -96,11 +96,11 @@ call_ ## HANDLER_NAME ## :;\
 \
 	/* set the new values for ds, es, fs, gs */\
 	/* TODO fix so clang does not complain */\
-	movl %ss, %ax;\
-	movl %ax, %ds;\
-	movl %ax, %es;\
-	movl %ax, %fs;\
-	movl %ax, %gs;\
+	mov %ss, %ax;\
+	mov %ax, %ds;\
+	mov %ax, %es;\
+	mov %ax, %fs;\
+	mov %ax, %gs;\
 \
 	HANDLER_SPECIFIC_CODE\
 \
@@ -143,11 +143,11 @@ call_ ## HANDLER_NAME ## :;\
 \
 	/* set the new values for ds, es, fs, gs */\
 	/* TODO fix so clang does not complain */\
-	movl %ss, %ax;\
-	movl %ax, %ds;\
-	movl %ax, %es;\
-	movl %ax, %fs;\
-	movl %ax, %gs;\
+	mov %ss, %ax;\
+	mov %ax, %ds;\
+	mov %ax, %es;\
+	mov %ax, %fs;\
+	mov %ax, %gs;\
 \
 	HANDLER_SPECIFIC_CODE\
 \
