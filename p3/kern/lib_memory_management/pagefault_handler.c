@@ -78,9 +78,19 @@ pagefault_handler( int *ebp )
 		user_mode : supervisor_mode;
 
 	/* If the fault happened while we were running in kernel AKA supervisor
-	 * mode, something really bad happened and we need to crash
+	 * mode and accessing kernel memory, something really bad happened and
+	 * we need to crash.
 	 */
 	if ((error_code & US_BIT) == 0) {
+
+		/* This case is for when we are in kernel mode and configuring the
+		 * user stack which was allocated by new_pages */
+		if ( faulting_vm_address >= USER_MEM_START
+			&& (error_code & WR_BIT)) {
+			if (zero_page_pf_handler(faulting_vm_address) == 0) {
+				return;
+			}
+		}
 		panic("pagefault_handler(): %s "
 		      "pagefault while running in kernel mode! "
  	          "error_code:0x%x "

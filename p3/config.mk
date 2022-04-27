@@ -144,7 +144,8 @@ SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
 			   new_pages.o remove_pages.o readfile.o halt.o vanish.o \
-			   readline.o task_vanish.o set_status.o swexn.o wait.o
+			   readline.o task_vanish.o set_status.o swexn.o wait.o \
+			   misbehave.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -210,6 +211,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_misc/readfile.o \
 			  lib_misc/halt.o \
 			  lib_misc/call_halt.o \
+              lib_misc/misbehave.o \
 			  \
 			  fault_handlers/asm_fault_handlers.o \
 			  fault_handlers/divide_handler.o \

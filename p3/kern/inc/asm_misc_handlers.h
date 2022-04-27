@@ -7,5 +7,6 @@
 
 void call_halt(void);
 void call_readfile(void);
+void call_misbehave(void);
 
 #endif /* ASM_MISC_HANDLERS_H_ */

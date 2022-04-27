@@ -21,33 +21,28 @@
 
 // TODO locking
 int
-new_pages( void *base, int len )
+_new_pages( void *base, int len )
 {
-    //assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
-    /* Acknowledge interrupt immediately */
-    outb(INT_CTL_PORT, INT_ACK_CURRENT);
-
-    log("new_pages(): "
-        "base:%p, len:0x%08lx", base, len);
+    log_info("new_pages(): "
+		"base:%p, len:0x%08lx", base, len);
 
     if ((uint32_t)base < USER_MEM_START) {
-        log_info("new_pages(): "
+        log_warn("new_pages(): "
                  "base < USER_MEM_START");
         return -1;
     }
     if (!PAGE_ALIGNED(base)) {
-        log_info("new_pages(): "
+        log_warn("new_pages(): "
                  "base not page aligned!");
         return -1;
     }
     if (len <= 0) {
-        log_info("new_pages(): "
+        log_warn("new_pages(): "
                  "len <= 0!");
         return -1;
     }
     if (len % PAGE_SIZE != 0) {
-        log_info("new_pages(): "
+        log_warn("new_pages(): "
                  "len is not a multiple of PAGE_SIZE!");
         return -1;
     }
@@ -57,7 +52,7 @@ new_pages( void *base, int len )
     /* Check if enough frames to fulfill request */
     uint32_t pages_to_alloc = len / PAGE_SIZE;
     if (num_free_phys_frames() < pages_to_alloc) {
-        log_info("new_pages(): "
+        log_warn("new_pages(): "
                  "not enough free frames to satisfy request!");
 		mutex_unlock(&pages_mux);
         return -1;
@@ -67,7 +62,7 @@ new_pages( void *base, int len )
     char *base_char = (char *) base;
     for (uint32_t i = 0; i < len / PAGE_SIZE; ++i) {
         if (is_user_pointer_allocated(base_char + i * PAGE_SIZE)) {
-            log_info("new_pages(): "
+            log_warn("new_pages(): "
                      "%p is already allocated!", base_char + i * PAGE_SIZE);
 			mutex_unlock(&pages_mux);
             return -1;
@@ -91,7 +86,7 @@ new_pages( void *base, int len )
 		}
         /* If any step fails, unallocate zero frame, return -1 */
         if (res < 0) {
-            log_info("new_pages(): "
+            log_warn("new_pages(): "
                      "unable to allocate zero frame");
 
             /* Cleanup */
@@ -107,3 +102,13 @@ new_pages( void *base, int len )
 	mutex_unlock(&pages_mux);
     return res;
 }
+
+int
+new_pages( void *base, int len )
+{
+    /* Acknowledge interrupt immediately */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	return _new_pages(base, len);
+}
+

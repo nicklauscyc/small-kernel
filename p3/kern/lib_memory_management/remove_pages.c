@@ -31,12 +31,12 @@ remove_pages( void *base )
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
     if ((uint32_t)base < USER_MEM_START) {
-        log_info("remove_pages(): "
+        log_warn("remove_pages(): "
                  "base < USER_MEM_START");
         return -1;
     }
     if (!PAGE_ALIGNED(base)) {
-        log_info("remove_pages(): "
+        log_warn("remove_pages(): "
                  "base not page aligned!");
         return -1;
     }
@@ -47,7 +47,7 @@ remove_pages( void *base )
 	 * valid, if ptep is NULL then base was not even allocated */
 	uint32_t *ptep = get_ptep((const uint32_t **) pd, (uint32_t) base);
 	if (!ptep) {
-		log_info("remove_pages(): "
+		log_warn("remove_pages(): "
 				 "unable to get page table entry pointer:");
 		mutex_unlock(&pages_mux);
 		return -1;
@@ -57,7 +57,7 @@ remove_pages( void *base )
 	assert(is_valid_sys_prog_flag(sys_prog_flag));
 
 	if (sys_prog_flag != NEW_PAGE_BASE_FLAG) {
-		log_info("remove_pages(): "
+		log_warn("remove_pages(): "
 				 "base:%p not previously allocated by new_pages(), "
 				 "sys_prog_flag:0x%08x",
 				 base, sys_prog_flag);

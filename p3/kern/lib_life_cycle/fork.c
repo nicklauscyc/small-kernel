@@ -132,10 +132,12 @@ fork( void )
 	/* If logging is set to debug, this will print stuff */
 	log_print_parent_and_child_stacks(parent_tcb, child_tcb );
 
-	/* No need for locking as only 1 active thread */
+	/* Need locking since parent could have forked other child tasks */
+	mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 	Q_INSERT_TAIL(&(parent_pcb->active_child_tasks_list), child_pcb,
 			              vanished_child_tasks_link);
 	parent_pcb->num_active_child_tasks++;
+	mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
 
 	/* Child inherits parent's software exception handler */
 	child_tcb->swexn_arg		 = parent_tcb->swexn_arg;

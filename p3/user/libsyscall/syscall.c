@@ -29,7 +29,3 @@ int getchar(void)
 	return -1;
 }
 
-void misbehave(int mode)
-{
-	return;
-}

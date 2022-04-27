@@ -26,6 +26,7 @@
 #include <variable_queue.h> /* Q_INSERT_TAIL */
 #include <lib_thread_management/hashmap.h>	/* map_* functions */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
+#include <lib_memory_management/memory_management.h> /* new_pages */
 
 #define ELF_IF (1 << 9);
 
@@ -151,8 +152,8 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 
 	/* Allocates physical memory to a new page table and enables VM */
 	/* Ensure alignment of page table directory */
-	void *pd = new_pd_from_elf(elf, UINT32_MAX - USER_THREAD_STACK_SIZE + 1,
-							   USER_THREAD_STACK_SIZE);
+
+	void *pd = new_pd_from_elf(elf);
 	if (!pd) {
 		return -1;
 	}
