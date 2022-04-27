@@ -803,10 +803,9 @@ get_ptep( const uint32_t **pd, uint32_t virtual_address )
  *	page-sized page-size aligned boundary. In fact BSS contiguously comes after
  *	DATA.
  *
- *	TODO CR4 needs to be set to prevent TLB flush
- *
  *	@return 0 on success, -1 on error
- *	*/
+ *
+ */
 static int
 allocate_frame( uint32_t **pd, uint32_t virtual_address,
 				write_mode_t write_mode, uint32_t sys_prog_flag )
@@ -1000,11 +999,9 @@ allocate_region( uint32_t **pd, void *start, uint32_t len,
     if (num_free_phys_frames() < pages_to_alloc) {
         return -1;
 	}
-    /* FIXME: Do we have any guarantee memory regions are page aligned?
-     *        They should be, to some extent. At the very least, 2 memory
-     *        regions should not be intersect with the same page, as they
-     *        could require distinct permissions. THis might not be the case
-     *        for data and bss, though, as both are read-write sections. */
+
+	/* u_start is not always page-aligned. For example, the data segment is
+	 * immediately succeeded by bss */
     uint32_t u_start = (uint32_t)start;
 
     /* Allocate 1 frame at a time. */

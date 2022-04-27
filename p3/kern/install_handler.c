@@ -11,7 +11,7 @@
 #include <seg.h>            /* SEGSEL_KERNEL_CS */
 #include <assert.h>			/* assert() */
 #include <stddef.h>         /* NULL */
-#include <keyhelp.h>		// FIXME: ????
+#include <keyhelp.h>		/* KEY_IDT_ENTRY */
 #include <timer_driver.h>   /* init_timer() */
 #include <keybd_driver.h>   /* init_keybd() */
 #include <timer_defines.h>  /* TIMER_IDT_ENTRY */

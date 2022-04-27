@@ -395,11 +395,6 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 
 		return NULL;
 	}
-	/* Set a task's first thread's thread id */
-	if (owning_task->first_thread_tid == 0) {
-		owning_task->first_thread_tid = *tid;
-	}
-
 
 	/* Link for when this thread calls wait() */
 	Q_INIT_ELEM(tcb, waiting_threads_link);
@@ -669,9 +664,6 @@ free_pcb_but_not_pd( pcb_t *pcb )
  * 	The latest fork() or exec() which is 'init' will be the init task,
  * 	since 'init' can fork a child, and the child will run init while
  * 	the parent runs the shell
- *
- * 	FIXME: this is fragile because how do we know if the parent or child
- *  task after a fork runs shell while the other stays as init?
  *
  *  @pre pid must be pid of PCB running kern_stack_execname
  *  @pre kern_stack_execname must be validated

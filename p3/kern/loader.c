@@ -119,7 +119,7 @@ zero_out_memory_region( uint32_t start, uint32_t len )
 static int
 transplant_program_memory( simple_elf_t *se_hdr )
 {
-	/* TODO: Swap cr0 on context switch, for now just disabling
+	/* TODO: NICK Swap cr0 on context switch, for now just disabling
 	 * interrupts. */
 	disable_interrupts();
 
@@ -127,10 +127,8 @@ transplant_program_memory( simple_elf_t *se_hdr )
      * copy data into read-only regions. */
 	disable_write_protection();
 
-    // FIXME: This error checking is kinda hacky
-    int i = 0;
-
     /* Zero out bytes between memory regions (as well as inside them)  */
+    int i = 0;
 	zero_out_memory_region(se_hdr->e_txtstart, se_hdr->e_txtlen);
 	zero_out_memory_region(se_hdr->e_rodatstart, se_hdr->e_rodatlen);
 	zero_out_memory_region(se_hdr->e_datstart, se_hdr->e_datlen);

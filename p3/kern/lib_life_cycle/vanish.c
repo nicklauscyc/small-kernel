@@ -115,27 +115,6 @@ free_task_pd( pcb_t *owning_task )
 	owning_task->pd = NULL;
 }
 
-/** @brief Empty list of active child tasks
- *
- *  @param owning_task PCB from which to empty list of active child tasks
- *  @return Void.
- */
-void
-empty_active_child_tasks_list( pcb_t *owning_task )
-{
-	pcb_t *active_child = Q_GET_FRONT(&(owning_task->active_child_tasks_list));
-
-	while (active_child) {
-		Q_REMOVE(&(owning_task->active_child_tasks_list), active_child,
-				 vanished_child_tasks_link);
-		owning_task->num_active_child_tasks--;
-		active_child = Q_GET_FRONT(&(owning_task->active_child_tasks_list));
-	}
-}
-
-
-
-
 /** @brief Makes a task ready for collection by its parent, ceases task
  *         thread execution that calls vanish.
  *
@@ -181,7 +160,6 @@ _vanish( void )
 
 		/* All my active child tasks will automatically look for init,
 		 * time to clear my active child tasks list */
-		// empty_active_child_tasks_list(owning_task);
 		Q_INIT_HEAD(&(owning_task->active_child_tasks_list));
 
 

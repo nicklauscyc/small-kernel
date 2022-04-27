@@ -131,7 +131,6 @@ scrolled_putbyte( char ch, int *start_rowp, int *start_colp )
 			/* Scroll if at screen bottom */
 			if (cursor_row + 1 >= CONSOLE_HEIGHT) {
 				scroll();
-				// TODO you can scroll offscreen though
 				*start_rowp -= 1;
 			}
 			/* Always update the cursor position relative to content */

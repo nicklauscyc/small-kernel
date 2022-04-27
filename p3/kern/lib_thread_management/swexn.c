@@ -22,7 +22,7 @@
 	EFL_IOPL_RING3 | EFL_NT | EFL_RESV4 | EFL_VM | \
 	EFL_VIF | EFL_VIP | EFL_ID)
 
-/* FIXME: Proper abstraction? */
+/* FIXME: ANDRE Proper abstraction? */
 #include <task_manager_internal.h>
 
 /** @brief Sets registers according to newureg. Assumes
