@@ -202,12 +202,20 @@ _vanish( void )
 
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			log("_vanish(): found my parent ");
-			noop();
 
-			/* Remove from active_child_tasks_list */
-			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
-					 vanished_child_tasks_link);
-			parent_pcb->num_active_child_tasks--;
+			/* Not really found parent yet, paradise lost */
+			if (!find_pcb(owning_task->parent_pid)) {
+				parent_pcb = init_pcbp;
+				assert(parent_pcb);
+				mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+				log("(init) parent_pcb->execname:%s", parent_pcb->execname);
+
+			} else {
+				/* Remove from active_child_tasks_list */
+				Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
+						 vanished_child_tasks_link);
+				parent_pcb->num_active_child_tasks--;
+			}
 
 		} else {
 			parent_pcb = init_pcbp;
