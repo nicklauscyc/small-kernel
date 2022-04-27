@@ -35,11 +35,14 @@
 #include <scheduler.h>			/* yield_execution() */
 #include <task_manager_internal.h>
 #include <lib_thread_management/hashmap.h>
+#include <lib_thread_management/mutex.h>
 #include <memory_manager.h> /* get_initial_pd() */
 #include <x86/cr.h>		/* {get,set}_{cr0,cr3} */
 #include <malloc.h> /* sfree() */
 #include <scheduler.h> /* make_thread_runnable() */
 #include <simics.h>
+
+static mutex_t vanish_tree_mux;
 
 void
 noop (void ){
@@ -115,6 +118,12 @@ free_task_pd( pcb_t *owning_task )
 	owning_task->pd = NULL;
 }
 
+void
+init_vanish( void )
+{
+	mutex_init(&vanish_tree_mux);
+}
+
 /** @brief Makes a task ready for collection by its parent, ceases task
  *         thread execution that calls vanish.
  *
@@ -127,6 +136,8 @@ _vanish( void )
 	/* Get TCB and PCB and obtain critical section */
 	tcb_t *tcb = get_running_thread();
 	pcb_t *owning_task = tcb->owning_task;
+
+	mutex_lock(&vanish_tree_mux);
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
 
 	/* Move current TCB from active threads to vanished threads */
@@ -142,13 +153,16 @@ _vanish( void )
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
 		log("_vanish(): not last task thread");
+		mutex_unlock(&vanish_tree_mux);
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 		affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 
 	/* Last task thread cleans up and contacts parent/init PCB */
 	} else {
 		log("_vanish(): last task thread");
+
 		remove_pcb(owning_task);
+		mutex_unlock(&vanish_tree_mux);
 
 		/* Free sibling threads TCB */
 		owning_task->last_thread = tcb;
@@ -196,30 +210,20 @@ _vanish( void )
 		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
+		mutex_lock(&vanish_tree_mux);
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
-
 		if (parent_pcb) {
-
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-			log("_vanish(): found my parent ");
+			mutex_unlock(&vanish_tree_mux);
 
-			/* Not really found parent yet, paradise lost */
-			if (!find_pcb(owning_task->parent_pid)) {
-				parent_pcb = init_pcbp;
-				assert(parent_pcb);
-				mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-				log("(init) parent_pcb->execname:%s", parent_pcb->execname);
-
-			} else {
-				/* Remove from active_child_tasks_list */
-				Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
-						 vanished_child_tasks_link);
-				parent_pcb->num_active_child_tasks--;
-			}
-
+			/* Remove from active_child_tasks_list */
+			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
+					 vanished_child_tasks_link);
+			parent_pcb->num_active_child_tasks--;
 		} else {
 			parent_pcb = init_pcbp;
 			assert(parent_pcb);
+			mutex_unlock(&vanish_tree_mux);
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			log("(init) parent_pcb->execname:%s", parent_pcb->execname);
 			noop();

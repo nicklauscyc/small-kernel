@@ -17,6 +17,7 @@
 #include <timer_defines.h>  /* TIMER_IDT_ENTRY */
 #include <lib_console/readline.h> /* init_readline() */
 #include <interrupt_defines.h>
+#include <lib_life_cycle/life_cycle.h>
 #include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
 												call_keybd_int_handler() */
 #include <asm_misc_handlers.h>
@@ -225,6 +226,7 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(EXEC_INT, NULL, call_exec, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
+	init_vanish();
 	if (install_handler(VANISH_INT, NULL, call_vanish, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}

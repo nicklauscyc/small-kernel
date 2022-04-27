@@ -36,6 +36,7 @@ static int sleep_initialized = 0;
 
 static void store_tcb_in_sleep_queue( tcb_t *tcb, void *data );
 
+/** @brief */
 static void
 init_sleep( void )
 {
