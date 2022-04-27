@@ -181,7 +181,9 @@ _vanish( void )
 
 		/* All my active child tasks will automatically look for init,
 		 * time to clear my active child tasks list */
-		empty_active_child_tasks_list(owning_task);
+		// empty_active_child_tasks_list(owning_task);
+		Q_INIT_HEAD(&(owning_task->active_child_tasks_list));
+
 
 		/* Transfer all my vanished children to init in O(1) */
 		pcb_t *init_pcbp = get_init_pcbp();
@@ -253,6 +255,13 @@ _vanish( void )
 
 		/* No parent threads waiting, add self to vanished child list */
 		} else {
+			/* Parent did not remove me from their active_child tasks list cuz
+			 * parent has vanished, re-initialize myself by setting my next
+			 * and prev to NULL */
+			if (parent_pcb == init_pcbp) {
+				Q_INIT_ELEM(owning_task, vanished_child_tasks_link);
+			}
+
 			Q_INSERT_TAIL(&(parent_pcb->vanished_child_tasks_list),
 						  owning_task, vanished_child_tasks_link);
 			parent_pcb->num_vanished_child_tasks++;
