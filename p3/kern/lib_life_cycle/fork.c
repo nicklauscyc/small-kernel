@@ -99,7 +99,8 @@ fork( void )
 	if (!child_tcb) {
 		log_warn("fork(): unable to create child TCB");
 		free_pd_memory(child_pd);
-		free_pcb_but_not_pd(child_pcb);
+		child_pcb->pd = NULL;
+		free_pcb_but_not_pd_no_last_thread(child_pcb);
 		sfree(child_pd, PAGE_SIZE);
 		return -1;
 	}
