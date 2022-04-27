@@ -166,8 +166,9 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 
 	tcb_t *new_thread = create_tcb(owning_task, tid);
 	if (!new_thread) {
-		free_pcb_but_not_pd(owning_task);
 		free_pd_memory(pd);
+		owning_task->pd = NULL;
+		free_pcb_but_not_pd_no_last_thread(owning_task);
 		sfree(pd, PAGE_SIZE);
 		return -1;
 	}
@@ -612,13 +613,14 @@ free_tcb(tcb_t *tcb)
 	log_info("free_tcb(): cleaned up thread tid:%d", tcb->tid);
 }
 
+
 void
-free_pcb_but_not_pd(pcb_t *pcb)
+free_pcb_but_not_pd_helper(pcb_t *pcb, int free_last_thread )
 {
 	affirm(pcb);
 
 	/* pd should already be freed and set to NULL */
-	affirm(!pcb->pd);
+	affirm_msg(!pcb->pd, "pcb->pd should be null, but pcb->pd:%p", pcb->pd);
 	log_warn("free_pcb_but_not_pd(): cleaned up pcb->first_thread_tid:%d",
 			 pcb->first_thread_tid);
 
@@ -636,17 +638,33 @@ free_pcb_but_not_pd(pcb_t *pcb)
 	affirm(!Q_GET_FRONT(&pcb->active_threads_list));
 
 	/* Left to free the last task thread */
-	affirm(Q_GET_FRONT(&pcb->vanished_threads_list) == pcb->last_thread);
-	affirm(Q_GET_TAIL(&pcb->vanished_threads_list) == pcb->last_thread);
-	affirm(pcb->last_thread);
-	map_remove(pcb->last_thread->tid);
-	free_tcb(pcb->last_thread);
+	if (free_last_thread) {
+		affirm(Q_GET_FRONT(&pcb->vanished_threads_list) == pcb->last_thread);
+		affirm(Q_GET_TAIL(&pcb->vanished_threads_list) == pcb->last_thread);
+		affirm(pcb->last_thread);
+		map_remove(pcb->last_thread->tid);
+		free_tcb(pcb->last_thread);
+	}
 
 	sfree(pcb, sizeof(pcb_t));
 	log_info("free_pcb_but_not_pd(): complete cleaned up pcb->first_thread_tid:%d",
 			 pcb->first_thread_tid);
 
 }
+
+void
+free_pcb_but_not_pd_no_last_thread( pcb_t *pcb )
+{
+	free_pcb_but_not_pd_helper(pcb, 0);
+}
+
+void
+free_pcb_but_not_pd( pcb_t *pcb )
+{
+	free_pcb_but_not_pd_helper(pcb, 1);
+}
+
+
 
 
 /** @brief Checks if task indicated by given pid is running the 'init' task.

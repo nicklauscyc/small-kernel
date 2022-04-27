@@ -46,6 +46,7 @@ void *swap_task_pd( void *new_pd );
 void *get_tcb_pd(tcb_t *tcb);
 void free_tcb(tcb_t *tcb);
 void free_pcb_but_not_pd(pcb_t *pcb);
+void free_pcb_but_not_pd_no_last_thread( pcb_t *pcb );
 
 void remove_pcb( pcb_t *pcbp );
 pcb_t *get_init_pcbp( void );
