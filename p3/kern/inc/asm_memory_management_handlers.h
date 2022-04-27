@@ -7,8 +7,6 @@
 #ifndef ASM_MEMORY_MANAGEMENT_HANDLERS_H_
 #define ASM_MEMORY_MANAGEMENT_HANDLERS_H_
 
-/** @brief Assembly wrapper for calling pagefault_handler() interrupt handler
- */
 void call_pagefault_handler( void );
 
 void call_new_pages( void );

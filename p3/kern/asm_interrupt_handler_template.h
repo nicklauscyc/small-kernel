@@ -1,17 +1,13 @@
-#include <seg.h>
+/** @file asm_interrupt_template_handler.h
+ *  @brief Collection of MACROS providing templates for asm wrappers to
+ *		   syscalls and fault handlers.*/
 
-/** @brief Macro to call a particular function handler with name
- * 		   HANDLER_NAME
- *
- *	Macro assembly instructions require a ; after each line
- */
-
-#include <x86/seg.h> /* SEGSEL_KERNEL_{CS, DS} */
+#include <seg.h> /* SEGSEL_KERNEL_{CS, DS} */
 
 
 /** @define CALL_HANDLER(HANDLER_NAME)
  *  @brief Assembly wrapper to call interupt handlers that do not service
- *         syscalls (hence the need to save _all_ general registers
+ *         syscalls (hence the need to save _all_ general registers)
  *
  *  @param HANDLER_NAME name of handler function to call
  */
@@ -39,6 +35,12 @@ call_ ## HANDLER_NAME ## :;\
 	popa; /* Restores all registers onto the stack */\
 	iret; /* Return to procedure before interrupt */
 
+/** @define CALL_FAULT_HANDLER_TEMPLATE(HANDLER_NAME)
+ *  @brief Assembly wrapper to call interupt handlers that do not service
+ *         syscalls (hence the need to save _all_ general registers)
+ *
+ *  @param HANDLER_NAME name of handler function to call
+ */
 #define CALL_FAULT_HANDLER_TEMPLATE(HANDLER_SPECIFIC_CODE)\
 \
 	/* Make use of ebp for argument access */\
@@ -79,6 +81,12 @@ call_ ## HANDLER_NAME ## :;\
 	/* Return to procedure before interrupt */\
 	iret;
 
+/** @define CALL_FAULT_HANDLER_TEMPLATE(HANDLER_NAME)
+ *  @brief Assembly wrapper to call fault handlers which place
+ *		   an error code on the stack.
+ *
+ *  @param HANDLER_NAME name of handler function to call
+ */
 #define CALL_FAULT_HANDLER_TEMPLATE_W_ERROR(HANDLER_SPECIFIC_CODE)\
 \
 	/* Make use of ebp for argument access */\
@@ -169,6 +177,8 @@ call_ ## HANDLER_NAME ## :;\
 /** @define CALL_W_RETVAL_HANDLER(HANDLER_NAME)
  *  @brief Assembly wrapper for a syscall handler that returns a value,
  *         takes in no arguments
+ *
+ *  @param HANDLER_NAME handler to call
  */
 #define CALL_W_RETVAL_HANDLER(HANDLER_NAME)\
 \
