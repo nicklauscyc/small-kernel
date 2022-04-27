@@ -8,6 +8,11 @@
 #include <scheduler.h> /* get_running_thread() */
 #include <task_manager.h> /* set_task_exit_status() */
 
+/** @brief Sets status of a task
+ *
+ *  @param status Status to set to
+ *  @return Void.
+ */
 void
 _set_status( int status )
 {
@@ -17,6 +22,11 @@ _set_status( int status )
 	set_task_exit_status(status);
 }
 
+/** @brief Sets status of a task
+ *
+ *  @param status Status to set to
+ *  @return Void.
+ */
 void
 set_status( int status )
 {
