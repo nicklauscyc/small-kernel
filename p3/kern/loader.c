@@ -37,7 +37,7 @@
 #include <eflags.h>	/* get_eflags*/
 #include <seg.h>	/* SEGSEL_... */
 #include <common_kern.h> /* USER_MEM_START */
-
+#include <lib_memory_management/memory_management.h> /* new_pages */
 /* --- Local function prototypes --- */
 
 
@@ -302,15 +302,15 @@ execute_user_program( char *fname, int argc, char **argv)
 	tid = get_running_tid();
 
 	/* Create new pd */
-	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
-	void *new_pd = new_pd_from_elf(&se_hdr, stack_lo,
-								   USER_THREAD_STACK_SIZE);
+
+	void *new_pd = new_pd_from_elf(&se_hdr);
 	if (!new_pd) {
 		goto cleanup;
 	}
 	void *old_pd = swap_task_pd(new_pd);
 	free_pd_memory(old_pd);
 	sfree(old_pd, PAGE_SIZE);
+
 
 	set_task_name(find_pcb(pid), kern_stack_execname);
 
@@ -325,6 +325,13 @@ execute_user_program( char *fname, int argc, char **argv)
 	if (activate_task_memory(pid) < 0) {
 		goto cleanup;
 	}
+
+	/* Allocate user stack space */
+	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
+	if (new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
+		goto cleanup;
+	}
+
 
     if (transplant_program_memory(&se_hdr) < 0) {
 		goto cleanup;
@@ -378,6 +385,13 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
+	/* TODO this looks like duplicate code in execute_user_program */
+	// TODO why new_pages below doesn't work?
+	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
+	if (new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
+		return -1;
+	}
+
 
     if (transplant_program_memory(&se_hdr) < 0) {
 		return -1;

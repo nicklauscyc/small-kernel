@@ -100,7 +100,7 @@ thr_init( unsigned int size )
  *
  *  @param func Function to run in new thread
  *  @param arg Argument to pass into func
- *  @return 0 on success, negative number on failure
+ *  @return tid on success, negative number on failure
  */
 int
 thr_create( void *(*func)(void *), void *arg )
@@ -180,7 +180,7 @@ thr_join( int tid, void **statusp )
          * never created), do nothing more, return */
 		if ((thr_statusp = get(tid)) == NULL) {
 			mutex_unlock(&thr_status_mux);
-			return -1;
+			return -2;
 		}
 		/* If exited and not cleaned up, break and clean up */
 		if (thr_statusp->exited)
@@ -199,7 +199,7 @@ thr_join( int tid, void **statusp )
     /* Free child stack and thread status and cond var */
     if (thr_statusp->thr_stack_low == global_stack_low) {
 		if (remove_pages(thr_statusp->thr_stack_low) < 0)
-			return -1;
+			return -3;
 	} else {
 		/* free child stack */
         free(thr_statusp->thr_stack_low);
