@@ -7,7 +7,9 @@
 
 /** @brief Handler for set_term_color syscall.
  *
- *	NOTE: appended _handler to distinguish from console.c function */
+ *  @param color Color to set terminal to.
+ *  @return 0 on success, negative value on error.
+ *	*/
 int
 set_term_color_handler( int color )
 {

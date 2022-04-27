@@ -6,7 +6,11 @@
 #include <memory_manager.h>		/* is_user_pointer_valid */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 
-/** @brief Handler for get_cursor_pos syscall. */
+/** @brief Handler for get_cursor_pos syscall.
+ *
+ *  @param row Pointer to location in which to store cursor's row
+ *  @param col Pointer to location in which to store cursor's col
+ *  @return 0 on success, negative value on error */
 int
 get_cursor_pos( int *row, int *col )
 {

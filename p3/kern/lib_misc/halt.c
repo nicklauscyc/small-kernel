@@ -5,7 +5,7 @@
 #include <simics.h>		/* sim_halt */
 #include "call_halt.h"	/* call_hlt */
 
-/** @brief Halt OS. Also used as handler for halt syscall */
+/** @brief Halt OS. Also used as handler for halt syscall. */
 void
 halt( void )
 {

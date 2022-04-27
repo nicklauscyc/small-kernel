@@ -216,6 +216,8 @@ _vanish( void )
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			mutex_unlock(&vanish_tree_mux);
 
+			affirm(find_pcb(owning_task->parent_pid));
+
 			/* Remove from active_child_tasks_list */
 			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
 					 vanished_child_tasks_link);
