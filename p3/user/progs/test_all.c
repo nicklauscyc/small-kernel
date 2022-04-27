@@ -39,8 +39,8 @@ struct prog {
 	{"actual_wait", -1,         100},
 	{"wait_getpid", -1,         100},
 	{"fork_wait", -1,           100},
-	{"fork_wait_bomb", -1,      10},
-	{"fork_exit_bomb", -1,      10},
+	{"fork_wait_bomb", -1,      3},
+	{"fork_exit_bomb", -1,      3},
 	{"sleep_test1", -1,         100},
 	{"stack_test1", -1,         100},
 	{"swexn_basic_test", -1,    100},
@@ -48,11 +48,11 @@ struct prog {
 	{"swexn_dispatch", -1,      100},
 	{"swexn_regs", -1,          100},
 	{"yield_desc_mkrun", -1,    100},
-	{"make_crash", -1,          10},
+	{"make_crash", -1,          3},
 	{"mem_permissions", -1,     100},
-	{"cho", -1,                 10},
-	{"cho2", -1,                10},
-	{"cho_variant", -1,         10}
+	{"cho", -1,                 3},
+	{"cho2", -1,                3},
+	{"cho_variant", -1,         3}
 
 };
 
