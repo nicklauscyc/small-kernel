@@ -240,7 +240,7 @@ initialize_zero_frame( void )
  *
  */
 void *
-new_pd_from_elf( simple_elf_t *elf ) //, uint32_t stack_lo, uint32_t stack_len )
+new_pd_from_elf( simple_elf_t *elf )
 {
 	/* Allocate new pd that is zero filled */
     uint32_t **pd = allocate_new_pd();
@@ -277,7 +277,6 @@ new_pd_from_elf( simple_elf_t *elf ) //, uint32_t stack_lo, uint32_t stack_len )
 	                     READ_ONLY);
 	i += allocate_region(pd, (void *)elf->e_bssstart, elf->e_bsslen,
 	                     READ_WRITE);
-	//i += allocate_region(pd, (void *)stack_lo, stack_len, READ_WRITE);
 
 	if (i < 0) {
 		sfree(pd, PAGE_SIZE);

@@ -385,8 +385,6 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	if (activate_task_memory(pid) < 0) {
 		return -1;
 	}
-	/* TODO this looks like duplicate code in execute_user_program */
-	// TODO why new_pages below doesn't work?
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
 	if (new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
 		return -1;

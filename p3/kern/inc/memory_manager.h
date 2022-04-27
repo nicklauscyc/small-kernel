@@ -39,7 +39,6 @@ typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE, READ };
 
 void *new_pd_from_elf( simple_elf_t *elf );
-        //uint32_t stack_lo, uint32_t stack_len );
 void *new_pd_from_parent( void *parent_pd );
 void vm_enable_task( void *ptd );
 void enable_write_protection( void );

@@ -39,8 +39,6 @@ general_protection_handler( int *ebp )
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
 	handle_exn(ebp, SWEXN_CAUSE_PROTFAULT, 0);
-#include <simics.h>
-	MAGIC_BREAK;
 
 	panic_thread("Unhandled general protection fault while loading a "
 			   "segment descriptor\n"
