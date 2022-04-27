@@ -1,7 +1,8 @@
 
 .globl update_child_esp
 
-# void update_child_esp(uint32_t *child_esp,uint32_t child_stack_lo, uint32_t parent_lowest)
+# void update_child_esp(uint32_t *child_esp,uint32_t child_stack_lo,
+#                       uint32_t parent_lowest)
 update_child_esp:
 	leal 4(%esp), %eax # save parent esp
 	movl %eax, 4(%esp)
@@ -9,7 +10,6 @@ update_child_esp:
 
 
 .globl save_child_regs
-//TODO if possible do it in C
 /* void *save_child_regs(void *parent_kern_esp, void *child_kern_esp
  *						 void *child_cr3 ); */
 save_child_regs:
@@ -59,9 +59,6 @@ save_child_regs:
 	pushl %edx
 
 	/* stuff to store child tid in stack position for future eax value */
-	//movl 12(%ebp), %edx /* parent eax in %edx, contains child tid now */
-	//movl (%edx), %edx /* dereference child stack highest address to get child
-	                   //* tid */
 	movl $0, %edx
 
 	pushl %edx
