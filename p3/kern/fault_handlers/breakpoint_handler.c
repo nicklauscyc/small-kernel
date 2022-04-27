@@ -9,6 +9,10 @@
 #include <panic_thread.h> /* panic_thread() */
 #include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
+/** @brief Breakpoint handler
+ *
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void */
 void
 breakpoint_handler( int *ebp )
 {

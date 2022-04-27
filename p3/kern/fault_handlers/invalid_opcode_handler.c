@@ -1,14 +1,18 @@
 /** @file invalid_opcode_handler.c
  *  @brief Functions for handling invalid opcode faults
  */
-#include <seg.h>	/* SEGSEL_KERNEL_CS */
+#include <seg.h>			/* SEGSEL_KERNEL_CS */
 #include <asm.h>			/* outb() */
 #include <ureg.h>			/* SWEXN_CAUSE_ */
 #include <swexn.h>			/* handle_exn */
-#include <assert.h> /* panic() */
-#include <panic_thread.h> /* panic_thread() */
+#include <assert.h> 		/* panic() */
+#include <panic_thread.h>	/* panic_thread() */
 #include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
+/** @brief Invalid opcode handler
+ *
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void. */
 void
 invalid_opcode_handler( int *ebp )
 {

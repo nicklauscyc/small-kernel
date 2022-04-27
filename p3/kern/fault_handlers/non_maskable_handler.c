@@ -5,7 +5,10 @@
 #include <assert.h> /* panic() */
 #include <simics.h>
 
-/** Interrupt handler */
+/** @brief Non maskable interrupt handler
+ *
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void. */
 void
 non_maskable_handler( int *ebp )
 {
