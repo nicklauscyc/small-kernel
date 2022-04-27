@@ -10,6 +10,9 @@
 
 /** @brief Fake implementation which only sets status of task and calls vanish
  *         on the current thread
+ *
+ *  @param status Status to set task threads to
+ *  @return Void.
  */
 void
 task_vanish( int status )
