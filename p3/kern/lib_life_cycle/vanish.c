@@ -206,6 +206,8 @@ _vanish( void )
 
 		/* Insert into parent PCB's list of vanished child tasks */
 		disable_interrupts();
+
+		// THIS FAULTS
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
 
 		if (parent_pcb) {
