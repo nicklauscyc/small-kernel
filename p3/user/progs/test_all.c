@@ -13,7 +13,7 @@
 #include "410_tests.h"
 #include <report.h>
 
-DEF_TEST_NAME("cho:");
+DEF_TEST_NAME("test_all:");
 
 /* Every UPDATE_FREQUENCY reaps, print out an update of
  * how many children of each type are left.
@@ -27,7 +27,6 @@ struct prog {
 	int pid;
 	int count;
 } progs[] = {
-	{"readline_basic", -1,      1},
 	{"getpid_test1", -1,        1},
 	{"loader_test1", -1,        1},
 	{"loader_test2", -1,        1},
