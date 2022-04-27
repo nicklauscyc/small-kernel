@@ -140,18 +140,27 @@ transplant_program_memory( simple_elf_t *se_hdr )
      * enabled to "transplant" program data. Notice
      * that this is only possible because program data is
      * resident on kernel memory which is direct-mapped. */
-	i += getbytes(se_hdr->e_fname,
+	i = getbytes(se_hdr->e_fname,
             (unsigned int) se_hdr->e_txtoff,
             (unsigned int) se_hdr->e_txtlen,
 	        (char *) se_hdr->e_txtstart);
-	i += getbytes(se_hdr->e_fname,
+	if (i < 0)
+		return -1;
+
+	i = getbytes(se_hdr->e_fname,
 	        (unsigned int) se_hdr->e_rodatoff,
             (unsigned int) se_hdr->e_rodatlen,
 	        (char *) se_hdr->e_rodatstart);
-	i += getbytes(se_hdr->e_fname,
+	if (i < 0)
+		return -1;
+
+	i = getbytes(se_hdr->e_fname,
             (unsigned int) se_hdr->e_datoff,
             (unsigned int) se_hdr->e_datlen,
 	        (char *) se_hdr->e_datstart);
+	if (i < 0)
+		return -1;
+
 
     /* Re-enable write-protection bit. */
     enable_write_protection();
@@ -308,9 +317,6 @@ execute_user_program( char *fname, int argc, char **argv)
 		goto cleanup;
 	}
 	void *old_pd = swap_task_pd(new_pd);
-	free_pd_memory(old_pd);
-	sfree(old_pd, PAGE_SIZE);
-
 
 	set_task_name(find_pcb(pid), kern_stack_execname);
 
@@ -323,26 +329,34 @@ execute_user_program( char *fname, int argc, char **argv)
 
 	/* Update page directory, enable VM if necessary */
 	if (activate_task_memory(pid) < 0) {
-		goto cleanup;
+		goto cleanup_w_pd;
 	}
 
 	/* Allocate user stack space */
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
 	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
-		goto cleanup;
+		goto cleanup_w_pd;
 	}
 
-
+	/* Cleaning up the new page directory also implicitly cleans up the pages
+	 * allocated by _new_pages() above */
     if (transplant_program_memory(&se_hdr) < 0) {
-		goto cleanup;
+		goto cleanup_w_pd;
 	}
     uint32_t *esp = configure_stack(argc, kern_stack_argvec);
 
 	/* Start the task */
 	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
+	free_pd_memory(old_pd);
+	sfree(old_pd, PAGE_SIZE);
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
 
 	panic("execute_user_program does not return");
+
+	/* Swap back to old pd and clean up */
+cleanup_w_pd:
+	new_pd = swap_task_pd(old_pd);
+	free_pd_memory(new_pd);
 
 cleanup:
 	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);

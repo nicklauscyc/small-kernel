@@ -99,7 +99,6 @@ void hard_code_test( char *s )
 int
 kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 {
-    /* FIXME: What to do with mbinfo and envp? */
     (void)mbinfo;
     (void)envp;
 
