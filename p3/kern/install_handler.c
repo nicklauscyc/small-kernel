@@ -288,6 +288,10 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(HALT_INT, NULL, call_halt, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
+	if (install_handler(MISBEHAVE_INT, NULL, call_misbehave, DPL_3,
+		D32_TRAP) < 0) {
+		return -1;
+	}
 
 	/* Fault handlers */
 	if (install_handler(IDT_DE, NULL, call_divide_handler, DPL_3,
