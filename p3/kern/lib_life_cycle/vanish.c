@@ -205,6 +205,8 @@ _vanish( void )
 
 			/* Not really found parent yet, paradise lost */
 			if (!find_pcb(owning_task->parent_pid)) {
+				mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
+
 				parent_pcb = init_pcbp;
 				assert(parent_pcb);
 				mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
