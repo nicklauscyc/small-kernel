@@ -37,8 +37,7 @@ CC = gcc
 # compiling the respective type(s) of code.  The ordering
 # of the words doesn't matter, and repeating a word has
 # no additional effect.
-#
-# Use "make veryclean" if you adjust CONFIG_DEBUG.
+# # Use "make veryclean" if you adjust CONFIG_DEBUG.
 #
 CONFIG_DEBUG = user kernel
 
@@ -87,10 +86,15 @@ UPDATE_METHOD = afs
 		   mem_permissions cho cho2 cho_variant score make_crash_helper\
 		   knife exec_basic_helper\
 		   remove_pages_test2 \
-		   wild_test1\
-		   ack bg bistromath cat chow ck1 coolness deschedule_hang fib\
-		   fork_bomb halt_test mem_eat_test merchant peon slaughter\
+		   ack chow ck1 coolness deschedule_hang fib\
+		   fork_bomb mem_eat_test merchant peon slaughter\
 		   swexn_stands_for_swextensible swexn_uninstall_test work\
+		   \
+		   cat startle agility_drill paraguay cyclone join_melee switzerland\
+		   rwlock_downgrade_read_test thr_exit_join racer paradise_lost wild_test1\
+		   beady_test bg bistromath broadcast_test cvar_test excellent halt_test\
+		   join_specific_test juggle largetest mandelbrot multitest\
+		   mutex_destroy_test mutex_test nibbles\
 
 ###########################################################################
 # Test programs you have written which you wish to run

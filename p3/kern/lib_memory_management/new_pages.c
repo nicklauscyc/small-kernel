@@ -51,11 +51,15 @@ new_pages( void *base, int len )
                  "len is not a multiple of PAGE_SIZE!");
         return -1;
     }
+
+	mutex_lock(&pages_mux);
+
     /* Check if enough frames to fulfill request */
     uint32_t pages_to_alloc = len / PAGE_SIZE;
     if (num_free_phys_frames() < pages_to_alloc) {
         log_info("new_pages(): "
                  "not enough free frames to satisfy request!");
+		mutex_unlock(&pages_mux);
         return -1;
     }
 
@@ -65,6 +69,7 @@ new_pages( void *base, int len )
         if (is_user_pointer_allocated(base_char + i * PAGE_SIZE)) {
             log_info("new_pages(): "
                      "%p is already allocated!", base_char + i * PAGE_SIZE);
+			mutex_unlock(&pages_mux);
             return -1;
         }
     }
@@ -94,10 +99,11 @@ new_pages( void *base, int len )
                 unallocate_frame((void *)TABLE_ADDRESS(get_cr3()),
                                            (uint32_t) base + (j * PAGE_SIZE));
             }
+			mutex_unlock(&pages_mux);
             return -1;
         }
     }
-	/* TODO jank get and set cr3() to flush TLB entries */
-	//set_cr3(get_cr3());
+
+	mutex_unlock(&pages_mux);
     return res;
 }

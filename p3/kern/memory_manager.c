@@ -26,6 +26,7 @@
 #include <common_kern.h>/* USER_MEM_START */
 #include <logger.h>		/* log */
 #include <memory_manager_internal.h>
+#include <lib_thread_management/mutex.h> /* mutex_init */
 
 // TODO: delete
 #include <asm.h>
@@ -51,6 +52,7 @@ static uint32_t **initial_pd = NULL;
 void
 init_memory_manager( void )
 {
+	mutex_init(&pages_mux);
 	initialize_zero_frame();
 	create_initial_pd();
 }
