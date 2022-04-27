@@ -21,12 +21,10 @@
 
 // TODO locking
 int
-new_pages( void *base, int len )
+_new_pages( void *base, int len )
 {
     //assert(is_valid_pd(get_tcb_pd(get_running_thread())));
 
-    /* Acknowledge interrupt immediately */
-    outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
     log_warn("new_pages(): "
         "base:%p, len:0x%08lx", base, len);
@@ -107,3 +105,13 @@ new_pages( void *base, int len )
 	mutex_unlock(&pages_mux);
     return res;
 }
+
+int
+new_pages( void *base, int len )
+{
+    /* Acknowledge interrupt immediately */
+    outb(INT_CTL_PORT, INT_ACK_CURRENT);
+
+	return _new_pages(base, len);
+}
+

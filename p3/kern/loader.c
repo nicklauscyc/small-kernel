@@ -37,7 +37,7 @@
 #include <eflags.h>	/* get_eflags*/
 #include <seg.h>	/* SEGSEL_... */
 #include <common_kern.h> /* USER_MEM_START */
-#include <lib_memory_management/memory_management.h> /* new_pages */
+#include <lib_memory_management/memory_management.h> /* _new_pages */
 /* --- Local function prototypes --- */
 
 
@@ -328,7 +328,7 @@ execute_user_program( char *fname, int argc, char **argv)
 
 	/* Allocate user stack space */
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
-	if (new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
+	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
 		goto cleanup;
 	}
 
@@ -386,7 +386,7 @@ load_initial_user_program( char *fname, int argc, char **argv )
 		return -1;
 	}
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
-	if (new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
+	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
 		return -1;
 	}
 
