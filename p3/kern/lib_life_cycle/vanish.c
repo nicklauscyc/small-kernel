@@ -127,6 +127,9 @@ _vanish( void )
 	/* Get TCB and PCB and obtain critical section */
 	tcb_t *tcb = get_running_thread();
 	pcb_t *owning_task = tcb->owning_task;
+
+	// TREE LOCK
+	disable_interrupts();
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
 
 	/* Move current TCB from active threads to vanished threads */
@@ -142,18 +145,24 @@ _vanish( void )
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
 		log("_vanish(): not last task thread");
+		enable_interrupts();
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 		affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 
 	/* Last task thread cleans up and contacts parent/init PCB */
 	} else {
+
 		log("_vanish(): last task thread");
 		remove_pcb(owning_task);
+
+		enable_interrupts();
+
 
 		/* Free sibling threads TCB */
 		owning_task->last_thread = tcb;
 		free_sibling_tcb(owning_task, tcb);
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
 
 		/* Free page directory */
 		free_task_pd(owning_task);
@@ -196,30 +205,35 @@ _vanish( void )
 		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
+		disable_interrupts();
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
 
 		if (parent_pcb) {
 
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+			enable_interrupts();
 			log("_vanish(): found my parent ");
 
 			/* Not really found parent yet, paradise lost */
-			if (!find_pcb(owning_task->parent_pid)) {
-				mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
+			affirm( find_pcb(owning_task->parent_pid));
+			//if (!find_pcb(owning_task->parent_pid)) {
+			//	mutex_unlock(&(parent_pcb->set_status_vanish_wait_mux));
 
-				parent_pcb = init_pcbp;
-				assert(parent_pcb);
-				mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-				log("(init) parent_pcb->execname:%s", parent_pcb->execname);
+			//	parent_pcb = init_pcbp;
+			//	assert(parent_pcb);
+			//	mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+			//	log("(init) parent_pcb->execname:%s", parent_pcb->execname);
 
-			} else {
+			//} else {
 				/* Remove from active_child_tasks_list */
 				Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
 						 vanished_child_tasks_link);
 				parent_pcb->num_active_child_tasks--;
-			}
+			//}
 
 		} else {
+			enable_interrupts();
+
 			parent_pcb = init_pcbp;
 			assert(parent_pcb);
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
