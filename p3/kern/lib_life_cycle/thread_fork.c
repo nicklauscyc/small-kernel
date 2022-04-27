@@ -13,9 +13,10 @@
 
 #include <task_manager_internal.h>
 
-// saves regs and returns new esp
-void *save_child_regs(void *parent_kern_esp, void *child_kern_esp,
-					  void *child_cr3 );
+/** @brief Forks a thread in the current running task
+ *
+ *  @return tid of new thread to parent thread, 0 to child thread.
+ */
 int
 thread_fork( void )
 {
@@ -89,7 +90,7 @@ thread_fork( void )
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(child_tcb) < 0) {
-		log_info("fork(): unable to make child thread runnable");
+		log_warn("thread_fork(): unable to make child thread runnable");
         return -1;
 	}
 
