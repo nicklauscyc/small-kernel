@@ -1,3 +1,7 @@
+/** @file asm_memory_management_handlers.S
+ *  @brief Assembly wrappers to call syscall handlers
+ */
+
 #include <asm_interrupt_handler_template.h>
 
 

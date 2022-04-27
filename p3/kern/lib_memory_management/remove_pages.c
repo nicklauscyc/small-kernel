@@ -20,7 +20,11 @@
 #include <memory_manager_internal.h>
 #include <lib_thread_management/mutex.h> /* mutex_t */
 
-
+/** @brief Removes memory allocated starting from base.
+ *
+ *  @base Lowest address to start freeing pages from
+ *  @return 0 on success, -1 on error.
+ */
 int
 remove_pages( void *base )
 {

@@ -18,8 +18,13 @@
 #include <physalloc.h>
 #include <memory_manager_internal.h>
 
-
-// TODO locking
+/** @brief Allocates a new page
+ *
+ *  @param base lowest address to begin allocating
+ *  @param len total size of address to allocate
+ *  @return 0 on success and allocated memory starting from base extending
+ *          for len bytes. Negative value on error.
+ */
 int
 _new_pages( void *base, int len )
 {
@@ -103,6 +108,13 @@ _new_pages( void *base, int len )
     return res;
 }
 
+/** @brief Wrapper that is invoked by the new_pages() syscall from user space.
+ *         Delivers an ACK.
+ *
+ *  @param base Lowest address to start allocating.
+ *  @param len Total space to allocate
+ *  @return 0 on success, negative value on error.
+ */
 int
 new_pages( void *base, int len )
 {

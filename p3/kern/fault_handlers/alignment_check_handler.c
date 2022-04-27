@@ -16,7 +16,7 @@ alignment_check_handler( int *ebp )
 	int eip			= *(ebp + 2);
 	int cs			= *(ebp + 3);
 
-	assert(error_code == 0);
+	affirm(error_code == 0);
 	if (cs == SEGSEL_KERNEL_CS) {
 		panic("[Kernel mode] Alignment check fault  encountered error at "
 		        "0x%x.", eip);
