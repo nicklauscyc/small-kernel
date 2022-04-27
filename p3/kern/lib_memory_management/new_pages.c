@@ -23,11 +23,8 @@
 int
 _new_pages( void *base, int len )
 {
-    //assert(is_valid_pd(get_tcb_pd(get_running_thread())));
-
-
-    log_warn("new_pages(): "
-        "base:%p, len:0x%08lx", base, len);
+    log_info("new_pages(): "
+		"base:%p, len:0x%08lx", base, len);
 
     if ((uint32_t)base < USER_MEM_START) {
         log_warn("new_pages(): "
