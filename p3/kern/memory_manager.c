@@ -32,7 +32,6 @@
 
 /* 1 if VM is enabled, 0 otherwise */
 static int paging_enabled = 0;
-static uint32_t sys_zero_frame = USER_MEM_START;
 
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
                           write_mode_t write_mode, uint32_t sys_prog_flag );
@@ -127,7 +126,7 @@ unallocate_frame( uint32_t **pd, uint32_t virtual_address )
 	uint32_t phys_address = TABLE_ADDRESS(pt_entry);
 
 	/* Only physfree physically allocated frames (as opposed to ZFOD frames) */
-	if (phys_address != sys_zero_frame)
+	if (phys_address != SYS_ZERO_FRAME)
 		physfree(phys_address);
 
 	// Zero the entry as well
@@ -179,7 +178,7 @@ zero_page_pf_handler( uint32_t faulting_address )
 
 	/* Page table entry must hold the system wide zero frame.
 	 * If not, then this is not a ZFOD allocated frame. */
-	if (TABLE_ADDRESS(pt_entry) != sys_zero_frame) {
+	if (TABLE_ADDRESS(pt_entry) != SYS_ZERO_FRAME) {
 		return -1;
 	}
 	/* Page table entry must be user readable since sys wide zero frame */
@@ -217,7 +216,7 @@ initialize_zero_frame( void )
 	affirm(!paging_enabled);
 
 	/* Zero fill system wide zero frame */
-	memset((uint32_t *) sys_zero_frame, 0, PAGE_SIZE);
+	memset((uint32_t *) SYS_ZERO_FRAME, 0, PAGE_SIZE);
 }
 
 /** @brief Sets up a new page directory by allocating physical memory for it.
@@ -481,7 +480,7 @@ is_valid_user_pointer(void *ptr, write_mode_t write_mode)
 	/* If looking for read write, ensure it's fully allocated or
 	 * we have allocated with ZFOD. */
 	if (write_mode == READ_WRITE && !((pt[pt_index] & RW_FLAG)
-				|| TABLE_ADDRESS(pt[pt_index]) == sys_zero_frame))
+				|| TABLE_ADDRESS(pt[pt_index]) == SYS_ZERO_FRAME))
 		return 0;
 
 	if (write_mode == READ_ONLY && (pt[pt_index] & RW_FLAG))
@@ -967,7 +966,7 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 		return -1;
 	}
 	/* Allocate new physical frame */
-	*ptep = sys_zero_frame;
+	*ptep = SYS_ZERO_FRAME;
 
 	/* Mark as READ_ONLY for user */
 	*ptep |= (sys_prog_flag | PE_USER_READABLE);
@@ -1099,7 +1098,7 @@ free_pt_memory( uint32_t *pt, int pd_index ) {
 
 				/* Free only if not sys wide zero frame */
 				uint32_t phys_address = TABLE_ADDRESS(pt_entry);
-				if (phys_address != sys_zero_frame)
+				if (phys_address != SYS_ZERO_FRAME)
 					physfree(phys_address);
 
 				// always Zero the entry as well

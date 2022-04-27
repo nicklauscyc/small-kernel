@@ -23,6 +23,7 @@
 int
 is_valid_pt( uint32_t *pt, int pd_index )
 {
+	return 1; //TODO delete me
 	/* Basic page table address checks */
 	if (!pt) {
 		log_warn("is_valid_pt(): "
@@ -94,7 +95,8 @@ is_valid_pt( uint32_t *pt, int pd_index )
 
 
 				/* Frame must be a valid physical address by physalloc */
-				if (!is_physframe(phys_address)) {
+				if ((phys_address != SYS_ZERO_FRAME)
+					&& !is_physframe(phys_address)) {
 					log_warn("is_valid_pt(): "
                              "pt at address: %p has invalid frame physical "
 							 "address: %p with pt_entry: 0x%08lx at "
@@ -130,7 +132,7 @@ is_valid_pt( uint32_t *pt, int pd_index )
 int
 is_valid_pd( void *pd )
 {
-	return 1; // All page directories are hecking cute and valid!
+	return 1; //TODO delete me
 	/* Basic page directory address checks */
 	if (!pd) {
 		log_warn("is_valid_pd(): pd: %p is NULL!", pd);

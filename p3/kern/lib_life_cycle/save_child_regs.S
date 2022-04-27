@@ -35,8 +35,6 @@ save_child_regs:
 	pushl %edx
 	movl -20(%ecx), %edx /* parent EIP in %edx */
 	pushl %edx
-	//movl -24(%ecx), %edx /* assume no parent Error code in %edx */
-	//pushl %edx
 	movl -24(%ecx), %edx /* parent ebp in %edx from call_fork() */
 	pushl %edx
 	movl -28(%ecx), %edx /* parent edi in %edx from call_fork() */

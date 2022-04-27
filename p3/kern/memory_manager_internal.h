@@ -45,6 +45,8 @@
 	((((uint32_t)(TABLE_ENTRY) != 0) && (TABLE_ADDRESS(TABLE_ENTRY) != 0))\
 	|| ((uint32_t)(TABLE_ENTRY) == 0))
 
+#define SYS_ZERO_FRAME (USER_MEM_START)
+
 uint32_t *get_ptep( const uint32_t **pd, uint32_t virtual_address );
 int is_valid_sys_prog_flag( uint32_t sys_prog_flag );
 void unallocate_frame( uint32_t **pd, uint32_t virtual_address );

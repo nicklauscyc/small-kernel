@@ -99,7 +99,8 @@ UPDATE_METHOD = afs
 # directory.
 #
 STUDENTTESTS = test_suite exec_args_test exec_args_test_helper new_pages_test\
-               myscore bad_status_ptr fork_exit_bomb_cleanup
+               myscore bad_status_ptr fork_exit_bomb_cleanup test_threads\
+			   vq_test test_all
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk
@@ -183,6 +184,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_life_cycle/task_vanish.o \
 			  lib_life_cycle/set_status.o \
 			  lib_life_cycle/wait.o \
+			  lib_life_cycle/thread_fork.o\
 			  \
 			  lib_memory_management/asm_memory_management_handlers.o \
 			  lib_memory_management/new_pages.o \

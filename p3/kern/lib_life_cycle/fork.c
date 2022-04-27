@@ -61,7 +61,6 @@ fork( void )
 	/* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
-
 	/* Only allow forking of task that has 1 thread */
 	tcb_t *parent_tcb = get_running_thread();
 	affirm(parent_tcb);
@@ -71,7 +70,7 @@ fork( void )
 	int num_threads = get_num_active_threads_in_owning_task(parent_tcb);
 
 	if (num_threads > 1) {
-		log_info("fork(): cannot fork when > 1 active thread in task");
+		log_warn("fork(): cannot fork when > 1 active thread in task");
 		return -1;
 	}
 	assert(num_threads == 1);
@@ -85,22 +84,23 @@ fork( void )
 	/* Create child_pd as a deep copy */
 	uint32_t *child_pd = new_pd_from_parent((void *)parent_pd);
 
-	log_info("fork(): "
+	log_warn("fork(): "
 			 "new child_pd at address:%p", child_pd);
 
 	/* Create child pcb and tcb */
 	uint32_t child_pid, child_tid;
 	pcb_t *child_pcb = create_pcb(&child_pid, child_pd, parent_pcb);
 	if (!child_pcb) {
-		log_info("fork(): unable to create child PCB");
+		log_warn("fork(): unable to create child PCB");
 		return -1;
 	}
 
 	tcb_t *child_tcb = create_tcb(child_pcb, &child_tid);
 	if (!child_tcb) {
-		log_info("fork(): unable to create child TCB");
-		free_pcb_but_not_pd(child_pcb);
+		log_warn("fork(): unable to create child TCB");
 		free_pd_memory(child_pd);
+		child_pcb->pd = NULL;
+		free_pcb_but_not_pd_no_last_thread(child_pcb);
 		sfree(child_pd, PAGE_SIZE);
 		return -1;
 	}
@@ -145,7 +145,7 @@ fork( void )
 
     /* After setting up child stack and VM, register with scheduler */
     if (make_thread_runnable(child_tcb) < 0) {
-		log_info("fork(): unable to make child thread runnable");
+		log_warn("fork(): unable to make child thread runnable");
         return -1;
 	}
 
