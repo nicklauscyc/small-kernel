@@ -78,10 +78,12 @@ thread_fork( void )
 	*(--c_esp) = 0; /* dummy edi */
 	*(--c_esp) = 0; /* dummy esi */
 
+	uint32_t cr0 = get_cr0();
+	*(--c_esp) = cr0; /* cr0 */
+
 	uint32_t cr3 = get_cr3();
 	uint32_t parent_pd = (cr3 & ~(PAGE_SIZE - 1));
 	*(--c_esp) = parent_pd; /* cr3 */
-	// *(--c_esp) = 0; /* TODO cr0 maybe?*/
 
 	/* Set child's kernel esp */
 	affirm(STACK_ALIGNED(c_esp));

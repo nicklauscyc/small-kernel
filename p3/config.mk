@@ -39,7 +39,7 @@ CC = gcc
 # no additional effect.
 # # Use "make veryclean" if you adjust CONFIG_DEBUG.
 #
-CONFIG_DEBUG = user
+CONFIG_DEBUG = user kernel
 
 ###########################################################################
 # NDEBUG
@@ -53,7 +53,7 @@ CONFIG_DEBUG = user
 #
 # Use "make veryclean" if you adjust CONFIG_NDEBUG.
 #
-CONFIG_NDEBUG = kernel
+CONFIG_NDEBUG =
 
 ###########################################################################
 # The method for acquiring project updates.
