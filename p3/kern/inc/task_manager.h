@@ -20,7 +20,6 @@ typedef enum status status_t;
 typedef struct pcb pcb_t;
 typedef struct tcb tcb_t;
 
-
 /* Functions for task and thread creation */
 void task_manager_init( void );
 pcb_t *create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb );

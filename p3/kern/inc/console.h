@@ -1,20 +1,3 @@
-/*
- *
- *  #     #
- *  ##    #   ####    #####     #     ####   ######
- *  # #   #  #    #     #       #    #    #  #
- *  #  #  #  #    #     #       #    #       #####
- *  #   # #  #    #     #       #    #       #
- *  #    ##  #    #     #       #    #    #  #
- *  #     #   ####      #       #     ####   ######
- *
- * Now that it's P3 instead of P1 you are allowed
- * to edit this file if it suits you.
- *
- * Please delete this notice.
- *
- */
-
 /** @file console.h
  *  @brief Function prototypes for the console driver.
  *
