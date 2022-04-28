@@ -88,7 +88,7 @@ mutex_lock( mutex_t *mp )
 
 	enable_interrupts();
 
-    assert(yield_execution(BLOCKED, NULL, store_tcb_in_mutex_queue, mp) == 0);
+    affirm(yield_execution(BLOCKED, NULL, store_tcb_in_mutex_queue, mp) == 0);
 
 mutex_exit:
 	assert(mp->owned);

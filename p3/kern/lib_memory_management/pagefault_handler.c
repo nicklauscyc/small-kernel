@@ -1,6 +1,5 @@
 /** @file pagefault_handler.c
  *  @brief Functions for page fault handling
- *  TODO write a macro for syscall handler/install handler wrappers
  *  @author Nicklaus Choo (nchoo)
  */
 
@@ -51,6 +50,10 @@
 
 /** @brief Prints out the offending address on and calls panic().
  *
+ *  Will invoke the zero page pagefault handler that implements ZFOD.
+ *
+ *  @param ebp The base pointer from which we can access the other arguments
+ *             put on the handler stack by the processor.
  *  @return Void.
  */
 void
@@ -128,14 +131,14 @@ pagefault_handler( int *ebp )
 	/* Page not present */
 	if (!(error_code & P_BIT)) {
 		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);
-		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! %s",
-					mode, faulting_vm_address, eip,
-					faulting_vm_address < PAGE_SIZE ?
-					"Null dereference." : "Page not present.");
+		panic_thread("%s Page fault at vm address:0x%lx at instruction 0x%lx! "
+		             "%s",
+					 mode, faulting_vm_address, eip,
+                     faulting_vm_address < PAGE_SIZE ?
+					 "Null dereference." : "Page not present.");
 	}
 
 	/* Protection violation */
-
 	if (cs == SEGSEL_USER_CS && (eip < USER_MEM_START
 				|| faulting_vm_address < USER_MEM_START)) {
 		handle_exn(ebp, SWEXN_CAUSE_PAGEFAULT, faulting_vm_address);

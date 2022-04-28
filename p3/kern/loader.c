@@ -451,28 +451,28 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
 
 	/* Set up kernel thread stack for iret_travel */
  	*(--kernel_esp) = SEGSEL_USER_DS;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"SEGSEL_USER_DS:%p at %p", (uint32_t *) SEGSEL_USER_DS, kernel_esp);
 
  	*(--kernel_esp) = user_esp;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"user_esp:%p at %p", (uint32_t *) user_esp, kernel_esp);
 
  	*(--kernel_esp) = get_user_eflags();
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"user_eflags:%08lx at %p", get_user_eflags(), kernel_esp);
 
  	*(--kernel_esp) = SEGSEL_USER_CS;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"SEGSEL_USER_CS:%08lx at %p",SEGSEL_USER_CS, kernel_esp);
 
  	*(--kernel_esp) = entry_point;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"entry_point:%08lx at %p", entry_point, kernel_esp);
 
 	--kernel_esp; /* simulate an iret_travel call's return address */
 	*(--kernel_esp) = (uint32_t) iret_travel;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"iret_tracel:%p at %p", iret_travel, kernel_esp);
 
 
@@ -481,35 +481,39 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
 	dummy_eax = dummy_ebx = dummy_ecx = dummy_edx = dummy_edi = dummy_esi = 0;
 
 	*(--kernel_esp) = kernel_ebp;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"ebp:%x at %p", kernel_ebp, kernel_esp);
 
 	*(--kernel_esp) = dummy_eax;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_eax:%x at %p", dummy_eax, kernel_esp);
 
 	*(--kernel_esp) = dummy_ebx;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_ebx:%x at %p", dummy_ebx, kernel_esp);
 
 	*(--kernel_esp) = dummy_ecx;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_ecx:%x at %p", dummy_ecx, kernel_esp);
 
 	*(--kernel_esp) = dummy_edx;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_edx:%x at %p", dummy_edx, kernel_esp);
 
 	*(--kernel_esp) = dummy_edi;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_edi:%x at %p", dummy_edi, kernel_esp);
 
 	*(--kernel_esp) = dummy_esi;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_esi:%x at %p", dummy_esi, kernel_esp);
 
+	*(--kernel_esp) = get_cr0();
+	log_warn("configure_initial_task_stack "
+		"cr0:%p at %p", get_cr0(), kernel_esp);
+
 	*(--kernel_esp) = (uint32_t) user_pd;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"user_pd:%p at %p", user_pd, kernel_esp);
 
 

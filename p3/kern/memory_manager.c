@@ -4,8 +4,6 @@
  *  Note that page directory and page table consistency/validity checks are
  *  expensive and thus carried out in assertions.
  *
- *	TODO need to figure out when to free physical pages, probably when
- *	cleaning up thread resources ?
  *
  *	@author Andre Nascimento (anascime)
  *	@author Nicklaus Choo (nchoo)
@@ -28,16 +26,18 @@
 #include <memory_manager_internal.h>
 #include <lib_thread_management/mutex.h> /* mutex_init */
 
-// TODO: delete
-#include <asm.h>
 
 /* 1 if VM is enabled, 0 otherwise */
 static int paging_enabled = 0;
 
+/* Initial page directory that maps all of kernel memory, aliases across all
+ * other page directory's lowest 4 indexed page tables */
+static uint32_t **initial_pd = NULL;
+
 static int allocate_frame( uint32_t **pd, uint32_t virtual_address,
-                          write_mode_t write_mode, uint32_t sys_prog_flag );
+                           write_mode_t write_mode, uint32_t sys_prog_flag );
 static int allocate_region( uint32_t **pd, void *start, uint32_t len,
-                           write_mode_t write_mode );
+                            write_mode_t write_mode );
 static void enable_paging( void );
 
 static int valid_memory_regions( simple_elf_t *elf );
@@ -47,8 +47,12 @@ static void free_pt_memory( uint32_t *pt, int pd_index );
 static void *allocate_new_pd( void );
 static int add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address );
 
-static uint32_t **initial_pd = NULL;
 
+/** @brief Initializes the memory manager functions and creates the initial
+ *         zero frame and initial page directory.
+ *
+ *  @return Void.
+ */
 void
 init_memory_manager( void )
 {
@@ -57,6 +61,10 @@ init_memory_manager( void )
 	create_initial_pd();
 }
 
+/** @brief returns the address of the initial page directory
+ *
+ *  @return The initial page directry address that is guaranteed non-NULL
+ */
 void *
 get_initial_pd( void )
 {
@@ -64,6 +72,12 @@ get_initial_pd( void )
 	return (void *) TABLE_ADDRESS(initial_pd);
 }
 
+/** @brief Creates the initial page directory which creates the page tables
+ *         for the lowest 4 indices of the page table. Direct maps all
+ *         kernel memory with correct read and write permissions.
+ *
+ *  @return Void.
+ */
 void
 create_initial_pd( void )
 {

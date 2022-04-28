@@ -226,7 +226,6 @@ handler_install(void (*tick)(unsigned int))
 	if (install_handler(EXEC_INT, NULL, call_exec, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
-	init_vanish();
 	if (install_handler(VANISH_INT, NULL, call_vanish, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}

@@ -45,7 +45,7 @@ log_exec_args( char *execname, char **argvec )
  *	execname and each of the string arguments can have < USER_STR_LEN
  *	characters, which is a gain another reasonable limit for string length.
  *
- *	(NUM_USER_ARGS, USER_STR_LEN defined in memory_manager.h)
+ *	NUM_USER_ARGS, USER_STR_LEN defined in memory_manager.h
  *
  *	@param execname Executable name
  *	@param argvec String array of arguments for executable execname

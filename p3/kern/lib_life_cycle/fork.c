@@ -26,7 +26,7 @@
 
 // saves regs and returns new esp
 void *save_child_regs(void *parent_kern_esp, void *child_kern_esp,
-					  void *child_cr3 );
+					  void *child_cr0, void *child_cr3 );
 
 /** @brief Prints the parent and child stacks on call to fork()
  *
@@ -124,6 +124,7 @@ fork( void )
 
 	child_kernel_esp_on_ctx_switch = save_child_regs(parent_kern_stack_hi,
 	                                                 child_kern_stack_hi,
+													 (uint32_t *) get_cr0(),
 													 child_pd);
 	/* Set child's kernel esp */
 	affirm(child_kernel_esp_on_ctx_switch);
