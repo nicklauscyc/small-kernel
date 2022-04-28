@@ -720,15 +720,12 @@ allocate_new_pd( void )
 static int
 add_new_pt_to_pd( uint32_t **pd, uint32_t virtual_address )
 {
+	/* pd cannot be NULL */
+	affirm(pd);
+
 	/* Page directory should be valid */
 	assert(is_valid_pd(pd));
 
-	/* pd cannot be NULL */
-	if (!pd) {
-		log_warn("add_new_pt_to_pd(): "
-		         "pd cannot be NULL!");
-		return -1;
-	}
 	/* Get page directory index */
     uint32_t pd_index = PD_INDEX(virtual_address);
 
@@ -966,7 +963,13 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 	if (!ptep) {
 		uint32_t pd_index = PD_INDEX(virtual_address);
 		affirm(pd[pd_index] == NULL);
-		add_new_pt_to_pd(pd, virtual_address);
+		if (add_new_pt_to_pd(pd, virtual_address) < 0) {
+			log_warn("allocate_user_zero_frame(): "
+					 "unable to allocate new page table in pd:%p for "
+					 "virtual_address: 0x%08lx", pd, virtual_address);
+			return -1;
+		}
+
 		log_info("allocate_user_zero_frame(): "
 		         "adding new pt to pd for virutal_address:0x%08lx",
 				 virtual_address);
