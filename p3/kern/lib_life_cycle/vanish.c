@@ -41,6 +41,26 @@
 #include <scheduler.h> /* make_thread_runnable() */
 #include <simics.h>
 
+static mutex_t vanish_tree_mux;
+static int is_mutex_init = 0;
+
+/* These macros allow us to easily initialize the vanish_tree_mux
+ * upon the first call to vanish. */
+#define TREE_LOCK do\
+{\
+	if (!is_mutex_init) {\
+		mutex_init(&vanish_tree_mux);\
+		is_mutex_init = 1;\
+	}\
+	mutex_lock(&vanish_tree_mux);\
+} while(0)\
+
+#define TREE_UNLOCK do\
+{\
+	affirm(is_mutex_init);\
+	mutex_unlock(&vanish_tree_mux);\
+} while(0)\
+
 
 static void assign_child_task_to_parent_thread( tcb_t *child_last_thread,
                                                 void *v_waiting_thread );
@@ -134,9 +154,12 @@ _vanish( void )
 	tcb_t *tcb = get_running_thread();
 	pcb_t *owning_task = tcb->owning_task;
 
-	// TREE LOCK
-	disable_interrupts();
+	TREE_LOCK;
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
+
+	/* Disable interrupts here so when we get the lock, we can atomically */
+	//disable_interrupts();
+
 
 	/* Move current TCB from active threads to vanished threads */
 	Q_REMOVE(&(owning_task->active_threads_list), tcb, task_thread_link);
@@ -151,31 +174,34 @@ _vanish( void )
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
 		log("_vanish(): not last task thread");
-		enable_interrupts();
+		//enable_interrupts();
+		TREE_UNLOCK;
+
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
 		affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 
 	/* Last task thread cleans up and contacts parent/init PCB */
 	} else {
 
-		log("_vanish(): last task thread");
+		log_warn("_vanish(): last task thread");
 		remove_pcb(owning_task);
-
-		enable_interrupts();
-
-
-		/* Free sibling threads TCB */
-		owning_task->last_thread = tcb;
-		free_sibling_tcb(owning_task, tcb);
-		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
-
-
-		/* Free page directory */
-		free_task_pd(owning_task);
 
 		/* All my active child tasks will automatically look for init,
 		 * time to clear my active child tasks list */
 		Q_INIT_HEAD(&(owning_task->active_child_tasks_list));
+		TREE_UNLOCK;
+
+
+		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
+		/* Free sibling threads TCB */
+		owning_task->last_thread = tcb;
+		free_sibling_tcb(owning_task, tcb);
+
+		/* Free page directory */
+		free_task_pd(owning_task);
+
 
 
 		/* Transfer all my vanished children to init in O(1) */
@@ -211,15 +237,16 @@ _vanish( void )
 		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
-		disable_interrupts();
+		//disable_interrupts();
+		TREE_LOCK;
 
-		// THIS FAULTS
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
 
 		if (parent_pcb) {
 
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-			enable_interrupts();
+			TREE_UNLOCK;
+			//enable_interrupts();
 			log("_vanish(): found my parent ");
 
 			/* Not really found parent yet, paradise lost */
@@ -231,7 +258,8 @@ _vanish( void )
 			parent_pcb->num_active_child_tasks--;
 
 		} else {
-			enable_interrupts();
+			TREE_UNLOCK;
+			//enable_interrupts();
 
 			parent_pcb = init_pcbp;
 			assert(parent_pcb);
