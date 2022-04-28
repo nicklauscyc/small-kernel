@@ -970,8 +970,11 @@ allocate_user_zero_frame( uint32_t **pd, uint32_t virtual_address,
 		log_info("allocate_user_zero_frame(): "
 		         "adding new pt to pd for virutal_address:0x%08lx",
 				 virtual_address);
+
+		/* Update that we have allocated a new page table */
+		invalidate_tlb((void *)virtual_address);
+		ptep = get_ptep((const uint32_t **) pd, virtual_address);
 	}
-	ptep = get_ptep((const uint32_t **) pd, virtual_address);
 	affirm(ptep);
 	uint32_t pt_entry = *ptep;
 

@@ -300,9 +300,9 @@ execute_user_program( char *fname, int argc, char **argv)
 	}
 	void *old_pd = swap_task_pd(new_pd, pcb);
 
-	set_task_name(find_pcb(pid), kern_stack_execname);
+	set_task_name(pcb, kern_stack_execname);
 
-	log_warn("process tid:%d, execname:%s", tid, find_pcb(pid)->execname);
+	log_warn("process tid:%d, execname:%s", tid, pcb->execname);
 
 	register_with_simics(tid, kern_stack_execname);
 
@@ -369,7 +369,9 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	if (create_task(&pid, &tid, &se_hdr) < 0)
 		return -1;
 
-	set_task_name(find_pcb(pid), fname);
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+	set_task_name(pcb, fname);
 
 	if (register_with_simics(tid, fname) < 0) {
 		return -1;
@@ -378,16 +380,12 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	register_if_init_task(fname, pid);
 
 	/* Update page directory, enable VM if necessary */
-	pcb_t *pcb = find_pcb(pid);
-	affirm(pcb);
 	activate_task_memory(pcb);
-
 
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
 	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
 		return -1;
 	}
-
 
     if (transplant_program_memory(&se_hdr) < 0) {
 		return -1;
