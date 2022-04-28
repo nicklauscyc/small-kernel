@@ -5,6 +5,10 @@
 @author Andre Nascimento (anascime)
 @author Nicklaus Choo	 (nchoo)
 
+--------------------------
+
+Asserts vs Affirm:
+
 Using assert() vs affirm(). We have used assert() to catch our own mess ups to
 aid our own debugging. On the other hand, affirm() is used to catch user mess
 ups when they use our interface function. For example, we affirm pointers
@@ -61,8 +65,21 @@ a tasks address space (or the allocation of an entirely new address space, such 
 
 System calls:
 
-System calls are organized by the same cathegories as in the pebbles kernel specification. Each cathegory is made into
+System calls are organized by the same categories as in the pebbles kernel specification. Each category is made into
 a folder which contains each syscall. All syscalls are installed in the kern/install_handler.c file.
+Each syscall is better documented in its respective file.
+
+--------------------------
+
+Wait and Vanish:
+
+Most notably, wait and vanish, two particularly tricky syscalls,
+are better documented in kern/lib_life_cycle/wait.c and kern/lib_life_cycle/vanish.c. In general,
+a PCB has two lists, waiting parent threads and vanished child tasks. If both are non-empty,
+we guarantee that the parent thread will collect the first vanished child task from the list. If a parent thread checks
+and sees that there are no vanished child tasks to collect, it blocks and yields. Else it collects the first
+vanished child task. If a child thread sees that there is no waiting parent thread, it blocks and yields. Else, it
+wakes up the waiting parent and assigns itself to the parent.
 
 --------------------------
 
@@ -79,6 +96,7 @@ Queue macros are used throughout the code. These have met most needs of the kern
 each struct. More often than not these links reside inside the tcbs and pcbs, meaning that manipulating queues never
 requires dynamic memory allocation nor can it fail.
 
+--------------------------
 
 */
 
