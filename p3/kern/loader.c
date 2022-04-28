@@ -119,10 +119,6 @@ zero_out_memory_region( uint32_t start, uint32_t len )
 static int
 transplant_program_memory( simple_elf_t *se_hdr )
 {
-	/* TODO: NICK Swap cr0 on context switch, for now just disabling
-	 * interrupts. */
-	disable_interrupts();
-
     /* Disable write-protection temporarily so we may
      * copy data into read-only regions. */
 	disable_write_protection();
@@ -160,13 +156,6 @@ transplant_program_memory( simple_elf_t *se_hdr )
 		return -1;
 
 
-    /* Re-enable write-protection bit. */
-    enable_write_protection();
-
-
-	if (is_multi_threads()) {
-		enable_interrupts();
-	}
 
 	assert(is_valid_pd((void *)get_cr3()));
 	return i;

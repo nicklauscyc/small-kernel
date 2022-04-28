@@ -21,7 +21,6 @@
 int
 is_valid_pt( uint32_t *pt, int pd_index )
 {
-	return 1;
 	/* Basic page table address checks */
 	if (!pt) {
 		log_warn("is_valid_pt(): "
@@ -125,7 +124,6 @@ is_valid_pt( uint32_t *pt, int pd_index )
 int
 is_valid_pd( void *pd )
 {
-	return 1;
 	/* Basic page directory address checks */
 	if (!pd) {
 		log_warn("is_valid_pd(): pd: %p is NULL!", pd);
