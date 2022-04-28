@@ -158,10 +158,6 @@ _vanish( void )
 	TREE_LOCK;
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
 
-	/* Disable interrupts here so when we get the lock, we can atomically */
-	//disable_interrupts();
-
-
 	/* Move current TCB from active threads to vanished threads */
 	Q_REMOVE(&(owning_task->active_threads_list), tcb, task_thread_link);
 	(owning_task->num_active_threads)--;
