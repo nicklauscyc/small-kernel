@@ -1,6 +1,7 @@
 /** @file swexn.c
  *  @brief Swexn syscall and facilities for software exception handling */
 
+#include <asm.h>		       /* outb() */
 #include <seg.h>			   /* SEGSEL_USER_CS */
 #include <ureg.h>			   /* ureg_t */
 #include <eflags.h>			   /* get_eflags, EFL_* */
@@ -12,7 +13,7 @@
 #include <atomic_utils.h>	   /* compare_and_swap_atomic */
 #include <memory_manager.h>    /* is_valid_user_pointer, READ_ONLY, READ_WRITE*/
 #include <interrupt_defines.h> /* INT_CTL_PORT */
-#include <asm.h>		       /* outb() */
+#include <task_manager_internal.h>
 
 #include <logger.h>
 #include <simics.h>
@@ -22,17 +23,23 @@
 	EFL_IOPL_RING3 | EFL_NT | EFL_RESV4 | EFL_VM | \
 	EFL_VIF | EFL_VIP | EFL_ID)
 
-/* FIXME: Proper abstraction? */
-#include <task_manager_internal.h>
-
 /** @brief Sets registers according to newureg. Assumes
  *		   newureg is valid (non-NULL and won't crash iret)
  *		   and travels back to user mode with these registers.
  *
- *	Defined in kern/lib_thread_management/swexn_set_regs.S */
+ *	Defined in kern/lib_thread_management/swexn_set_regs.S
+ *
+ *	@param newureg Registers to set assume
+ *	@return Doesn't return. */
 void
 swexn_set_regs( ureg_t *newureg );
 
+/** @brief Checks if stack pointer and handler exist and are valid.
+ *
+ *	@pre esp and eip are non-NULL
+ *  @param esp Pointer to user stack.
+ *  @param eip Pointer to user handler.
+ *  @return 1 if valid, 0 if not. */
 static int
 valid_handler_code_and_stack( void *esp, swexn_handler_t eip )
 {
@@ -55,6 +62,11 @@ valid_handler_code_and_stack( void *esp, swexn_handler_t eip )
 	return 1;
 }
 
+/** @brief Checks if handler and stack combination is valid.
+ *
+ *  @param esp Pointer to user stack.
+ *  @param eip Pointer to user handler.
+ *  @return 1 if valid, 0 if not. */
 static int
 valid_handler( void *esp3, swexn_handler_t eip )
 {
@@ -67,6 +79,10 @@ valid_handler( void *esp3, swexn_handler_t eip )
 	return valid_handler_code_and_stack(esp3, eip);
 }
 
+/** @brief Checks if registers are valid.
+ *
+ *  @param eip Pointer to user handler.
+ *  @return 1 if valid, 0 if not. */
 static int
 valid_newureg( ureg_t *newureg )
 {
@@ -94,6 +110,10 @@ valid_newureg( ureg_t *newureg )
 		&& !violations;
 }
 
+/** @brief Check if cause is among those that produce an error code on stack
+ *
+ *  @param cause The cause of the fault
+ *  @return 1 if fault places error code on stack, 0 if not. */
 static int
 cause_has_error_code( unsigned int cause )
 {
@@ -102,6 +122,14 @@ cause_has_error_code( unsigned int cause )
 			cause == SWEXN_CAUSE_ALIGNFAULT;
 }
 
+/** @brief Fills user register pointer.
+ *
+ *  @param ureg Memory area which to fill in.
+ *  @param ebp  Base pointer from handler stack.
+ *  @param cause Cause of fault
+ *  @param cr2 Value of cr2 register on fault
+ *  @return Void.
+ *  */
 static void
 fill_ureg( ureg_t *ureg, int *ebp, unsigned int cause, unsigned int cr2 )
 {
@@ -152,7 +180,9 @@ fill_ureg( ureg_t *ureg, int *ebp, unsigned int cause, unsigned int cr2 )
  *				kernel stack after a fault takes place.
  *	@arg cause	Cause of fault.
  *	@arg cr2	If this is called because of a pagefault, cr2 should
- *				be the vm address which triggered the fault. */
+ *				be the vm address which triggered the fault.
+ *  @return Void.
+ *  */
 void
 handle_exn( int *ebp, unsigned int cause, unsigned int cr2 )
 {
@@ -194,6 +224,15 @@ handle_exn( int *ebp, unsigned int cause, unsigned int cr2 )
 	}
 }
 
+/** @brief Handler for swexn syscall
+ *
+ *  @param esp3 Pointer to stack in which to run handler
+ *  @param eip Handler to run
+ *  @param arg Argument to pass to handler
+ *  @param newureg Register values to assume on return.
+ *
+ *  @return 0 on success, negative value on error. Doesn't return
+ *  if newureg is non-NULL and valid. */
 int
 swexn( void *esp3, swexn_handler_t eip, void *arg, ureg_t *newureg )
 {

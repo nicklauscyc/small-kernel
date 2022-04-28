@@ -1,3 +1,7 @@
+/** @file tlb_invalidate.S
+ *  @brief Assembly function to invalidate a TLB entry
+ */
+
 .globl invalidate_tlb
 
 # tlb_invalidate( void *addr )

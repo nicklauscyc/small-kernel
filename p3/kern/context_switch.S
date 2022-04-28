@@ -1,3 +1,5 @@
+/** @file context_switch.S */
+
 #include <seg.h>
 
 /**
@@ -16,6 +18,9 @@ context_switch:
 	pushl %edi
 	pushl %esi
 
+	movl %cr0, %ecx
+	pushl %ecx
+
 	movl %cr3, %ecx
 	pushl %ecx
 
@@ -25,6 +30,9 @@ context_switch:
 
 	popl %ecx
 	movl %ecx, %cr3		/* update page directory */
+
+	popl %ecx
+	movl %ecx, %cr0		/* update page directory */
 
 	popl %esi
 	popl %edi

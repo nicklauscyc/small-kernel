@@ -13,7 +13,7 @@
 #include "410_tests.h"
 #include <report.h>
 
-DEF_TEST_NAME("test_all:");
+DEF_TEST_NAME("big_test_all:");
 
 /* Every UPDATE_FREQUENCY reaps, print out an update of
  * how many children of each type are left.
@@ -27,32 +27,32 @@ struct prog {
 	int pid;
 	int count;
 } progs[] = {
-	{"getpid_test1", -1,        10},
-	{"loader_test1", -1,        10},
-	{"loader_test2", -1,        10},
-	{"exec_basic", -1,          10},
-	{"exec_nonexist", -1,       10},
-	{"fork_test1", -1,          10},
-	{"new_pages", -1,           10},
-	{"remove_pages_test1", -1,  10},
-	{"remove_pages_test2", -1,  10},
-	{"actual_wait", -1,         10},
-	{"wait_getpid", -1,         10},
-	{"fork_wait", -1,           10},
-	{"fork_wait_bomb", -1,      1},
-	{"fork_exit_bomb", -1,      1},
-	{"sleep_test1", -1,         10},
-	{"stack_test1", -1,         10},
-	{"swexn_basic_test", -1,    10},
-	{"swexn_cookie_monster", -1,10},
-	{"swexn_dispatch", -1,      10},
-	{"swexn_regs", -1,          10},
-	{"yield_desc_mkrun", -1,    10},
-	{"make_crash", -1,          1},
-	{"mem_permissions", -1,     10},
-	{"cho", -1,                 1},
-	{"cho2", -1,                1},
-	{"cho_variant", -1,         1}
+	{"getpid_test1", -1,        100},
+	{"loader_test1", -1,        100},
+	{"loader_test2", -1,        100},
+	{"exec_basic", -1,          100},
+	{"exec_nonexist", -1,       100},
+	{"fork_test1", -1,          100},
+	{"new_pages", -1,           100},
+	{"remove_pages_test1", -1,  100},
+	{"remove_pages_test2", -1,  100},
+	{"actual_wait", -1,         100},
+	{"wait_getpid", -1,         100},
+	{"fork_wait", -1,           100},
+	{"fork_wait_bomb", -1,      10},
+	{"fork_exit_bomb", -1,      10},
+	{"sleep_test1", -1,         100},
+	{"stack_test1", -1,         100},
+	{"swexn_basic_test", -1,    100},
+	{"swexn_cookie_monster", -1,100},
+	{"swexn_dispatch", -1,      100},
+	{"swexn_regs", -1,          100},
+	{"yield_desc_mkrun", -1,    100},
+	{"make_crash", -1,          10},
+	{"mem_permissions", -1,     100},
+	{"cho", -1,                 10},
+	{"cho2", -1,                10},
+	{"cho_variant", -1,         10}
 
 };
 

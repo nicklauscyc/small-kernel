@@ -3,6 +3,11 @@
  *         lib_memory_manager/ use.
  */
 
+#ifndef MEMORY_MANAGER_INTERNAL_H_
+#define MEMORY_MANAGER_INTERNAL_H_
+
+#include <stdint.h>	/* uint32_t */
+#include <lib_thread_management/mutex.h> /* mutex_t */
 
 /* System programmer flags.
  * Bits 9, 10, 11 are used together to offer 8 possible flags that cannot
@@ -47,7 +52,10 @@
 
 #define SYS_ZERO_FRAME (USER_MEM_START)
 
+mutex_t pages_mux;
+
 uint32_t *get_ptep( const uint32_t **pd, uint32_t virtual_address );
 int is_valid_sys_prog_flag( uint32_t sys_prog_flag );
 void unallocate_frame( uint32_t **pd, uint32_t virtual_address );
 
+#endif /* MEMORY_MANAGER_INTERNAL_H_ */

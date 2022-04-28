@@ -1,3 +1,8 @@
+/** @file scheduler.h
+ *
+ *  @brief Header file for scheduler module. Exports functions
+ *  for others to interact with scheduling. */
+
 #ifndef SCHEDULER_H_
 #define SCHEDULER_H_
 
@@ -5,6 +10,7 @@
 #include <stdint.h>         /* uint32_t */
 #include <variable_queue.h> /* Q_NEW_HEAD() */
 
+/** @brief A thread's status */
 enum status { RUNNING, RUNNABLE, DESCHEDULED, BLOCKED, DEAD, UNINITIALIZED };
 typedef enum status status_t;
 
@@ -25,6 +31,5 @@ int make_thread_runnable( tcb_t *tcbp );
 int switch_safe_make_thread_runnable( tcb_t *tcbp );
 int yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data );
-
 
 #endif /* SCHEDULER_H_ */

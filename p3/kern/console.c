@@ -4,10 +4,6 @@
  *	Since console.h contains comments, added comments will be written
  *	with this format with preceding and succeeding --
  *
- *	--
- *	< additional comments >
- *	--
- *
  *	@author Andre Nascimento (anascime)
  *	@author Nicklaus Choo (nchoo)
  */
@@ -19,7 +15,10 @@
 #include <video_defines.h>	/* CONSOLE_HEIGHT, CONSOLE_WIDTH */
 #include <lib_thread_management/mutex.h> /* mutex_t */
 
+/** @brief Mutex for drawing chars */
 static mutex_t draw_char_mux;
+
+/** @brief Mutex for updating/reading cursor */
 static mutex_t cursor_mux;
 
 /* Default global console color. */
@@ -37,7 +36,9 @@ static int cursor_hidden = 0;
 /* Background color mask to extract invalid set bits in color. FFFF FF00 */
 #define INVALID_COLOR 0xFFFFFF00
 
-
+/** @brief Initializes the console
+ *
+ *  @return Void. */
 void
 init_console( void )
 {
@@ -131,7 +132,6 @@ scrolled_putbyte( char ch, int *start_rowp, int *start_colp )
 			/* Scroll if at screen bottom */
 			if (cursor_row + 1 >= CONSOLE_HEIGHT) {
 				scroll();
-				// TODO you can scroll offscreen though
 				*start_rowp -= 1;
 			}
 			/* Always update the cursor position relative to content */

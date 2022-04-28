@@ -5,7 +5,10 @@
 #include <assert.h> /* panic() */
 #include <simics.h>
 
-/** @brief Interrupt handler for machine check */
+/** @brief Machine check handler
+ *
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void. */
 void
 machine_check_handler( int *ebp )
 {

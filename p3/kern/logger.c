@@ -34,7 +34,8 @@
 #include <logger.h>
 #include <assert.h> /* affirm_msg() */
 
-#define LEN 256
+/** @brief Maximum length of vtprintf string */
+#define PRINT_LEN 256
 
 /** @brief Prepends the thread id to printed format. Takes in a va_list as
  *         argument.
@@ -56,7 +57,7 @@
 void
 vtprintf( const char *format, va_list args, int priority )
 {
-	char str[LEN];
+	char str[PRINT_LEN];
 
 	/* Get tid and prepend to output*/
 	int tid = get_running_tid();

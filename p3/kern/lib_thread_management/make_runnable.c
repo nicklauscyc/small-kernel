@@ -1,7 +1,6 @@
 /** @file make_runnable.c
  *  @brief Contains make_runnable interrupt handler and helper functions for
  *  	   installation
- *
  */
 
 #include <asm.h>				/* outb() */
@@ -19,8 +18,6 @@
 int
 make_runnable( int tid )
 {
-	log_info("make_runnable(): called!");
-
     /* Acknowledge interrupt immediately */
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
@@ -28,6 +25,5 @@ make_runnable( int tid )
 	if (!tcbp || get_tcb_status(tcbp) != DESCHEDULED)
 		return -1;
 
-	/* move to runnable queue and mark as runnable */
 	return make_thread_runnable(tcbp);
 }

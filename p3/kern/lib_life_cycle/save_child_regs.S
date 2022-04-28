@@ -1,7 +1,8 @@
 
 .globl update_child_esp
 
-# void update_child_esp(uint32_t *child_esp,uint32_t child_stack_lo, uint32_t parent_lowest)
+# void update_child_esp(uint32_t *child_esp,uint32_t child_stack_lo,
+#                       uint32_t parent_lowest)
 update_child_esp:
 	leal 4(%esp), %eax # save parent esp
 	movl %eax, 4(%esp)
@@ -9,9 +10,8 @@ update_child_esp:
 
 
 .globl save_child_regs
-//TODO if possible do it in C
 /* void *save_child_regs(void *parent_kern_esp, void *child_kern_esp
- *						 void *child_cr3 ); */
+ *						 void *child_cr0, void *child_cr3 ); */
 save_child_regs:
 	/**************************************************************************/
 	/* header: necessary steps to guarantee correct function return           */
@@ -59,9 +59,6 @@ save_child_regs:
 	pushl %edx
 
 	/* stuff to store child tid in stack position for future eax value */
-	//movl 12(%ebp), %edx /* parent eax in %edx, contains child tid now */
-	//movl (%edx), %edx /* dereference child stack highest address to get child
-	                   //* tid */
 	movl $0, %edx
 
 	pushl %edx
@@ -78,7 +75,9 @@ save_child_regs:
 	pushl %edx
 	movl -84(%ecx), %edx /* parent esi in %edx */
 	pushl %edx
-	movl 16(%ebp), %edx /* parent cr3 in %edx */
+	movl 16(%ebp), %edx /* parent cr0 in %edx */
+	pushl %edx
+	movl 20(%ebp), %edx /* parent cr3 in %edx */
 	pushl %edx
 
 	movl %esp, %eax /* return the stack pointer for child to use */

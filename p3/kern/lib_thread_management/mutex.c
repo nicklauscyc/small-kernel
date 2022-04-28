@@ -1,7 +1,9 @@
 /** @file mutex.c
  *  @brief A mutex object
  *
- *  Mutex uses atomically sections for synchronization
+ *  Mutex uses atomically sections for synchronization. Is implemented
+ *  by moving locked threads into a separate mutex queue. Threads who
+ *  acquire the lock are subsequently made runnable.
  *
  *  @author Andre Nascimento (anascime)
  *  */
@@ -16,8 +18,8 @@
 static void store_tcb_in_mutex_queue( tcb_t *tcb, void *data );
 
 /** @brief Initialize a mutex
- *  @param mp Pointer to memory location where mutex should be initialized
  *
+ *  @param mp Pointer to memory location where mutex should be initialized
  *  @return 0 on success, negative number on error
  *  */
 int
@@ -34,20 +36,20 @@ mutex_init( mutex_t *mp )
 }
 
 /** @brief Destroy a mutex
- *  @param mp Pointer to memory location where mutex should be destroyed
  *
- *  @return Void
+ *  @param mp Pointer to memory location where mutex should be destroyed
+ *  @return Void.
  *  */
 void
 mutex_destroy( mutex_t *mp )
 {
-    affirm(0); /* TODO UNIMPLEMENTED */
+	/* Nothing to do */
 }
 
 /** @brief Lock mutex. Re-entrant.
- *  @param mp Mutex to lock
  *
- *  @return Void
+ *  @param mp Mutex to lock
+ *  @return Void.
  *  */
 void
 mutex_lock( mutex_t *mp )
@@ -86,17 +88,24 @@ mutex_lock( mutex_t *mp )
 
 	enable_interrupts();
 
-    assert(yield_execution(BLOCKED, NULL, store_tcb_in_mutex_queue, mp) == 0);
+    affirm(yield_execution(BLOCKED, NULL, store_tcb_in_mutex_queue, mp) == 0);
 
 mutex_exit:
 	assert(mp->owned);
 	assert(mp->owner_tid == get_running_tid());
 }
 
-/**
- * Switch safe means its safe to call this during a context switch.
- * To ensure this is the case, we do not disable/enable interrupts
- * nor do we call another context switch (through make_thread_runnable) */
+/** @brief Unlocks mutex at mp.
+ *
+ *  Switch safe means its safe to call this during a context switch.
+ *  To ensure this is the case, we do not disable/enable interrupts
+ *  nor do we call functions that can trigger a context switch
+ *  such as make_thread_runnable.
+ *
+ *  @param mp Mutex to unlock
+ *  @param switch_safe Whether this function should not cause context switch
+ *  @return Void.
+ *  */
 static void
 mutex_unlock_helper( mutex_t *mp, int switch_safe )
 {
@@ -137,9 +146,9 @@ mutex_unlock_helper( mutex_t *mp, int switch_safe )
 }
 
 /** @brief Unlock mutex.
+ *
  *  @param mp Mutex to unlock. Has to be previously locked
  *            by calling thread
- *
  *  @return Void
  *  */
 void
@@ -148,12 +157,26 @@ mutex_unlock( mutex_t *mp )
 	mutex_unlock_helper(mp, 0);
 }
 
+/** @brief Unlock mutex without triggering context switch
+ *		   or enabling interrupts
+ *
+ *  @param mp Mutex to unlock. Has to be previously locked
+ *            by calling thread.
+ *  @return Void.
+ *  */
 void
 switch_safe_mutex_unlock( mutex_t *mp )
 {
 	mutex_unlock_helper(mp, 1);
 }
 
+/** @brief Callback used in yield_execution to store tcb
+ *		   in mutex queue while it is descheduled waiting
+ *		   on the mutex.
+ *
+ *	@param tcb Thread to store.
+ *	@param data Unused.
+ *	*/
 static void
 store_tcb_in_mutex_queue( tcb_t *tcb, void *data )
 {

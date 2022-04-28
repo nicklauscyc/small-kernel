@@ -11,12 +11,13 @@
 #include <seg.h>            /* SEGSEL_KERNEL_CS */
 #include <assert.h>			/* assert() */
 #include <stddef.h>         /* NULL */
-#include <keyhelp.h>		// FIXME: ????
+#include <keyhelp.h>		/* KEY_IDT_ENTRY */
 #include <timer_driver.h>   /* init_timer() */
 #include <keybd_driver.h>   /* init_keybd() */
 #include <timer_defines.h>  /* TIMER_IDT_ENTRY */
 #include <lib_console/readline.h> /* init_readline() */
 #include <interrupt_defines.h>
+#include <lib_life_cycle/life_cycle.h>
 #include <asm_interrupt_handler.h>			/* call_timer_int_handler(),
 												call_keybd_int_handler() */
 #include <asm_misc_handlers.h>
@@ -29,7 +30,7 @@
 
 #include <syscall_int.h> /* *_INT */
 
-
+/** @brief INT vector for test suite */
 #define TEST_INT SYSCALL_RESERVED_0
 
 /*********************************************************************/
@@ -97,6 +98,11 @@ install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
 }
 
 /** @brief Install timer interrupt handler
+ *
+ *  @param idt_entry Index in IDT to install
+ *  @param asm_wrapper Assembly wrapper to call the handler
+ *  @param tickback Function to call on every tick
+ *  @return 0 on success, -1 on error
  */
 int
 install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
@@ -135,6 +141,10 @@ install_handler( int idt_entry, init_func_t *init, asm_wrapper_t *asm_wrapper,
 }
 
 /** @brief Install keyboard interrupt handler
+ *
+ *  @param idt_entry Index in IDT to install
+ *  @param asm_wrapper Assembly wrapper to call the handler
+ *  @return 0 on success, -1 on error
  */
 int
 install_keyboard_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
@@ -218,7 +228,6 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	/* Lib lifecycle*/
-	//TODO are these DPL_3 or DPL_0
 	if (install_handler(FORK_INT, NULL, call_fork, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}
@@ -286,6 +295,10 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	if (install_handler(HALT_INT, NULL, call_halt, DPL_3, D32_TRAP) < 0) {
+		return -1;
+	}
+	if (install_handler(MISBEHAVE_INT, NULL, call_misbehave, DPL_3,
+		D32_TRAP) < 0) {
 		return -1;
 	}
 

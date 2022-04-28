@@ -35,29 +35,44 @@
 #include <scheduler.h>			/* yield_execution() */
 #include <task_manager_internal.h>
 #include <lib_thread_management/hashmap.h>
+#include <lib_thread_management/mutex.h>
 #include <memory_manager.h> /* get_initial_pd() */
 #include <x86/cr.h>		/* {get,set}_{cr0,cr3} */
 #include <malloc.h> /* sfree() */
 #include <scheduler.h> /* make_thread_runnable() */
 #include <simics.h>
 
-void
-noop (void ){
-	return;
-}
+static mutex_t vanish_tree_mux;
+static int is_mutex_init = 0;
 
-void assign_child_task_to_parent_thread( tcb_t *child_last_thread,
-                                    void *v_waiting_thread );
+/* These macros allow us to easily initialize the vanish_tree_mux
+ * upon the first call to vanish. */
+#define TREE_LOCK do\
+{\
+	if (!is_mutex_init) {\
+		mutex_init(&vanish_tree_mux);\
+		is_mutex_init = 1;\
+	}\
+	mutex_lock(&vanish_tree_mux);\
+} while(0)\
 
-void
-call_back_mutex_unlock( tcb_t *unused, void *v_parent_pcb_muxp );
+#define TREE_UNLOCK do\
+{\
+	affirm(is_mutex_init);\
+	mutex_unlock(&vanish_tree_mux);\
+} while(0)\
+
+
+static void assign_child_task_to_parent_thread( tcb_t *child_last_thread,
+                                                void *v_waiting_thread );
+
+static void call_back_mutex_unlock( tcb_t *unused, void *v_parent_pcb_muxp );
 
 /** @brief Frees all TCBs in a task except the last running thread's TCB
  *
- *  @pre There are no more active threads in the task
- *
  *  @param owning_task PCB of task to free TCBs from
  *  @param last_tcb TCB of last running thread of owning_task
+ *  @pre There are no more active threads in the task
  *  @return Void.
  */
 void
@@ -87,9 +102,8 @@ free_sibling_tcb(pcb_t *owning_task, tcb_t *last_tcb)
 
 /** @brief Frees a PCB's page directory and uses the initial page directory.
  *
- *  @pre No threads in PCB must intend to run again
- *
  *  @param owning_task PCB pointer to free page directory from
+ *  @pre No threads in PCB must intend to run again
  *  @return Void.
  */
 void
@@ -115,32 +129,24 @@ free_task_pd( pcb_t *owning_task )
 	owning_task->pd = NULL;
 }
 
-/** @brief Empty list of active child tasks
- *
- *  @param owning_task PCB from which to empty list of active child tasks
- *  @return Void.
- */
-void
-empty_active_child_tasks_list( pcb_t *owning_task )
-{
-	pcb_t *active_child = Q_GET_FRONT(&(owning_task->active_child_tasks_list));
-
-	while (active_child) {
-		Q_REMOVE(&(owning_task->active_child_tasks_list), active_child,
-				 vanished_child_tasks_link);
-		owning_task->num_active_child_tasks--;
-		active_child = Q_GET_FRONT(&(owning_task->active_child_tasks_list));
-	}
-}
-
-
-
-
 /** @brief Makes a task ready for collection by its parent, ceases task
  *         thread execution that calls vanish.
  *
- *  //TODO do a version that takes in an argument on error, or does
- *  panic_thread do that?
+ *  If not last task thread, add own TCB to owning task's PCB vanished threads
+ *  list and yield to other runnable threads.
+ *
+ *  Else, we are the last thread. We clean up all vanished sibling threads
+ *  TCBS, free our task's page directory, empty out our active child tasks
+ *  list since all our child tasks will find the init PCB as their new
+ *  parent to clean up after them, and transfer our vanished child tasks list
+ *  to the init PCB and wakeup any sleeping init threads waiting for vanished
+ *  child tasks.
+ *
+ *  We also try to find our own parent PCB / init PCB and wake a parent waiting
+ *  thread up if one exists, else we add ourselves to our parent PCB / init
+ *  PCB vanished_child_tasks_list to wait for cleanup.
+ *
+ *  @return Void.
  */
 void
 _vanish( void )
@@ -148,7 +154,13 @@ _vanish( void )
 	/* Get TCB and PCB and obtain critical section */
 	tcb_t *tcb = get_running_thread();
 	pcb_t *owning_task = tcb->owning_task;
+
+	TREE_LOCK;
 	mutex_lock(&(owning_task->set_status_vanish_wait_mux));
+
+	/* Disable interrupts here so when we get the lock, we can atomically */
+	//disable_interrupts();
+
 
 	/* Move current TCB from active threads to vanished threads */
 	Q_REMOVE(&(owning_task->active_threads_list), tcb, task_thread_link);
@@ -163,7 +175,10 @@ _vanish( void )
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
 		log("_vanish(): not last task thread");
+		TREE_UNLOCK;
+
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
 		affirm(yield_execution(DEAD, NULL, NULL, NULL) == 0);
 
 	/* Last task thread cleans up and contacts parent/init PCB */
@@ -171,19 +186,19 @@ _vanish( void )
 		log("_vanish(): last task thread");
 		remove_pcb(owning_task);
 
+		/* All my active child tasks will automatically look for init,
+		 * time to clear my active child tasks list */
+		Q_INIT_HEAD(&(owning_task->active_child_tasks_list));
+		TREE_UNLOCK;
+
+		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
+
 		/* Free sibling threads TCB */
 		owning_task->last_thread = tcb;
 		free_sibling_tcb(owning_task, tcb);
-		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
 		/* Free page directory */
 		free_task_pd(owning_task);
-
-		/* All my active child tasks will automatically look for init,
-		 * time to clear my active child tasks list */
-		// empty_active_child_tasks_list(owning_task);
-		Q_INIT_HEAD(&(owning_task->active_child_tasks_list));
-
 
 		/* Transfer all my vanished children to init in O(1) */
 		pcb_t *init_pcbp = get_init_pcbp();
@@ -218,26 +233,34 @@ _vanish( void )
 		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
+		TREE_LOCK;
+
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
-
 		if (parent_pcb) {
-
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+			TREE_UNLOCK;
+
 			log("_vanish(): found my parent ");
-			noop();
+
+			affirm( find_pcb(owning_task->parent_pid));
 
 			/* Remove from active_child_tasks_list */
 			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
 					 vanished_child_tasks_link);
 			parent_pcb->num_active_child_tasks--;
-
 		} else {
+			/* Parent did not remove me from their active_child tasks list cuz
+			 * parent has vanished, re-initialize myself by setting my next
+			 * and prev to NULL */
+			Q_INIT_ELEM(owning_task, vanished_child_tasks_link);
+
 			parent_pcb = init_pcbp;
 			assert(parent_pcb);
-			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-			log("(init) parent_pcb->execname:%s", parent_pcb->execname);
-			noop();
 
+			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
+			TREE_UNLOCK;
+
+			log("(init) parent_pcb->execname:%s", parent_pcb->execname);
 		}
 		affirm(parent_pcb);
 
@@ -255,12 +278,6 @@ _vanish( void )
 
 		/* No parent threads waiting, add self to vanished child list */
 		} else {
-			/* Parent did not remove me from their active_child tasks list cuz
-			 * parent has vanished, re-initialize myself by setting my next
-			 * and prev to NULL */
-			if (parent_pcb == init_pcbp) {
-				Q_INIT_ELEM(owning_task, vanished_child_tasks_link);
-			}
 
 			Q_INSERT_TAIL(&(parent_pcb->vanished_child_tasks_list),
 						  owning_task, vanished_child_tasks_link);
@@ -270,11 +287,20 @@ _vanish( void )
 			affirm(yield_execution(DEAD, NULL, call_back_mutex_unlock,
 				&(parent_pcb->set_status_vanish_wait_mux)) == 0);
 		}
-
 	}
 }
 
-void
+/** @brief Unlocks the parent PCB's mutex when this TCB is not added back
+ *         to the runnable queue since it is DEAD. To be passed as a callback
+ *         function.
+ *
+ *  @param unused this TCB when switched out from being the RUNNING TCB. We
+ *         don't need it.
+ *  @param v_parent_pcb_muxp Pointer to the parent PCB mutex we wish to unlock.
+ *  @pre v_parent_pcb_muxp must be locked prior to calling this function
+ *  @return Void.
+ */
+static void
 call_back_mutex_unlock( tcb_t *unused, void *v_parent_pcb_muxp )
 {
 	assert(unused);
@@ -286,10 +312,11 @@ call_back_mutex_unlock( tcb_t *unused, void *v_parent_pcb_muxp )
 
 /** @brief Assigns the first waiting parent thread a vanished child task
  *
+ *  @param child_last_thread Last running thread of child task
+ *  @param v_waiting_thread Parent thread waiting to cleanup this child task
  *  @pre There must be a waiting parent thread
  *  @pre There must be a vanished child task PCB
- *
- *  @param parent_pcb PCB of task with waiting parent threads.
+ *  @return Void.
  */
 void
 assign_child_task_to_parent_thread( tcb_t *child_last_thread,
@@ -326,7 +353,11 @@ assign_child_task_to_parent_thread( tcb_t *child_last_thread,
 }
 
 
-
+/** @brief Wrapper function that a syscall to vanish() from userspace will
+ *         invoke. Performs and ACK.
+ *
+ *  @return Void.
+ */
 void
 vanish( void )
 {

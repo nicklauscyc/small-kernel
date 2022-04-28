@@ -2,58 +2,45 @@
  * The 15-410 kernel project.
  * @name loader.c
  *
- * Functions for the loading
- * of user programs from binary
- * files should be written in
- * this file. The function
- * elf_load_helper() is provided
- * for your use.
- *
- * The loader should never interact directly with
- * virtual memory. Rather it should call functions
- * defined in the process mananger module (which itself
- * will be responsible for talking to the VM module).
- *
+ * Module for loading user programs and aiding in configuring
+ * a tasks initial memory.
  */
+
 /*@{*/
 /* --- Includes --- */
-#include <x86/cr.h>     /* {get,set}_{cr0,cr3} */
 #include <loader.h>
-#include <malloc.h>     /* sfree() */
+
+#include <cr.h>			/* {get,set}_{cr0,cr3} */
+#include <asm.h>		/* enable_interrupts(), disable_interrupts() */
 #include <page.h>       /* PAGE_SIZE */
+#include <malloc.h>     /* sfree() */
 #include <string.h>     /* strncmp, memcpy */
-#include <exec2obj.h>   /* exec2obj_TOC */
-#include <elf_410.h>    /* simple_elf_t, elf_load_helper */
 #include <stdint.h>     /* UINT32_MAX */
-#include <task_manager.h>   /* task_new, task_prepare, task_set, STACK_ALIGNED*/
-#include <memory_manager.h> /* {disable,enable}_write_protection */
 #include <logger.h>     /* log_warn() */
-#include <scheduler.h> /* get_running_tid() */
-#include <assert.h> /* assert() */
-#include <simics.h>
-#include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
+#include <assert.h>		/* assert() */
+#include <elf_410.h>    /* simple_elf_t, elf_load_helper */
+#include <exec2obj.h>   /* exec2obj_TOC */
+#include <scheduler.h>	/* get_running_tid() */
 #include <iret_travel.h> /* iret_travel() */
 #include <task_manager_internal.h>
 #include <eflags.h>	/* get_eflags*/
 #include <seg.h>	/* SEGSEL_... */
 #include <common_kern.h> /* USER_MEM_START */
+#include <task_manager.h>   /* task_new, task_prepare, task_set, STACK_ALIGNED*/
+#include <memory_manager.h> /* {disable,enable}_write_protection */
+#include <lib_memory_management/memory_management.h> /* _new_pages */
 
-/* --- Local function prototypes --- */
+#include <simics.h>
 
-
-/* TODO: Move this to a helper file.
- *
- * Having a helper means we evaluate the arguments before expanding _MIN
+/* Having a helper means we evaluate the arguments before expanding _MIN
  *  and therefore avoid evaluating A and B multiple times. */
 #define _MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MIN(A,B) _MIN(A,B)
 
-int configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
-	uint32_t entry_point, void *user_pd );
-
-int register_with_simics( uint32_t tid, char *fname );
-
-int load_user_program_info(simple_elf_t *se_hdrp, char *fname);
+static int configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
+ 	uint32_t entry_point, void *user_pd );
+static int register_with_simics( uint32_t tid, char *fname );
+static int load_user_program_info(simple_elf_t *se_hdrp, char *fname);
 
 /** Copies data from a file into a buffer.
  *
@@ -78,7 +65,8 @@ getbytes( const char *filename, int offset, int size, char *buf )
     /* Find file in TOC */
     int i;
     for (i=0; i < exec2obj_userapp_count; ++i) {
-        if (strncmp(filename, exec2obj_userapp_TOC[i].execname, MAX_EXECNAME_LEN) == 0) {
+        if (strncmp(filename, exec2obj_userapp_TOC[i].execname,
+			MAX_EXECNAME_LEN) == 0) {
             break;
         }
     }
@@ -101,6 +89,11 @@ getbytes( const char *filename, int offset, int size, char *buf )
     return bytes_to_copy;
 }
 
+/** @brief Zeroes out a memory region (including rounding up to their end)
+ *
+ *  @param start Start of memory region
+ *  @param len   Length of memory region
+ *  @return Void. */
 static void
 zero_out_memory_region( uint32_t start, uint32_t len )
 {
@@ -119,18 +112,12 @@ zero_out_memory_region( uint32_t start, uint32_t len )
 static int
 transplant_program_memory( simple_elf_t *se_hdr )
 {
-	/* TODO: Swap cr0 on context switch, for now just disabling
-	 * interrupts. */
-	disable_interrupts();
-
     /* Disable write-protection temporarily so we may
      * copy data into read-only regions. */
 	disable_write_protection();
 
-    // FIXME: This error checking is kinda hacky
-    int i = 0;
-
     /* Zero out bytes between memory regions (as well as inside them)  */
+    int i = 0;
 	zero_out_memory_region(se_hdr->e_txtstart, se_hdr->e_txtlen);
 	zero_out_memory_region(se_hdr->e_rodatstart, se_hdr->e_rodatlen);
 	zero_out_memory_region(se_hdr->e_datstart, se_hdr->e_datlen);
@@ -140,26 +127,28 @@ transplant_program_memory( simple_elf_t *se_hdr )
      * enabled to "transplant" program data. Notice
      * that this is only possible because program data is
      * resident on kernel memory which is direct-mapped. */
-	i += getbytes(se_hdr->e_fname,
+	i = getbytes(se_hdr->e_fname,
             (unsigned int) se_hdr->e_txtoff,
             (unsigned int) se_hdr->e_txtlen,
 	        (char *) se_hdr->e_txtstart);
-	i += getbytes(se_hdr->e_fname,
+	if (i < 0)
+		return -1;
+
+	i = getbytes(se_hdr->e_fname,
 	        (unsigned int) se_hdr->e_rodatoff,
             (unsigned int) se_hdr->e_rodatlen,
 	        (char *) se_hdr->e_rodatstart);
-	i += getbytes(se_hdr->e_fname,
+	if (i < 0)
+		return -1;
+
+	i = getbytes(se_hdr->e_fname,
             (unsigned int) se_hdr->e_datoff,
             (unsigned int) se_hdr->e_datlen,
 	        (char *) se_hdr->e_datstart);
+	if (i < 0)
+		return -1;
 
-    /* Re-enable write-protection bit. */
-    enable_write_protection();
 
-
-	if (is_multi_threads()) {
-		enable_interrupts();
-	}
 
 	assert(is_valid_pd((void *)get_cr3()));
 	return i;
@@ -170,7 +159,10 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  This entrypoint is defined in 410user/crt0.c and is used by all user
  *  programs.
  *
- *  Requires that argc and argv are validated
+ *  @pre argc and argv have been validated
+ *  @param arg Number of arguments
+ *  @param argv Pointer to argument list
+ *  @return Pointer to bottom of stack (ie. the new esp)
  */
 static uint32_t *
 configure_stack( int argc, char **argv )
@@ -241,11 +233,9 @@ configure_stack( int argc, char **argv )
  *  a single thread) and for the syscall exec(). We disable calls to
  *  exec() when there is more than 1 thread in the invoking task.
  *
- *  TODO don't think this is the best requires
- *  @req that fname and argv are in kernel memory, unaffected by
- *       parent directory
- *
  *  @param fname Name of program to run.
+ *  @param arg   Argument count
+ *  @param argv  Argument vector
  *  @return 0 on success, negative value on error.
  */
 int
@@ -302,15 +292,12 @@ execute_user_program( char *fname, int argc, char **argv)
 	tid = get_running_tid();
 
 	/* Create new pd */
-	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
-	void *new_pd = new_pd_from_elf(&se_hdr, stack_lo,
-								   USER_THREAD_STACK_SIZE);
+
+	void *new_pd = new_pd_from_elf(&se_hdr);
 	if (!new_pd) {
 		goto cleanup;
 	}
 	void *old_pd = swap_task_pd(new_pd);
-	free_pd_memory(old_pd);
-	sfree(old_pd, PAGE_SIZE);
 
 	set_task_name(find_pcb(pid), kern_stack_execname);
 
@@ -322,20 +309,35 @@ execute_user_program( char *fname, int argc, char **argv)
 	register_if_init_task(kern_stack_execname, pid);
 
 	/* Update page directory, enable VM if necessary */
-	if (activate_task_memory(pid) < 0) {
-		goto cleanup;
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+	activate_task_memory(pcb);
+
+	/* Allocate user stack space */
+	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
+	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
+		goto cleanup_w_pd;
 	}
 
+	/* Cleaning up the new page directory also implicitly cleans up the pages
+	 * allocated by _new_pages() above */
     if (transplant_program_memory(&se_hdr) < 0) {
-		goto cleanup;
+		goto cleanup_w_pd;
 	}
     uint32_t *esp = configure_stack(argc, kern_stack_argvec);
 
 	/* Start the task */
 	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
+	free_pd_memory(old_pd);
+	sfree(old_pd, PAGE_SIZE);
 	task_start(tid, (uint32_t)esp, se_hdr.e_entry);
 
 	panic("execute_user_program does not return");
+
+	/* Swap back to old pd and clean up */
+cleanup_w_pd:
+	new_pd = swap_task_pd(old_pd);
+	free_pd_memory(new_pd);
 
 cleanup:
 	sfree(kern_stack_args, NUM_USER_ARGS * USER_STR_LEN);
@@ -352,6 +354,8 @@ cleanup:
  *  @param fname Executable name
  *  @param argc Argument count
  *  @param argv Argument vector
+ *
+ *  @return 0 on success, negative value on error
  */
 int
 load_initial_user_program( char *fname, int argc, char **argv )
@@ -375,9 +379,16 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	register_if_init_task(fname, pid);
 
 	/* Update page directory, enable VM if necessary */
-	if (activate_task_memory(pid) < 0) {
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+	activate_task_memory(pcb);
+
+
+	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
+	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
 		return -1;
 	}
+
 
     if (transplant_program_memory(&se_hdr) < 0) {
 		return -1;
@@ -402,8 +413,13 @@ load_initial_user_program( char *fname, int argc, char **argv )
  *  @pre Kernel must not have mode switched to user mode before to get the
  *       correct user eflags
  *  @pre Interrupts must be disabled
+ *  @param tcbp Pointer to thread to be configured
+ *  @param user_esp Pointer to user stack
+ *  @param entry_point Pointer to code to run
+ *	@param user_pd  User's page directory
+ *	@return 0 on success, negative value on error
  */
-int
+static int
 configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
                               uint32_t entry_point, void *user_pd )
 {
@@ -427,28 +443,28 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
 
 	/* Set up kernel thread stack for iret_travel */
  	*(--kernel_esp) = SEGSEL_USER_DS;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"SEGSEL_USER_DS:%p at %p", (uint32_t *) SEGSEL_USER_DS, kernel_esp);
 
  	*(--kernel_esp) = user_esp;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"user_esp:%p at %p", (uint32_t *) user_esp, kernel_esp);
 
  	*(--kernel_esp) = get_user_eflags();
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"user_eflags:%08lx at %p", get_user_eflags(), kernel_esp);
 
  	*(--kernel_esp) = SEGSEL_USER_CS;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"SEGSEL_USER_CS:%08lx at %p",SEGSEL_USER_CS, kernel_esp);
 
  	*(--kernel_esp) = entry_point;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"entry_point:%08lx at %p", entry_point, kernel_esp);
 
 	--kernel_esp; /* simulate an iret_travel call's return address */
 	*(--kernel_esp) = (uint32_t) iret_travel;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"iret_tracel:%p at %p", iret_travel, kernel_esp);
 
 
@@ -457,35 +473,39 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
 	dummy_eax = dummy_ebx = dummy_ecx = dummy_edx = dummy_edi = dummy_esi = 0;
 
 	*(--kernel_esp) = kernel_ebp;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"ebp:%x at %p", kernel_ebp, kernel_esp);
 
 	*(--kernel_esp) = dummy_eax;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_eax:%x at %p", dummy_eax, kernel_esp);
 
 	*(--kernel_esp) = dummy_ebx;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_ebx:%x at %p", dummy_ebx, kernel_esp);
 
 	*(--kernel_esp) = dummy_ecx;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_ecx:%x at %p", dummy_ecx, kernel_esp);
 
 	*(--kernel_esp) = dummy_edx;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_edx:%x at %p", dummy_edx, kernel_esp);
 
 	*(--kernel_esp) = dummy_edi;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_edi:%x at %p", dummy_edi, kernel_esp);
 
 	*(--kernel_esp) = dummy_esi;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"dummy_esi:%x at %p", dummy_esi, kernel_esp);
 
+	*(--kernel_esp) = get_cr0();
+	log_warn("configure_initial_task_stack "
+		"cr0:%p at %p", get_cr0(), kernel_esp);
+
 	*(--kernel_esp) = (uint32_t) user_pd;
-	log("configure_initial_task_stack "
+	log_warn("configure_initial_task_stack "
 		"user_pd:%p at %p", user_pd, kernel_esp);
 
 
@@ -505,7 +525,7 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
  *  @param fname Task executable name
  *  @return 0 on success, -1 on error
  */
-int
+static int
 register_with_simics( uint32_t tid, char *fname )
 {
 #ifdef DEBUG
@@ -529,12 +549,14 @@ register_with_simics( uint32_t tid, char *fname )
 	return 0;
 }
 
-/* @brief Loads user program information into a simple_elf_t struct
+/** @brief Loads user program information into a simple_elf_t struct
  *
- * @param se_hdr Pointer to simple_elf_t struct to be filled
+ *  @param se_hdr Pointer to simple_elf_t struct to be filled
+ *  @param fname  Filename for user program
+ *
  * @return 0 on success, -1 on error
  */
-int
+static int
 load_user_program_info(simple_elf_t *se_hdrp, char *fname)
 {
 	if (!se_hdrp)

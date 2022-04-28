@@ -1,3 +1,7 @@
+/** @file tests.h
+ *
+ *  @brief Includes for testing suite */
+
 #ifndef TESTS_H_
 #define TESTS_H_
 

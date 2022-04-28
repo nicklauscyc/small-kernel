@@ -54,7 +54,7 @@ static mutex_t mux;
 /** @brief Checks if a physical address is page aligned and could have
  *         been given out by physalloc
  *
- *  @param physaddress Physical address
+ *  @param phys_address Physical address
  *  @return 1 if valid, 0 otherwise
  */
 int
@@ -79,7 +79,7 @@ is_physframe( uint32_t phys_address )
 uint32_t
 num_free_phys_frames( void )
 {
-	return UNCLAIMED_PAGES + reuse_stack.top; //TODO why do we add this guy
+	return UNCLAIMED_PAGES + reuse_stack.top;
 }
 
 /** @brief Initializes physical allocator family of functions
@@ -111,7 +111,7 @@ init_physalloc( void )
  *
  *  If there is a reusable free frame, we use that frame first.
  *
- *  @return Next free physical frame address
+ *  @return Next free physical frame address, 0 if no free frames.
  */
 uint32_t
 physalloc( void )
@@ -145,11 +145,11 @@ physalloc( void )
 
 /** @brief Frees a physical frame address
  *
- *  Does necessary but not sufficient checksto see if it is indeed a valid
+ *  Does necessary but not sufficient checks to see if it is indeed a valid
  *  address before freeing (double freeing is not checked).
  *  Requires that this phys_address was returned from a call to
- *  physalloc(), else behavior is undefined. Free every allocated physical
- *  address exactly once.
+ *  physalloc(), else behavior is undefined. Users must free every allocated
+ *  physical address exactly once.
  *
  *  @param phys_address Physical address to be freed.
  *  @return Void.
@@ -165,6 +165,11 @@ physfree(uint32_t phys_address)
         assert(reuse_stack.top == reuse_stack.len);
 
         uint32_t *new_data = smalloc(reuse_stack.len * 2 * sizeof(uint32_t));
+
+		/* If this happens, we for some reason have too many free frames that
+		 * have been used at least once and are now deallocated. It's a strange
+		 * problem to have too much free memory. The kernel will still run
+		 * fine in future but just with less memory to use. */
         if (!new_data) {
             log_warn("[ERROR] Losing free physical frames \
                     - no more kernel space.");
@@ -184,98 +189,4 @@ physfree(uint32_t phys_address)
 	log("physfree freed frame 0x%lx", phys_address);
 }
 
-/** @brief Tests physalloc and physfree
- *
- *  @return Void.
- */
-void
-test_physalloc( void )
-{
-	log_info("Testing physalloc(), physfree()");
-	uint32_t a, b, c;
-	/* Quick test for alignment, we allocate in consecutive order */
-	a = physalloc();
-	assert(a == USER_MEM_START);
-	b = physalloc();
-	assert(b == a + PAGE_SIZE);
-
-	/* Quick test for reusing free physical frames */
-	physfree(a);
-	c = physalloc(); /* c reuses a */
-	assert(a == c);
-	a = physalloc();
-	assert(a == USER_MEM_START + 2 * PAGE_SIZE);
-
-	/* Test reuse the latest freed phys frame */
-	physfree(b);
-	physfree(c);
-	physfree(a);
-	assert(physalloc() == a);
-	assert(physalloc() == c);
-	assert(physalloc() == b);
-	physfree(USER_MEM_START + 2 * PAGE_SIZE);
-	physfree(USER_MEM_START + 1 * PAGE_SIZE);
-	physfree(USER_MEM_START);
-
-	/* Use all phys frames */
-	int total = TOTAL_USER_FRAMES;
-	int i = 0;
-	uint32_t all_phys[1024];
-	log("after all_phys");
-	while (i < 1024) {
-		all_phys[i] = physalloc();
-		assert(all_phys[i]);
-		i++;
-		total--;
-	}
-	log("total frames supported:%08x",
-		    (unsigned int) TOTAL_USER_FRAMES);
-	assert(total == TOTAL_USER_FRAMES - 1024);
-	/* all phys frames, populate reuse list */
-	assert(i == 1024);
-	while (i > 0) {
-		i--;
-		physfree(all_phys[i]);
-		total++;
-	}
-	assert(total == TOTAL_USER_FRAMES);
-	assert(i == 0);
-
-	/* exhaust reuse list, check implicit stack ordering of reuse list */
-	while (i < 1024) {
-		uint32_t addr = physalloc();
-		(void) addr;
-		assert(all_phys[i] == addr);
-		assert(addr);
-		if (i == 0) assert(all_phys[i] == USER_MEM_START);
-		else assert(all_phys[i-1] + PAGE_SIZE == all_phys[i]);
-		i++;
-		total--;
-	}
-	/* free everything */
-	while (i > 0) {
-		i--;
-		physfree(all_phys[i]);
-		total++;
-	}
-	/*use ALL phys frames */
-	assert(i == 0);
-	assert(total == TOTAL_USER_FRAMES);
-	uint32_t x = 0;
-	while (total > 0) {
-		total--;
-		x = physalloc();
-	}
-	log("last frame start address:%lx", x);
-	assert(!physalloc());
-
-	/* put them all back */
-	log("put all into linked list");
-	while (total < TOTAL_USER_FRAMES) {
-		total++;
-		physfree(x);
-		x -= PAGE_SIZE;
-	}
-	log_info("Tests passed!");
-}
 

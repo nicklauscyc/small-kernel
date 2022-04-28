@@ -37,10 +37,9 @@ CC = gcc
 # compiling the respective type(s) of code.  The ordering
 # of the words doesn't matter, and repeating a word has
 # no additional effect.
+# # Use "make veryclean" if you adjust CONFIG_DEBUG.
 #
-# Use "make veryclean" if you adjust CONFIG_DEBUG.
-#
-CONFIG_DEBUG = user kernel
+CONFIG_DEBUG = user
 
 ###########################################################################
 # NDEBUG
@@ -54,7 +53,7 @@ CONFIG_DEBUG = user kernel
 #
 # Use "make veryclean" if you adjust CONFIG_NDEBUG.
 #
-CONFIG_NDEBUG =
+CONFIG_NDEBUG = kernel
 
 ###########################################################################
 # The method for acquiring project updates.
@@ -87,10 +86,15 @@ UPDATE_METHOD = afs
 		   mem_permissions cho cho2 cho_variant score make_crash_helper\
 		   knife exec_basic_helper\
 		   remove_pages_test2 \
-		   wild_test1\
-		   ack bg bistromath cat chow ck1 coolness deschedule_hang fib\
-		   fork_bomb halt_test mem_eat_test merchant peon slaughter\
+		   ack chow ck1 coolness deschedule_hang fib\
+		   fork_bomb mem_eat_test merchant peon slaughter\
 		   swexn_stands_for_swextensible swexn_uninstall_test work\
+		   \
+		   cat startle agility_drill paraguay cyclone join_melee switzerland\
+		   rwlock_downgrade_read_test thr_exit_join racer paradise_lost wild_test1\
+		   beady_test bg bistromath broadcast_test cvar_test excellent halt_test\
+		   join_specific_test juggle largetest mandelbrot multitest\
+		   mutex_destroy_test mutex_test nibbles\
 
 ###########################################################################
 # Test programs you have written which you wish to run
@@ -100,7 +104,7 @@ UPDATE_METHOD = afs
 #
 STUDENTTESTS = test_suite exec_args_test exec_args_test_helper new_pages_test\
                myscore bad_status_ptr fork_exit_bomb_cleanup test_threads\
-			   vq_test test_all
+			   vq_test test_all big_test_all ydm2
 
 ###########################################################################
 # Data files provided by course staff to build into the RAM disk
@@ -140,7 +144,8 @@ SYSCALL_OBJS = syscall.o gettid.o fork.o test.o yield.o deschedule.o \
 			   exec.o make_runnable.o get_ticks.o sleep.o print.o \
 			   set_cursor_pos.o get_cursor_pos.o set_term_color.o \
 			   new_pages.o remove_pages.o readfile.o halt.o vanish.o \
-			   readline.o task_vanish.o set_status.o swexn.o wait.o
+			   readline.o task_vanish.o set_status.o swexn.o wait.o \
+			   misbehave.o
 
 ###########################################################################
 # Object files for your automatic stack handling
@@ -206,6 +211,7 @@ KERNEL_OBJS = console.o kernel.o loader.o malloc_wrappers.o \
 			  lib_misc/readfile.o \
 			  lib_misc/halt.o \
 			  lib_misc/call_halt.o \
+              lib_misc/misbehave.o \
 			  \
 			  fault_handlers/asm_fault_handlers.o \
 			  fault_handlers/divide_handler.o \

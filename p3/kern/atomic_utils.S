@@ -1,3 +1,5 @@
+/** @file atomic_utils.S */
+
 .globl compare_and_swap_atomic
 .globl add_one_atomic
 

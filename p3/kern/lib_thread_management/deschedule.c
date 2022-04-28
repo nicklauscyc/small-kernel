@@ -12,10 +12,14 @@
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <logger.h>
 
+/** @brief Deschedules currently running thread if *reject == 0
+ *		   Atomic w.r.t make_runnable
+ *
+ *	@param reject Pointer to integer describing whether to deschedule
+ *	@return 0 on success, negative value on failure */
 int
 _deschedule( int *reject )
 {
-
 	if (!is_valid_user_pointer(reject, READ))
 		return -1;
 
@@ -24,8 +28,8 @@ _deschedule( int *reject )
 	return 0;
 }
 
-/** @brief Deschedules currently running thread if *reject == 0
- *		   Atomic w.r.t make_runnable
+/** @brief Handler for deschedule syscall. Deschedules currently running
+ *		   thread if *reject == 0. Atomic w.r.t make_runnable
  *
  *	@param reject Pointer to integer describing whether to deschedule
  *	@return 0 on success, negative value on failure */

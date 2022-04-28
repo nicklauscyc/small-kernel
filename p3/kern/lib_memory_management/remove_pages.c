@@ -18,8 +18,13 @@
 #include <physalloc.h>
 #include <memory_manager.h>
 #include <memory_manager_internal.h>
+#include <lib_thread_management/mutex.h> /* mutex_t */
 
-// TODO locking
+/** @brief Removes memory allocated starting from base.
+ *
+ *  @base Lowest address to start freeing pages from
+ *  @return 0 on success, -1 on error.
+ */
 int
 remove_pages( void *base )
 {
@@ -30,21 +35,25 @@ remove_pages( void *base )
     outb(INT_CTL_PORT, INT_ACK_CURRENT);
 
     if ((uint32_t)base < USER_MEM_START) {
-        log_info("remove_pages(): "
+        log_warn("remove_pages(): "
                  "base < USER_MEM_START");
         return -1;
     }
     if (!PAGE_ALIGNED(base)) {
-        log_info("remove_pages(): "
+        log_warn("remove_pages(): "
                  "base not page aligned!");
         return -1;
     }
+
+	mutex_lock(&pages_mux);
+
 	/* Check if base is legitimately in page table. Since page table is
 	 * valid, if ptep is NULL then base was not even allocated */
 	uint32_t *ptep = get_ptep((const uint32_t **) pd, (uint32_t) base);
 	if (!ptep) {
-		log_info("remove_pages(): "
+		log_warn("remove_pages(): "
 				 "unable to get page table entry pointer:");
+		mutex_unlock(&pages_mux);
 		return -1;
 	}
 	/* Check if base was allocated by previous call to new_pages() */
@@ -52,10 +61,11 @@ remove_pages( void *base )
 	assert(is_valid_sys_prog_flag(sys_prog_flag));
 
 	if (sys_prog_flag != NEW_PAGE_BASE_FLAG) {
-		log_info("remove_pages(): "
+		log_warn("remove_pages(): "
 				 "base:%p not previously allocated by new_pages(), "
 				 "sys_prog_flag:0x%08x",
 				 base, sys_prog_flag);
+		mutex_unlock(&pages_mux);
 		return -1;
 	}
 	/* Free the first frame */
@@ -79,8 +89,6 @@ remove_pages( void *base )
 			 "unallocated base:%p, len:%d", base,
 			 curr - ((uint32_t) base));
 
-	/* TODO jank get and set cr3() to flush TLB entries */
-	//set_cr3(get_cr3());
-
+	mutex_unlock(&pages_mux);
     return 0;
 }

@@ -1,13 +1,19 @@
-/** @brief Header file with VM API. */
+/** @file memory_manager.h
+ *
+ *  @brief Header file with memory manager structs, enums, #defines and
+ *		   function signature.
+ **/
 
-#ifndef _MEMORY_MANAGER_H
-#define _MEMORY_MANAGER_H
+#ifndef MEMORY_MANAGER_H_
+#define MEMORY_MANAGER_H_
 
 #include <elf_410.h> /* simple_elf_t */
 #include <stdint.h> /* uint32_t */
 #include <page.h>
 
+/* Index of page directory in vm address */
 #define PAGE_DIRECTORY_INDEX 0xFFC00000
+/* Index of page table in vm address */
 #define PAGE_TABLE_INDEX 0x003FF000
 
 #define PAGE_DIRECTORY_SHIFT 22
@@ -23,8 +29,11 @@
 
 /* True if address if paged align, false otherwise */
 #define PAGE_ALIGNED(address) ((((uint32_t) address) & (PAGE_SIZE - 1)) == 0)
+
 #define USER_STR_LEN 256
 #define NUM_USER_ARGS 16
+
+/* Gets the top 20 bits of an address - useful in manipulating PDs/PTs */
 #define TABLE_ADDRESS(PD_ENTRY) (((uint32_t) (PD_ENTRY)) & ~(PAGE_SIZE - 1))
 
 #ifndef STACK_ALIGNED
@@ -38,8 +47,7 @@ void initialize_zero_frame( void );
 typedef enum write_mode write_mode_t;
 enum write_mode { READ_ONLY, READ_WRITE, READ };
 
-void *new_pd_from_elf( simple_elf_t *elf,
-        uint32_t stack_lo, uint32_t stack_len );
+void *new_pd_from_elf( simple_elf_t *elf );
 void *new_pd_from_parent( void *parent_pd );
 void vm_enable_task( void *ptd );
 void enable_write_protection( void );
@@ -68,9 +76,13 @@ void *get_initial_pd( void );
 
 void init_memory_manager( void );
 
-/** @brief Invalidates vm_addr entry in TLB (INVLPG semantincs) */
+/** @brief Invalidates vm_addr entry in TLB (INVLPG semantincs)
+ *
+ *  @param vm_addr Address to invalidate in the TLB
+ *  @return Void.
+ *  */
 void invalidate_tlb( void *vm_addr );
 
 int safe_strcmp(char *x, char *y);
 
-#endif /* _MEMORY_MANAGER_H */
+#endif /* MEMORY_MANAGER_H_ */

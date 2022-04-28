@@ -8,6 +8,10 @@
 #include <scheduler.h>			/* yield_execution() */
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 
+/** @brief Yield syscall handler
+ *
+ *  @tid Id of thread to yield to, -1 if any
+ *  @return 0 on success, negative value on error */
 int
 yield( int tid )
 {

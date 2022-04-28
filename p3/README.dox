@@ -2,84 +2,101 @@
 
 @mainpage 15-410 Project 3
 
-@author Name1 (id1)
-@author Name2 (id2)
+@author Andre Nascimento (anascime)
+@author Nicklaus Choo	 (nchoo)
+
+--------------------------
+
+Asserts vs Affirm:
 
 Using assert() vs affirm(). We have used assert() to catch our own mess ups to
 aid our own debugging. On the other hand, affirm() is used to catch user mess
 ups when they use our interface function. For example, we affirm pointers
 passed as arguments to interface functions.
 
-Currently using README.dox as a bug tracker and TODO list.
+--------------------------
 
-BUGS:
-    - Currently accessing invalid memory with eip. This happens during call
-      to smemalign (it seems). Eip is set to a value just above USER_MEM_START,
-      and at that time no user memory has been allocated. This probably means some interrupt
-      is triggering a handler which is supposed to be located at that eip.
+Scheduler:
 
-      Very puzzling. Maybe something to do with the console/keyboard interrupts????
-CK1:
-    - Write gettid handler              [essential]
-    - Store tid at top of kernel stack  [nice to have]
-    - Pass gettid_test1
-    - Cleanup unecessary files and organize into folders [nice to have]
+We use a simple round-robin scheduler. It has a single queue for all runnable threads and we take threads
+from that queue on timer interrupts. Threads which are not runnable are not placed on that queue. Instead,
+they are managed by other modules of the code. To allow other threads to manage a threads status we provide
+a yield_execution function, which takes in a callback which is called inside an "atomic" (no interrupts) region.
 
-CK2:
-    - Synchronization design
-    - Context switch
-    - Proper physical memory management
-    - Trace facility                    [nice to have]
-    - Fork or exec?
+This allows us to provide atomicity to operations manipulating a thread's status while not littering our code with
+disable and enable interrupts. Of course, this means that the callback has to be short (in number of instructions),
+a precondition to our yield_execution function.
 
-TODO:
-    0. Figure out synchronization mechanism
+The scheduler itself makes little use of mutexes as those are implemented in tandem with the scheduler.
 
-    1. Fix gettid handler not executing
-        + in stack manager, create int next_tid, and use atomic_add (from p2 mutex implementation) to get next tid. Encapsulate in function.
-        + store tid at highest address of kernel stack
-        + create PR for merge into main (and have other person check)
+--------------------------
 
-    2. Physical page allocator component
-        -> free list
-        -> per task allocated-list (not too sure if we need a distinction between user tasks, since kernel maintains all allocated physical frames across all user tasks)
-        -> manipulation functions (some interface)
+Mutexes:
 
-    3. Context switcher:
-        -> receiver (register restoring) function
-        -> register saving function
+Mutexes are our main (and pretty much only) primitive for synchronization. Mutexes here work as both mutexes
+and cond vars given the single-core nature of the running environment. These are implemented by making a thread
+not runnable and storing it in a mutex's queue. Synchronization here is guaranteed by disabling and enabling
+interrupts.
 
-    4. Scheduler:
-        -> Figure out necessary synchronization primitives
-        -> Create scheduler component (aka, new file)
-        -> Responds to timer interrupts by triggering context switch every 2ms (currently do it for keyboard interrupts (maybe a specific character))
-        -> Keep list of active, runnable and descheduled threads
+--------------------------
 
-    5. Implement fork call:
-        -> Figure out VM copying mechanism (working with 2 page directories at once, one for each task).
+Context switching:
 
-        Implementation suggestion:
-        On fork, do not reallocate memory for all kernel memory. -> Just share page tables below user mem_start
-        memcpy(A, B);
-        pd_update(); // (point A to newly allocated physical frames);
-        memcpy(B, A);
-        unallocate(B);
+Context switching is rather simple. Registers from the current thread are saved onto its stack and we adopt
+the register values from the target thread's stack. In context switch we also swap the page directories.
 
-    6. Create tracing facility:
-        -> 3 priorities, just call printf
+--------------------------
 
-TODO Andre:
-    - 0
-    - 3
-    - 4
-    - 6
+Task manager:
 
-TODO Nick:
-    - 0
-    - 1
-    - 2 Awaiting review
-    - 5
+Task manager is our module responsible for the management of tasks and threads. This include providing functions
+for creating and deleting pcbs/tcbs as well as initializing and running tasks. Pid's and tid's are assigned to
+threads through an atomically incremented counter.
 
+--------------------------
+
+Memory manager:
+
+The memory manager is the module responsible for managing virtual memory resources. It contains functions to create,
+manipulate and free page directories and their page tables. It is also here that operations such as the cloning of
+a tasks address space (or the allocation of an entirely new address space, such as for exec) happens.
+
+--------------------------
+
+System calls:
+
+System calls are organized by the same categories as in the pebbles kernel specification. Each category is made into
+a folder which contains each syscall. All syscalls are installed in the kern/install_handler.c file.
+Each syscall is better documented in its respective file.
+
+--------------------------
+
+Wait and Vanish:
+
+Most notably, wait and vanish, two particularly tricky syscalls,
+are better documented in kern/lib_life_cycle/wait.c and kern/lib_life_cycle/vanish.c. In general,
+a PCB has two lists, waiting parent threads and vanished child tasks. If both are non-empty,
+we guarantee that the parent thread will collect the first vanished child task from the list. If a parent thread checks
+and sees that there are no vanished child tasks to collect, it blocks and yields. Else it collects the first
+vanished child task. If a child thread sees that there is no waiting parent thread, it blocks and yields. Else, it
+wakes up the waiting parent and assigns itself to the parent.
+
+--------------------------
+
+Loader:
+
+The loader module is responsible for loading bytes from the RAM disk into a task's memory. It is also responsible for
+setting up the stack of the user (with whatever values and arguments it requires).
+
+--------------------------
+
+Variable queue:
+
+Queue macros are used throughout the code. These have met most needs of the kernel as the queues reside in links inside
+each struct. More often than not these links reside inside the tcbs and pcbs, meaning that manipulating queues never
+requires dynamic memory allocation nor can it fail.
+
+--------------------------
 
 */
 

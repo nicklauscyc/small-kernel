@@ -37,6 +37,7 @@
 #include <stdarg.h> /* va_list(), va_end() */
 #include <logger.h> /* log_crit() */
 #include <asm.h>	/* disable interrupts */
+#include <lib_misc/call_halt.h> /* call_hlt() */
 #include <lib_life_cycle/life_cycle.h> /* _vanish */
 
 #include <simics.h>
@@ -51,7 +52,7 @@
  *
  *  @param fmt String to print out on panic
  *  @param ... Other arguments put into fmt
- *  @return Void.
+ *  @return Doesn't return.
  */
 void
 panic( const char *fmt, ... )
@@ -63,14 +64,25 @@ panic( const char *fmt, ... )
 	va_end(args);
 
 	disable_interrupts();
+
+#ifdef DEBUG
 	while (1) {
 		continue;
 	}
-    //TODO call halt();
+#else
+	call_hlt();
+#endif
+
+	/* NOTREACHED */
 
 	return;
 }
 
+/** @brief Panics a thread, killing it.
+ *
+ *  @param fmt Format string
+ *  @param ... Other arguments to put into fmt
+ *  @return Doesn't return. */
 void
 panic_thread( const char *fmt, ... )
 {
@@ -84,6 +96,8 @@ panic_thread( const char *fmt, ... )
 
 	_set_status(-2);
 	_vanish();
+
+	/* NOTREACHED */
 
 	return;
 }

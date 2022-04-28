@@ -9,6 +9,10 @@
 #include <panic_thread.h>	/* panic_thread() */
 #include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
+/** @brief Segment not present handler
+ *
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void. */
 void
 segment_not_present_handler( int *ebp )
 {

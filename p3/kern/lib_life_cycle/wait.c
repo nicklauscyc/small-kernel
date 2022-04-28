@@ -1,19 +1,28 @@
 /** @brief wait.c
  *
- *  Implements wait()
+ *  Implements wait() and helper functions.
  */
 #include <x86/asm.h>   /* outb() */
-#include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <logger.h>    /* log() */
 #include <timer_driver.h>		/* get_total_ticks() */
 #include <scheduler.h>			/* yield_execution() */
 #include <task_manager_internal.h>
+#include <x86/interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <lib_thread_management/hashmap.h>
 #include <simics.h>
+
 
 static void store_waiting_thread( tcb_t *waiting_thread,
                                   void *owning_task_mux );
 
+/** @brief waits on vanished child tasks and collects the child task's status
+ *        if status_ptr is non-NULL and user writable.
+ *
+ *  @param status_ptr Pointer to store exit status of collected vanished child
+ *                    task.
+ *  @return Collected vanished child task's first thread ID on success, negative
+ *          value on error.
+ */
 int
 wait (int *status_ptr)
 {
@@ -39,9 +48,7 @@ wait (int *status_ptr)
 	waiting_thread->collected_vanished_child =
 		Q_GET_FRONT(&(owning_task->vanished_child_tasks_list));
 
-	/* Put self on list and yield if there's possible children to collect */
-
-	/* Could not collect vanished child on first try */
+	/* Could not collect vanished child on first try, block self and yield */
 	if (!waiting_thread->collected_vanished_child) {
 
 		if (owning_task->num_waiting_threads
@@ -72,7 +79,6 @@ wait (int *status_ptr)
 	affirm(waiting_thread->collected_vanished_child);
 
 	/* Get needed information and return */
-	//TODO problem. The actual tid is uint32_t
 	tid = waiting_thread->collected_vanished_child->first_thread_tid;
 	affirm(tid >= 0);
 	if (status_ptr) {
@@ -81,11 +87,13 @@ wait (int *status_ptr)
 	}
 	if (status_ptr) {
 		log_info("wait(): "
-				 "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
+				 "waiting_thread->collected_vanished_child->first_thread_tid:"
+				 "%d, "
 				 "exit_status:%d", tid, *status_ptr);
 	} else {
 		log_info("wait(): "
-				 "waiting_thread->collected_vanished_child->first_thread_tid:%d, "
+				 "waiting_thread->collected_vanished_child->first_thread_tid:"
+				 "%d, "
 				 "exit_status (ignored):%d", tid,
 				 waiting_thread->collected_vanished_child->exit_status);
 	}
@@ -97,6 +105,11 @@ wait (int *status_ptr)
 
 /** @brief Stores waiting thread in its task's waiting threads list and
  *         releases the tasks PCB's mutex
+ *
+ *  @param waiting_thread Waiting parent thread to be blocked and effectively
+ *         descheduled.
+ *  @param owning_task_mux Mutex pointer to the waiting parent thread's PCB.
+ *  @return Void.
  */
 static void
 store_waiting_thread( tcb_t *waiting_thread, void *owning_task_mux )

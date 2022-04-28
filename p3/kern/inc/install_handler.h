@@ -1,6 +1,9 @@
+/** @file install_handler.h
+ *	@brief Facilities for installing handlers.
+ *  */
 
-#ifndef _INSTALL_HANDLER_H_
-#define _INSTALL_HANDLER_H_
+#ifndef INSTALL_HANDLER_H_
+#define INSTALL_HANDLER_H_
 
 /* Number of bits in a byte */
 #define BYTE_LEN 8
@@ -38,4 +41,5 @@ int install_handler_in_idt( int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
                             int gate_type );
 int install_handler( int idt_entry, init_func_t *init,
                      asm_wrapper_t *asm_wrapper, int dpl, int gate_type );
-#endif
+
+#endif /* INSTALL_HANDLER_H_ */
