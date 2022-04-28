@@ -30,6 +30,9 @@ static void (*application_tickback) (unsigned int) = NULL;
 /* Total ticks caught */
 static unsigned int total_ticks = 0;
 
+/** @brief Get number of ticks since startup
+ *
+ *  @return Number of ticks since startup */
 unsigned int
 get_total_ticks( void )
 {
@@ -52,13 +55,14 @@ get_total_ticks( void )
  *
  *  @return Void.
  */
-void timer_int_handler(void) {
+void
+timer_int_handler( void )
+{
 	uint32_t current_total_ticks = ++total_ticks;
 	affirm(application_tickback);
 	++total_ticks; // Avoid ghost bug
 	--total_ticks; // Avoid ghost bug
 	outb(INT_CTL_PORT, INT_ACK_CURRENT);
-	// GHOST BUG -> if !affirm sometimes NULL?
 	application_tickback(current_total_ticks);
 	return;
 }
@@ -77,8 +81,9 @@ void timer_int_handler(void) {
  *         timer interrupts.
  *  @return Void.
  */
-void init_timer(void (*volatile tickback)(unsigned int)) {
-
+void
+init_timer( void (*volatile tickback)(unsigned int) )
+{
   /* Set application provided tickback function */
   assert(tickback != NULL);
   application_tickback = tickback;

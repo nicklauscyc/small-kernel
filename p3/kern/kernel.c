@@ -1,11 +1,12 @@
 /** @file kernel.c
- *  @brief An initial kernel.c
+ *  @brief The entrypoint into the kernel
  *
- *  You should initialize things in kernel_main(),
- *  and then run stuff.
+ *  Kernel initialization happens here
  *
  *  @author Harry Q. Bovik (hqbovik)
  *  @author Fred Hacker (fhacker)
+ *  @author Nicklaus Choo (nchoo)
+ *  @author Andre Nascimento (anascime)
  *  @bug No known bugs.
  */
 
@@ -49,6 +50,10 @@ volatile static int __kernel_all_done = 0;
  */
 int log_level = 3;
 
+/** @brief Callback to handle ticks. This function is responsible
+ *		   for calling any other callbacks expecting ticks.
+ *
+ *	@param numTicks Total number of ticks since startup */
 void
 tick( unsigned int numTicks ) {
 	/* At our tickrate of 1000Hz, after around 48 days numTicks will overflow
@@ -64,6 +69,7 @@ tick( unsigned int numTicks ) {
 	 * to (in most cases). */
 	sleep_on_tick(numTicks);
 
+	/* Validate stack canaries for currently running thread */
 	if (get_running_thread()) {
 		affirm (*((uint32_t *) get_kern_stack_hi((get_running_thread())))
 		== 0xcafebabe);
@@ -84,22 +90,18 @@ tick( unsigned int numTicks ) {
 	}
 }
 
-void hard_code_test( char *s )
-{
-	char *argv[] = {s, 0};
-	execute_user_program(s, 1, argv);
-}
-
 /** @brief Kernel entrypoint.
  *
- *  This is the entrypoint for the kernel.
- *
- * @return Does not return
+ *  @param mbinfo Unused
+ *  @param arg
+ *  @return Does not return
  */
 int
 kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 {
     (void)mbinfo;
+	(void)argc;
+	(void)argv;
     (void)envp;
 
 	/* initialize handlers and enable interrupts */
@@ -118,13 +120,15 @@ kernel_main( mbinfo_t *mbinfo, int argc, char **argv, char **envp )
 	log_warn("this is WARN");
 
 	char *init_args[] = {"init", 0};
-	load_initial_user_program("init", 1, init_args);
+	affirm(load_initial_user_program("init", 1, init_args) == 0);
 
 	char *idle_args[] = {"idle", 0};
-	load_initial_user_program("idle", 1, idle_args);
-
+	affirm(load_initial_user_program("idle", 1, idle_args) == 0);
 
 	start_first_running_thread();
+
+	/* NOTREACHED */
+	panic("Kernel_main should not return");
 
     return 0;
 }

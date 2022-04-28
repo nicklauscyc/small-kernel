@@ -128,8 +128,11 @@ test_physalloc( void )
 	log_info("Tests passed!");
 }
 
+/** @brief Tests multiple forks
+ *
+ *  @return 0 on success, crashes on error */
 int
-mult_fork_test()
+mult_fork_test( void )
 {
 	log_info("Running mult_fork_test");
 
@@ -141,8 +144,11 @@ mult_fork_test()
     return 0;
 }
 
+/** @brief Tests multiple forks
+ *
+ *  @return 0 on success, negative value on error  */
 int
-mutex_test()
+mutex_test( void )
 {
     log_info("Running mutex_test");
 
@@ -160,6 +166,9 @@ mutex_test()
     return 0;
 }
 
+/** @brief Tests consistency of pd
+ *
+ *  @return Void.  */
 void
 test_pd_consistency( void )
 {
@@ -167,7 +176,12 @@ test_pd_consistency( void )
 	affirm(is_valid_pd((void *)TABLE_ADDRESS(get_cr3())));
 }
 
-
+/** @brief Test int handler
+ *
+ *  Admnister tests to user code
+ *
+ *  @param test_num Number of test to run
+ *  @return Void.  */
 int
 test_int_handler( int test_num )
 {
@@ -193,6 +207,10 @@ test_int_handler( int test_num )
 }
 
 /** @brief Installs the test() interrupt handler
+ *
+ *  @param idt_entry Index of entry in idt in which to install handler
+ *  @param asm_wrapper Asm wrapper to call on interrupt
+ *  @return 0 on success, negative value on error
  */
 int
 install_test_handler( int idt_entry, asm_wrapper_t *asm_wrapper )
