@@ -41,7 +41,7 @@ struct prog {
 	{"fork_wait", -1,           100},
 	{"fork_wait_bomb", -1,      10},
 	{"fork_exit_bomb", -1,      10},
-	{"sleep_test1", -1,         100},
+	{"sleep_test1", -1,         10},
 	{"stack_test1", -1,         100},
 	{"swexn_basic_test", -1,    100},
 	{"swexn_cookie_monster", -1,100},

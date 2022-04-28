@@ -134,15 +134,12 @@ get_tcb_status( tcb_t *tcb )
  *  @return the old page directory.
  */
 void *
-swap_task_pd( void *new_pd )
+swap_task_pd( void *new_pd, pcb_t *pcb )
 {
 	affirm(new_pd);
 	/* Expensive consistency check is an assert not affirm */
 	assert(is_valid_pd(new_pd));
 
-	/* Find PCB to swap its stored page directory */
-	uint32_t pid = get_pid();
-	pcb_t *pcb = find_pcb(pid);
 	affirm(pcb);
 
 	/* Swap page directories */

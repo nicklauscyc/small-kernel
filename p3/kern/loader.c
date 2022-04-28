@@ -290,6 +290,7 @@ execute_user_program( char *fname, int argc, char **argv)
 	/* Not the first task, so we replace the current running task */
 	pid = get_pid();
 	tid = get_running_tid();
+	pcb_t *pcb = get_running_task();
 
 	/* Create new pd */
 
@@ -297,7 +298,7 @@ execute_user_program( char *fname, int argc, char **argv)
 	if (!new_pd) {
 		goto cleanup;
 	}
-	void *old_pd = swap_task_pd(new_pd);
+	void *old_pd = swap_task_pd(new_pd, pcb);
 
 	set_task_name(find_pcb(pid), kern_stack_execname);
 
@@ -309,8 +310,6 @@ execute_user_program( char *fname, int argc, char **argv)
 	register_if_init_task(kern_stack_execname, pid);
 
 	/* Update page directory, enable VM if necessary */
-	pcb_t *pcb = find_pcb(pid);
-	affirm(pcb);
 	activate_task_memory(pcb);
 
 	/* Allocate user stack space */
@@ -336,7 +335,7 @@ execute_user_program( char *fname, int argc, char **argv)
 
 	/* Swap back to old pd and clean up */
 cleanup_w_pd:
-	new_pd = swap_task_pd(old_pd);
+	new_pd = swap_task_pd(old_pd, pcb);
 	free_pd_memory(new_pd);
 
 cleanup:
