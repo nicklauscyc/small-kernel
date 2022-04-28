@@ -21,7 +21,6 @@
 #include <scheduler.h>
 #include <x86/asm.h> /* outb() */
 
-/* TODO: Fix abstraction */
 #include <task_manager_internal.h>
 
 // saves regs and returns new esp

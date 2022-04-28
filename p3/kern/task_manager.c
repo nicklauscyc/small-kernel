@@ -531,7 +531,7 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 
 /** @brief Returns eflags
  *
- *  @return Eflags for teh user
+ *  @return Eflags for the user
  */
 uint32_t
 get_user_eflags( void )
@@ -546,14 +546,20 @@ get_user_eflags( void )
 	return eflags;
 }
 
-/** @brief Returns a unique pid. */
+/** @brief Returns a unique pid.
+ *
+ *  @return Unique pid
+ */
 static uint32_t
 get_unique_pid( void )
 {
 	return add_one_atomic(&next_pid);
 }
 
-/** @brief Returns a unique tid. */
+/** @brief Returns a unique tid.
+ *
+ *  @return Unique tid
+ */
 static uint32_t
 get_unique_tid( void )
 {
@@ -610,7 +616,12 @@ free_tcb(tcb_t *tcb)
 	log_info("free_tcb(): cleaned up thread tid:%d", tcb->tid);
 }
 
-
+/** @brief Frees a PCB along with selected fields
+ *
+ *  @param pcb PCB to be freed
+ *  @param free_last_thread Whether to free the last thread field or not
+ *  @return Void.
+ */
 void
 free_pcb_but_not_pd_helper(pcb_t *pcb, int free_last_thread )
 {
@@ -644,25 +655,38 @@ free_pcb_but_not_pd_helper(pcb_t *pcb, int free_last_thread )
 	}
 
 	sfree(pcb, sizeof(pcb_t));
-	log_info("free_pcb_but_not_pd(): complete cleaned up pcb->first_thread_tid:%d",
+	log_info("free_pcb_but_not_pd(): "
+		     "complete cleaned up pcb->first_thread_tid:%d",
 			 pcb->first_thread_tid);
 
 }
 
-void
-free_pcb_but_not_pd_no_last_thread( pcb_t *pcb )
-{
-	free_pcb_but_not_pd_helper(pcb, 0);
-}
-
+/** @brief Frees PCB along with its last thread's TCB. Used during a call to
+ *         vanish.
+ *
+ *  @param pcb PCB to be freed.
+ *  @return Void.
+ */
 void
 free_pcb_but_not_pd( pcb_t *pcb )
 {
+	affirm(pcb);
 	free_pcb_but_not_pd_helper(pcb, 1);
 }
 
-
-
+/** @brief Frees a PCB but not its associated pd nor its last thread field. This
+ *         is called when a TCB is failed to be allocated, so we free the
+ *         PCB that was created first.
+ *
+ *  @param pcb PCB to be freed
+ *  @return Void.
+ */
+void
+free_pcb_but_not_pd_no_last_thread( pcb_t *pcb )
+{
+	affirm(pcb);
+	free_pcb_but_not_pd_helper(pcb, 0);
+}
 
 /** @brief Checks if task indicated by given pid is running the 'init' task.
  *
@@ -676,6 +700,8 @@ free_pcb_but_not_pd( pcb_t *pcb )
 void
 register_if_init_task( char *execname, uint32_t pid )
 {
+	affirm(execname);
+
 	mutex_lock(&init_pcb_list_mux);
 	int init_strlen = strlen("init");
 	if ((execname[init_strlen] == '\0')
@@ -690,7 +716,7 @@ register_if_init_task( char *execname, uint32_t pid )
 	pcb_t *curr = Q_GET_FRONT(&init_pcb_list);
 	while (curr) {
 		pcb_t *next = Q_GET_NEXT(curr, init_pcb_link);
-		if (strcmp(curr->execname, "init") != 0) {
+		if (safe_strcmp(curr->execname, "init") != 0) {
 			Q_REMOVE(&init_pcb_list, curr, init_pcb_link);
 		}
 		curr = next;
@@ -699,7 +725,11 @@ register_if_init_task( char *execname, uint32_t pid )
 
 }
 
-
+/** @brief Gets the PCB for the init task
+ *
+ * 	@pre Should only be run after loading the init task
+ *  @return Returns a non-NULL pointer for the init pcb
+ */
 pcb_t *
 get_init_pcbp( void )
 {
@@ -707,7 +737,7 @@ get_init_pcbp( void )
 
 	pcb_t * init_pcbp = Q_GET_FRONT(&init_pcb_list);
 	affirm(init_pcbp);
-	affirm(strcmp(init_pcbp->execname, "init") == 0);
+	affirm(safe_strcmp(init_pcbp->execname, "init") == 0);
 
 	mutex_unlock(&init_pcb_list_mux);
 
@@ -723,8 +753,8 @@ get_init_pcbp( void )
 void
 set_task_name( pcb_t *pcbp, char *execname )
 {
-	assert(pcbp);
-	assert(execname);
+	affirm(pcbp);
+	affirm(execname);
 
 	memset(pcbp->execname, 0, USER_STR_LEN);
 	memcpy(pcbp->execname, execname, strlen(execname));
