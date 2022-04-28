@@ -37,7 +37,7 @@
 #include <stdarg.h> /* va_list(), va_end() */
 #include <logger.h> /* log_crit() */
 #include <asm.h>	/* disable interrupts */
-#include <lib_misc/call_halt.h> /* call_hlt() */
+#include <asm_misc_handlers.h> /* call_halt() */
 #include <lib_life_cycle/life_cycle.h> /* _vanish */
 
 #include <simics.h>
@@ -70,7 +70,7 @@ panic( const char *fmt, ... )
 		continue;
 	}
 #else
-	call_hlt();
+	call_halt();
 #endif
 
 	/* NOTREACHED */
