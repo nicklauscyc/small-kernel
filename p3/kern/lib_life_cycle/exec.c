@@ -70,17 +70,6 @@ exec( char *execname, char **argvec )
 	}
 	assert(num_threads == 1);
 
-	//TODO delete this since we validate in execute_user_program?
-	/* Validate execname */
-	if (!is_valid_null_terminated_user_string(execname, USER_STR_LEN)) {
-		return -1;
-	}
-	/* Validate argvec */
-	int argc = 0;
-	if (!(argc = is_valid_user_argvec(execname, argvec))) {
-		return -1;
-	}
-
 	/* Ensure no software exception handler registered */
 	tcb->has_swexn_handler = 0;
 	tcb->swexn_handler = 0;
@@ -93,7 +82,7 @@ exec( char *execname, char **argvec )
 	log_exec_args(execname, argvec);
 
 	/* Execute */
-	if (execute_user_program(execname, argc, argvec)
+	if (execute_user_program(execname, argvec)
 		< 0) {
 		return -1;
 	}

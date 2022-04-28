@@ -239,7 +239,7 @@ configure_stack( int argc, char **argv )
  *  @return 0 on success, negative value on error.
  */
 int
-execute_user_program( char *fname, int argc, char **argv)
+execute_user_program( char *fname, char **argv)
 {
 	log_warn("executing task fname:'%s'", fname);
 
@@ -248,11 +248,8 @@ execute_user_program( char *fname, int argc, char **argv)
 		return -1;
 	}
 	/* Validate argvec */
-	int counted_argc = 0;
-	if (!(counted_argc = is_valid_user_argvec(fname, argv))) {
-		return -1;
-	}
-	if (counted_argc != argc) {
+	int argc = 0;
+	if (!(argc = is_valid_user_argvec(fname, argv))) {
 		return -1;
 	}
 

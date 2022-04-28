@@ -109,7 +109,6 @@ create_initial_pd( void )
 		/* Now get a pointer to the corresponding page table entry */
 		uint32_t *ptep = get_ptep((const uint32_t **) initial_pd, addr);
 
-		/* TODO If crashing we don't clean up right */
 		/* If NULL is returned, free all resources in page directory */
 		affirm_msg(ptep, "create_initial_pd(): "
                    "unable to get page table entry pointer.");
