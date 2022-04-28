@@ -30,7 +30,7 @@
 
 #include <syscall_int.h> /* *_INT */
 
-
+/** @brief INT vector for test suite */
 #define TEST_INT SYSCALL_RESERVED_0
 
 /*********************************************************************/
@@ -98,6 +98,11 @@ install_handler_in_idt(int idt_entry, asm_wrapper_t *asm_wrapper, int dpl,
 }
 
 /** @brief Install timer interrupt handler
+ *
+ *  @param idt_entry Index in IDT to install
+ *  @param asm_wrapper Assembly wrapper to call the handler
+ *  @param tickback Function to call on every tick
+ *  @return 0 on success, -1 on error
  */
 int
 install_timer_handler(int idt_entry, asm_wrapper_t *asm_wrapper,
@@ -136,6 +141,10 @@ install_handler( int idt_entry, init_func_t *init, asm_wrapper_t *asm_wrapper,
 }
 
 /** @brief Install keyboard interrupt handler
+ *
+ *  @param idt_entry Index in IDT to install
+ *  @param asm_wrapper Assembly wrapper to call the handler
+ *  @return 0 on success, -1 on error
  */
 int
 install_keyboard_handler(int idt_entry, asm_wrapper_t *asm_wrapper)
@@ -219,7 +228,6 @@ handler_install(void (*tick)(unsigned int))
 	}
 
 	/* Lib lifecycle*/
-	//TODO are these DPL_3 or DPL_0
 	if (install_handler(FORK_INT, NULL, call_fork, DPL_3, D32_TRAP) < 0) {
 		return -1;
 	}

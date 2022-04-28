@@ -3,8 +3,6 @@
  *         where producers can add to the buffer and consumers can remove from
  *         the buffer.
  *
- *  TODO add mutex support
- *
  *  In order to use the other variable buffer functions on a particular
  *  buffer instance, the first thing one needs to do is to define the buffer
  *  type with new_buf() and then initialize that particular buffer via a pointer
