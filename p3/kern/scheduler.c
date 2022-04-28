@@ -320,7 +320,7 @@ start_first_running_thread( void )
 	running_thread = first_thread;
 
 	affirm(first_thread->owning_task);
-	affirm(activate_task_memory(first_thread->owning_task->pid) >= 0);
+	activate_task_memory(first_thread->owning_task);
 
 	/* Disregard stack setup for context switch and call iret_travel */
 	uint32_t *kernel_stack_hi = first_thread->kernel_stack_hi;

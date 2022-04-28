@@ -1,8 +1,8 @@
-/** @brief Module for management of tasks.
- *	Includes context switch facilities. */
+/** @file task_manager.c
+ *  @brief Module for management of tasks.
+ *
+ */
 
-// TODO maybe a function such as is_legal_pcb, is_legal_tcb for invariant checks?
-//
 #include <task_manager.h>
 #include <task_manager_internal.h>
 #include <assert.h> /* affirm() */
@@ -45,10 +45,6 @@ static mutex_t init_pcb_list_mux;
 static mutex_t pcb_list_mux;
 static mutex_t tcb_map_mux;
 
-
-/** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
-static uint32_t next_pid = 1;
-
 /** @brief Next tid to be assigned. Only to be updated by get_unique_tid
  *
  *  This starts from 1 since an uninitialized tid is 0, so we know that
@@ -58,18 +54,38 @@ static uint32_t next_pid = 1;
  */
 static uint32_t next_tid = 1;
 
+/** @brief Next pid to be assigned. Only to be updated by get_unique_pid */
+static uint32_t next_pid = 1;
+
+
+/** @brief Gets the pd for a TCB pointer
+ *
+ *  @return pd of TCB pointer. Once freed, the pd field of owning_task will be
+ *  NULL so it is ok to ruturn NULL.
+ */
 void *
 get_tcb_pd(tcb_t *tcb)
 {
+	affirm(tcb);
+	affirm(tcb->owning_task);
 	return tcb->owning_task->pd;
 }
 
+/** @brief Returns the TCB's tid
+ *
+ *  @return TID of TCB
+ */
 uint32_t
 get_tcb_tid(tcb_t *tcb)
 {
+	affirm(tcb);
 	return tcb->tid;
 }
 
+/** @brief Sets the exit status of a task
+ *
+ *  @param status Status to set the task to
+ */
 void
 set_task_exit_status( int status )
 {
@@ -120,6 +136,8 @@ get_tcb_status( tcb_t *tcb )
 void *
 swap_task_pd( void *new_pd )
 {
+	affirm(new_pd);
+	/* Expensive consistency check is an assert not affirm */
 	assert(is_valid_pd(new_pd));
 
 	/* Find PCB to swap its stored page directory */
@@ -132,7 +150,8 @@ swap_task_pd( void *new_pd )
 	pcb->pd = new_pd;
 
 	/* Check and return the old page directory */
-	affirm(is_valid_pd(old_pd));
+	affirm(old_pd);
+	assert(is_valid_pd(old_pd));
 	return old_pd;
 }
 
@@ -146,9 +165,9 @@ swap_task_pd( void *new_pd )
 int
 create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 {
-	if (!pid) return -1;
-	if (!tid) return -1;
-	if (!elf) return -1;
+	affirm(pid);
+	affirm(tid);
+	affirm(elf);
 
 	/* Allocates physical memory to a new page table and enables VM */
 	/* Ensure alignment of page table directory */
@@ -176,54 +195,36 @@ create_task( uint32_t *pid, uint32_t *tid, simple_elf_t *elf )
 	return 0;
 }
 
-/** NOTE: Not to be used in context-switch, only when running task
+/** @brief Updates page directory to given PCB's page directory
+ *
+ *  NOTE: Not to be used in context-switch, only when running task
  *	for the first time
  *
  *	Enables virtual memory of task. Use this before transplanting data
  *	into task's memory.
- *	*/
-int
-activate_task_memory( uint32_t pid )
+ *
+ *	@param pcb PCB pointer for which we want to use their page directory
+ *	@return Void.
+ */
+void
+activate_task_memory(pcb_t *pcb)
 {
-	/* Likely messing up direct mapping of kernel memory, and
-	 * some instruction after task_prepare is being seen as invalid?*/
-	pcb_t *pcb;
-	if ((pcb = find_pcb(pid)) == NULL)
-		return -1;
+	affirm(pcb);
+	affirm(pcb->pd);
 
 	/* Update the page directory and enable VM if necessary */
 	vm_enable_task(pcb->pd);
-
-	return 0;
 }
 
-/** NOTE: Not to be used in context-switch, only when running task
- *	for the first time
- *
- *	Should only ever be called once, and after task has been initialized
- *	after a call to new_task.
- *	The caller is supposed to install memory on the new task before
- *	calling this function. Stack pointer should be appropriately set
- *	if any arguments have been loaded on stack.
- *
- *	@param tid Id of thread to run
- *	@param esp Stack pointer
- *	@param entry_point First program instruction
- *
- *	@return Never returns.
- *	*/
-void
-task_set_active( uint32_t tid )
-{
-	tcb_t *tcb;
-	affirm((tcb = find_tcb(tid)) != NULL);
 
-	/* Let scheduler know it can now run this thread */
-	if (tcb->status == UNINITIALIZED) {
-		make_thread_runnable(tcb);
-	}
-}
-
+/** @brief Mode switches from kernel mode to user mode to start a task for the
+ *         very first time.
+ *
+ *  @param tid Task first thread ID
+ *  @param user_esp User's esp to start running task at
+ *  @param entry_point First instruction that the user will run
+ *  @return Does not return.
+ */
 void
 task_start( uint32_t tid, uint32_t user_esp, uint32_t entry_point )
 {
@@ -245,7 +246,7 @@ task_start( uint32_t tid, uint32_t user_esp, uint32_t entry_point )
 	panic("iret_travel should not return");
 }
 
-/** Looks for pcb with given pid.
+/** @brief Looks for pcb with given pid.
  *
  *	@param pid Task id to look for
  *
@@ -261,17 +262,20 @@ find_pcb( uint32_t pid )
 	return res;
 }
 
+/** @brief Removes a PCB from system wide list of PCBs.
+ *  @param pcbp PCB pointer
+ *  @return Void.
+ */
 void
 remove_pcb( pcb_t *pcbp )
 {
+	affirm(pcbp);
 	mutex_lock(&pcb_list_mux);
 	Q_REMOVE(&pcb_list, pcbp, task_link);
 	mutex_unlock(&pcb_list_mux);
 }
 
-
-
-/** Looks for tcb with given tid.
+/** @brief Looks for tcb with given tid.
  *
  *	@param tid Thread id to look for
  *
@@ -289,6 +293,7 @@ find_tcb( uint32_t tid )
  *
  *	@param pid Pointer to where pid should be stored
  *	@param pd  Pointer to page directory for new task
+ *	@param parent_pcb Parent task's PCB
  *	@return Pointer to new PCB on success, NULL on error
  */
 pcb_t *
@@ -358,7 +363,7 @@ create_pcb( uint32_t *pid, void *pd, pcb_t *parent_pcb)
 }
 
 /** @brief Initializes new tcb. Does not add thread to scheduler.
- *	   This should be done by whoever creates this thread.
+ *	       This should be done by whoever creates this thread.
  *
  *	@param pid Id of owning task
  *	@param tid Pointer to where id of new thread will be stored
@@ -375,7 +380,7 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 
 	tcb_t *tcb = smalloc(sizeof(tcb_t));
 	if (!tcb) {
-		log_info("create_tcb(): smalloc(sizeof(tcb_t)) returned NULL");
+		log_warn("create_tcb(): smalloc(sizeof(tcb_t)) returned NULL");
 		return NULL;
 	}
 
@@ -421,9 +426,6 @@ create_tcb( pcb_t *owning_task, uint32_t *tid )
 	map_insert(tcb);
 	mutex_unlock(&tcb_map_mux);
 
-	/* memset the whole thing, TODO delete this in future, only good for
-	 * debugging when printing the whole stack
-	 */
 	memset(tcb->kernel_stack_lo, 0, KERNEL_THREAD_STACK_SIZE);
 
 	log("create_tcb(): tcb->stack_lo:%p", tcb->kernel_stack_lo);
@@ -490,6 +492,10 @@ get_kern_stack_hi( tcb_t *tcbp )
 	return tcbp->kernel_stack_hi;
 }
 
+/** @brief Gets the kernel stack lowest address
+ *
+ *  @return Kernel stack lowest address
+ */
 void *
 get_kern_stack_lo( tcb_t *tcbp )
 {
@@ -526,13 +532,15 @@ set_kern_esp( tcb_t *tcbp, uint32_t *kernel_esp )
 
 /* ------ HELPER FUNCTIONS ------ */
 
-/** @brief Returns eflags with PL altered to 3 */
+/** @brief Returns eflags
+ *
+ *  @return Eflags for teh user
+ */
 uint32_t
 get_user_eflags( void )
 {
 	uint32_t eflags = get_eflags();
 
-	/* Any IOPL | EFL_IOPL_RING3 == EFL_IOPL_RING3 */
 	eflags |= EFL_IOPL_RING0; /* Set privilege level to user */
 	eflags |= EFL_RESV1;	  /* Maitain reserved as 1 */
 	eflags &= ~(EFL_AC);	  /* Disable alignment-checking */
@@ -693,6 +701,7 @@ register_if_init_task( char *execname, uint32_t pid )
 	mutex_unlock(&init_pcb_list_mux);
 
 }
+
 
 pcb_t *
 get_init_pcbp( void )

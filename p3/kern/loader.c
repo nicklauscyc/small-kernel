@@ -41,19 +41,16 @@
 /* --- Local function prototypes --- */
 
 
-/* TODO: Move this to a helper file.
- *
+/* Check for and choose the min
  * Having a helper means we evaluate the arguments before expanding _MIN
  *  and therefore avoid evaluating A and B multiple times. */
 #define _MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MIN(A,B) _MIN(A,B)
 
-int configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
-	uint32_t entry_point, void *user_pd );
-
-int register_with_simics( uint32_t tid, char *fname );
-
-int load_user_program_info(simple_elf_t *se_hdrp, char *fname);
+static int configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
+ 	uint32_t entry_point, void *user_pd );
+static int register_with_simics( uint32_t tid, char *fname );
+static int load_user_program_info(simple_elf_t *se_hdrp, char *fname);
 
 /** Copies data from a file into a buffer.
  *
@@ -78,7 +75,8 @@ getbytes( const char *filename, int offset, int size, char *buf )
     /* Find file in TOC */
     int i;
     for (i=0; i < exec2obj_userapp_count; ++i) {
-        if (strncmp(filename, exec2obj_userapp_TOC[i].execname, MAX_EXECNAME_LEN) == 0) {
+        if (strncmp(filename, exec2obj_userapp_TOC[i].execname,
+			MAX_EXECNAME_LEN) == 0) {
             break;
         }
     }
@@ -315,9 +313,9 @@ execute_user_program( char *fname, int argc, char **argv)
 	register_if_init_task(kern_stack_execname, pid);
 
 	/* Update page directory, enable VM if necessary */
-	if (activate_task_memory(pid) < 0) {
-		goto cleanup_w_pd;
-	}
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+	activate_task_memory(pcb);
 
 	/* Allocate user stack space */
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
@@ -383,9 +381,11 @@ load_initial_user_program( char *fname, int argc, char **argv )
 	register_if_init_task(fname, pid);
 
 	/* Update page directory, enable VM if necessary */
-	if (activate_task_memory(pid) < 0) {
-		return -1;
-	}
+	pcb_t *pcb = find_pcb(pid);
+	affirm(pcb);
+	activate_task_memory(pcb);
+
+
 	uint32_t stack_lo = UINT32_MAX - USER_THREAD_STACK_SIZE + 1;
 	if (_new_pages((uint32_t *) stack_lo, USER_THREAD_STACK_SIZE) < 0) {
 		return -1;
@@ -416,7 +416,7 @@ load_initial_user_program( char *fname, int argc, char **argv )
  *       correct user eflags
  *  @pre Interrupts must be disabled
  */
-int
+static int
 configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
                               uint32_t entry_point, void *user_pd )
 {
@@ -522,7 +522,7 @@ configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
  *  @param fname Task executable name
  *  @return 0 on success, -1 on error
  */
-int
+static int
 register_with_simics( uint32_t tid, char *fname )
 {
 #ifdef DEBUG
@@ -551,7 +551,7 @@ register_with_simics( uint32_t tid, char *fname )
  * @param se_hdr Pointer to simple_elf_t struct to be filled
  * @return 0 on success, -1 on error
  */
-int
+static int
 load_user_program_info(simple_elf_t *se_hdrp, char *fname)
 {
 	if (!se_hdrp)

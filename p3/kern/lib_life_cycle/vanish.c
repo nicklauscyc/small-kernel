@@ -242,7 +242,6 @@ _vanish( void )
 
 			log("_vanish(): found my parent ");
 
-			/* Not really found parent yet, paradise lost */
 			affirm( find_pcb(owning_task->parent_pid));
 
 			/* Remove from active_child_tasks_list */
@@ -250,8 +249,14 @@ _vanish( void )
 					 vanished_child_tasks_link);
 			parent_pcb->num_active_child_tasks--;
 		} else {
+			/* Parent did not remove me from their active_child tasks list cuz
+			 * parent has vanished, re-initialize myself by setting my next
+			 * and prev to NULL */
+			Q_INIT_ELEM(owning_task, vanished_child_tasks_link);
+
 			parent_pcb = init_pcbp;
 			assert(parent_pcb);
+
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			TREE_UNLOCK;
 
@@ -273,12 +278,6 @@ _vanish( void )
 
 		/* No parent threads waiting, add self to vanished child list */
 		} else {
-			/* Parent did not remove me from their active_child tasks list cuz
-			 * parent has vanished, re-initialize myself by setting my next
-			 * and prev to NULL */
-			if (parent_pcb == init_pcbp) {
-				Q_INIT_ELEM(owning_task, vanished_child_tasks_link);
-			}
 
 			Q_INSERT_TAIL(&(parent_pcb->vanished_child_tasks_list),
 						  owning_task, vanished_child_tasks_link);
@@ -288,7 +287,6 @@ _vanish( void )
 			affirm(yield_execution(DEAD, NULL, call_back_mutex_unlock,
 				&(parent_pcb->set_status_vanish_wait_mux)) == 0);
 		}
-
 	}
 }
 
