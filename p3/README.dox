@@ -59,7 +59,10 @@ Memory manager:
 
 The memory manager is the module responsible for managing virtual memory resources. It contains functions to create,
 manipulate and free page directories and their page tables. It is also here that operations such as the cloning of
-a tasks address space (or the allocation of an entirely new address space, such as for exec) happens.
+a tasks address space (or the allocation of an entirely new address space, such as for exec) happens. We decided
+to implement ZFOD where a system wide zero frame with read-only user permissions is allocated to the user. When
+the user reads zeros from this frame, no page fault is generated. Only when the user writes to this frame is a
+page fault generated and we allocate an actual zeroed out physical frame for the user to write to.
 
 --------------------------
 
