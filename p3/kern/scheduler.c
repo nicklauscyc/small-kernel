@@ -39,41 +39,17 @@ static void switch_threads(tcb_t *running, tcb_t *to_run);
 
 /** @brief Whether the scheduler is initialized
  *
- *	@return 1 if initialized, 0 if not */
+ *	@return 1 if initialized, 0 if not. */
 int
 is_scheduler_init( void )
 {
 	return scheduler_init;
 }
 
-void
-print_status(status_t status)
-{
-	switch (status) {
-		case RUNNING:
-			log_info("Status is RUNNING");
-			break;
-		case RUNNABLE:
-			log_info("Status is RUNNABLE");
-			break;
-		case DESCHEDULED:
-			log_info("Status is DESCHEDULED");
-			break;
-		case BLOCKED:
-			log_info("Status is BLOCKED");
-			break;
-		case DEAD:
-			log_info("Status is DEAD");
-			break;
-		case UNINITIALIZED:
-			log_info("Status is UNINITIALIZED");
-			break;
-		default:
-			log_info("Status is UNKNOWN");
-			break;
-	}
-}
-
+/** @brief Gets status as a string.
+ *
+ *  @param status Status to fetch string for
+ *  @return Status as a string */
 char *
 status_str(status_t status)
 {
@@ -102,6 +78,10 @@ status_str(status_t status)
 	}
 }
 
+/** @brief Get the next tcb that should be ran while
+ *		   managing the runnable queue.
+ *
+ *  @return A runnable tcb not in the runnable queue */
 tcb_t *
 get_next_run( void )
 {
@@ -113,6 +93,10 @@ get_next_run( void )
 	return tcb;
 }
 
+/** @brief Add thread to the runnable queue.
+ *
+ *  @param tcb Thread to add to the runnable queue
+ *  @return Void. */
 void
 add_to_run( tcb_t *tcb )
 {
@@ -130,7 +114,6 @@ add_to_run( tcb_t *tcb )
  *						current thread. MUST BE SHORT
  *	@return 0 on success, negative value on error */
 int
-
 yield_execution( status_t store_status, tcb_t *tcb,
 		void (*callback)(tcb_t *, void *), void *data )
 {
@@ -249,6 +232,12 @@ init_scheduler( void )
 	return 0;
 }
 
+/** @brief Registers thread with scheduler. After this call,
+ *		   the thread may be executed by the scheduler.
+ *
+ *	@param tid Id of thread to register
+ *	@param switch_safe Whether to avoid context switching
+ *	@return 0 on success, negative value on error */
 static int
 make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 {
@@ -291,6 +280,14 @@ make_thread_runnable_helper( tcb_t *tcbp, int switch_safe )
 	return 0;
 }
 
+
+/** @brief Registers thread with scheduler. After this call,
+ *		   the thread may be executed by the scheduler. This
+ *		   call will NOT trigger a context switch, nor will it
+ *		   enable interrupts.
+ *
+ *	@param tid Id of thread to register
+ *	@return 0 on success, negative value on error */
 int
 switch_safe_make_thread_runnable( tcb_t *tcbp )
 {
@@ -303,7 +300,6 @@ switch_safe_make_thread_runnable( tcb_t *tcbp )
  *	@param tid Id of thread to register
  *
  *	@return 0 on success, negative value on error */
-/* TODO: Think of synchronization here*/
 int
 make_thread_runnable( tcb_t *tcbp )
 {
@@ -311,6 +307,8 @@ make_thread_runnable( tcb_t *tcbp )
 }
 
 /** @brief Sets the very first running thread for the scheduler
+ *
+ *  @return Void.
  */
 void
 start_first_running_thread( void )
@@ -342,7 +340,11 @@ start_first_running_thread( void )
 }
 
 
-
+/** @brief Callback for ticks.
+ *
+ *  @param num_ticks Number of ticks since startup
+ *  @return Void.
+ *  */
 void
 scheduler_on_tick( unsigned int num_ticks )
 {
@@ -361,7 +363,6 @@ scheduler_on_tick( unsigned int num_ticks )
 /** @brief Swaps the running thread to to_run.
  *
  *	@pre Interrupts disabled when called.
- *
  *	@param to_run Thread to run next
  *	@param store_at	Queue in which to store old thread in case store_status
  *					is blocked. For any other store status scheduler determines
@@ -376,7 +377,6 @@ swap_running_thread( tcb_t *to_run )
 	affirm_msg(scheduler_init, "Scheduler has to be initialized before calling "
 			   "swap_running_thread");
 
-	/* TODO i think now this will never be true */
 	/* No-op if we swap with ourselves */
 	if (to_run->tid == running_thread->tid) {
 		affirm(to_run->status == RUNNABLE);
@@ -396,6 +396,11 @@ swap_running_thread( tcb_t *to_run )
 	 * will be setup for it to return directly to the call_fork asm wrapper. */
 }
 
+/** @brief Context switch between threads
+ *
+ *  @param running Currently running thread
+ *  @param to_run  Thread to run next
+ *  @return Void. Returns in other thread. */
 static void
 switch_threads(tcb_t *running, tcb_t *to_run)
 {
@@ -408,6 +413,9 @@ switch_threads(tcb_t *running, tcb_t *to_run)
 	context_switch((void **)&(running->kernel_esp), to_run->kernel_esp);
 }
 
+/** @brief Whether we have multiple threads registered with the scheduler
+ *
+ *  @return 1 if there are multiple threads, 0 if not */
 int
 is_multi_threads( void )
 {

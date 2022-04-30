@@ -6,8 +6,8 @@
 
 #include <stdarg.h> /* va_list() */
 
-#ifndef _LOGGER_H_
-#define _LOGGER_H_
+#ifndef LOGGER_H_
+#define LOGGER_H_
 
 #define DEBUG_PRIORITY 1
 #define INFO_PRIORITY 2
@@ -24,6 +24,5 @@ void log_info( const char *format, ...);
 void log_warn( const char *format, ...);
 void log_crit( const char *format, ...);
 
-#endif /* _LOGGER_H_ */
-
+#endif /* LOGGER_H_ */
 

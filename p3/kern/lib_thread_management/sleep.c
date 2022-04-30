@@ -36,6 +36,10 @@ static int sleep_initialized = 0;
 
 static void store_tcb_in_sleep_queue( tcb_t *tcb, void *data );
 
+/** @brief Initializes sleep syscall
+ *
+ *  @pre Has not been called before.
+ *	@return Void. */
 static void
 init_sleep( void )
 {
@@ -54,10 +58,9 @@ init_sleep( void )
  *	the earliest expiry date and go over the list only if that
  *	date has been reached.
  *
- *  NOTE: If this does too much work we will hurt preemptibility,
- *  as this will eat up time of the thread being context switched to.
- *  Optionally set a limit on how many threads we wake up each given
- *  tick. */
+ *  @param total_ticks Number of ticks since startup
+ *  @return Void.
+ */
 void
 sleep_on_tick( unsigned int total_ticks )
 {
@@ -100,6 +103,10 @@ sleep_on_tick( unsigned int total_ticks )
 	handling_sleep_queue = 0;
 }
 
+/** @brief Handler for sleep syscall.
+ *
+ *  @param ticks Number of ticks to sleep
+ *  @return 0 on success, negative value on error */
 int
 sleep( int ticks )
 {
@@ -130,8 +137,12 @@ sleep( int ticks )
 	return 0;
 }
 
-/* Modifications to queue are not guarded by mux since they are done
- * atomically (disable/enable interrupts) inside of yield_execution */
+/** @brief Callback which stores tcb inside sleep queue.
+ *
+ *  @param tcb Thread to put in sleep queue.
+ *  @param data Ignored.
+ *  @return Void.
+ *  */
 static void
 store_tcb_in_sleep_queue( tcb_t *tcb, void *data )
 {

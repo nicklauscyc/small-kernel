@@ -1,9 +1,19 @@
+/** @file mutex.h
+ *
+ *  Definitions for mutex */
+
 #ifndef MUTEX_H_
 #define MUTEX_H_
 
 #include <scheduler.h> /* queue_t */
 
-/* TODO: Move to internal .h file? */
+/** @brief A mutex struct
+ *
+ *  @param waiters_queue Queue of threads waiting on this mutex
+ *  @param initialized	 Whether this mutex has been initialized
+ *  @param owner_tid	 Tid of this mutex's owner
+ *  @param owned		 Whether this mutex is owned
+ *  */
 struct mutex {
     queue_t waiters_queue;
     int initialized;

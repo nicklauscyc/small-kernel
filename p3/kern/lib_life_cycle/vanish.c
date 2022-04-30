@@ -35,6 +35,7 @@
 #include <scheduler.h>			/* yield_execution() */
 #include <task_manager_internal.h>
 #include <lib_thread_management/hashmap.h>
+#include <lib_thread_management/mutex.h>
 #include <memory_manager.h> /* get_initial_pd() */
 #include <x86/cr.h>		/* {get,set}_{cr0,cr3} */
 #include <malloc.h> /* sfree() */
@@ -174,7 +175,6 @@ _vanish( void )
 	/* Not the last task, yield elsewhere */
 	if (get_num_active_threads_in_owning_task(tcb) > 0) {
 		log("_vanish(): not last task thread");
-		//enable_interrupts();
 		TREE_UNLOCK;
 
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
@@ -183,15 +183,13 @@ _vanish( void )
 
 	/* Last task thread cleans up and contacts parent/init PCB */
 	} else {
-
-		log_warn("_vanish(): last task thread");
+		log("_vanish(): last task thread");
 		remove_pcb(owning_task);
 
 		/* All my active child tasks will automatically look for init,
 		 * time to clear my active child tasks list */
 		Q_INIT_HEAD(&(owning_task->active_child_tasks_list));
 		TREE_UNLOCK;
-
 
 		mutex_unlock(&(owning_task->set_status_vanish_wait_mux));
 
@@ -201,8 +199,6 @@ _vanish( void )
 
 		/* Free page directory */
 		free_task_pd(owning_task);
-
-
 
 		/* Transfer all my vanished children to init in O(1) */
 		pcb_t *init_pcbp = get_init_pcbp();
@@ -237,16 +233,13 @@ _vanish( void )
 		}
 
 		/* Insert into parent PCB's list of vanished child tasks */
-		//disable_interrupts();
 		TREE_LOCK;
 
 		pcb_t *parent_pcb = find_pcb(owning_task->parent_pid);
-
 		if (parent_pcb) {
-
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
 			TREE_UNLOCK;
-			//enable_interrupts();
+
 			log("_vanish(): found my parent ");
 
 			/* Not really found parent yet, paradise lost */
@@ -256,16 +249,13 @@ _vanish( void )
 			Q_REMOVE(&parent_pcb->active_child_tasks_list, owning_task,
 					 vanished_child_tasks_link);
 			parent_pcb->num_active_child_tasks--;
-
 		} else {
-			TREE_UNLOCK;
-			//enable_interrupts();
-
 			parent_pcb = init_pcbp;
 			assert(parent_pcb);
 			mutex_lock(&(parent_pcb->set_status_vanish_wait_mux));
-			log("(init) parent_pcb->execname:%s", parent_pcb->execname);
+			TREE_UNLOCK;
 
+			log("(init) parent_pcb->execname:%s", parent_pcb->execname);
 		}
 		affirm(parent_pcb);
 

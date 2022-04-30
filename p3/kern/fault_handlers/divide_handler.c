@@ -9,10 +9,10 @@
 #include <panic_thread.h> /* panic_thread() */
 #include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
-/** @brief Prints out the offending address on and calls panic()
+/** @brief Divide handler
  *
- *  @return Void.
- */
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void. */
 void
 divide_handler( int *ebp )
 {

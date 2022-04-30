@@ -5,17 +5,15 @@
  *
  *  @author Andre Nascimento (anascime) */
 
-//TODO locking
-
-#include <task_manager_internal.h> /* Q MACRO for tcb */
-#include <lib_thread_management/hashmap.h>
 #include <stdint.h> /* uint32_t */
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* malloc, free */
 #include <string.h> /* memset */
 #include <assert.h> /* affirm */
 #include <logger.h>
+#include <task_manager_internal.h> /* Q MACRO for tcb */
 #include <lib_thread_management/mutex.h>
+#include <lib_thread_management/hashmap.h>
 
 static mutex_t hashmux;
 
@@ -37,7 +35,6 @@ hash( uint32_t x )
 
 /** @brief Insert status into hashmap.
  *
- *  @param map Hashmap in which to insert status
  *  @param tcb Pointer to tcb to insert
  *  @return Void.
  *  */
@@ -55,7 +52,6 @@ map_insert( tcb_t *tcb )
 
 /** @brief Get status in hashmap.
  *
- *  @param map Map from which to get status
  *  @param tid Id of thread status to look for
  *  @return Status, NULL if not found. */
 tcb_t *
@@ -78,11 +74,9 @@ map_get(uint32_t tid)
 
 /** @brief Remove status from hashmap.
  *
- *  @param map Map from which to remove value of key
  *  @param tid Id of thread to remove
  *  @return Pointer to removed value on exit,
  *          NULL on failure.
- *
  */
 tcb_t *
 map_remove(uint32_t tid)
@@ -111,8 +105,6 @@ map_remove(uint32_t tid)
 
 /** @brief Initialize new hashmap
  *
- *  @param map Memory location in which to initialize
- *  @param num_buckets Number of buckets for this map
  *  @return Void
  */
 void

@@ -1,3 +1,10 @@
+/** @file malloc_wrappers.c
+ *  @brief Wrappers for malloc functions ensuring they can be
+ *  run while avoiding race conditions.
+ *
+ *  This is done by employing a global lock (which acts more like
+ *  a queue). */
+
 #include <malloc.h>
 #include <assert.h>				/* affirm */
 #include <stddef.h>				/* size_t */
@@ -28,7 +35,10 @@ static int is_mutex_init = 0;
 } while(0)\
 
 
-/* safe versions of malloc functions */
+/** @brief Allocate memory
+ *
+ *  @param size Size of memory to allocate
+ *  @return pointer to newly allocated memory*/
 void *malloc(size_t size)
 {
 	LOCK;
@@ -38,6 +48,11 @@ void *malloc(size_t size)
     return p;
 }
 
+/** @brief Allocate aligned memory
+ *
+ *  @param alignment Size to align memory to
+ *  @param size Size of memory to allocate
+ *  @return aligned pointer to newly allocated memory */
 void *memalign(size_t alignment, size_t size)
 {
 	LOCK;
@@ -48,6 +63,11 @@ void *memalign(size_t alignment, size_t size)
 	return p;
 }
 
+/** @brief Allocate memory
+ *
+ *  @param nelt Number of elements
+ *  @param eltsize Size of each element
+ *  @return pointer to newly allocated memory*/
 void *calloc(size_t nelt, size_t eltsize)
 {
 	LOCK;
@@ -56,6 +76,11 @@ void *calloc(size_t nelt, size_t eltsize)
 	return p;
 }
 
+/** @brief Reallocate memory
+ *
+ *  @param buf Previously allocated pointer
+ *  @param new_size New size of pointer
+ *  @return pointer to newly allocated memory */
 void *realloc(void *buf, size_t new_size)
 {
 	LOCK;
@@ -64,6 +89,10 @@ void *realloc(void *buf, size_t new_size)
 	return p;
 }
 
+/** @brief Free memory
+ *
+ *  @param buf Previously allocated pointer
+ *  @return Void. */
 void free(void *buf)
 {
 	LOCK;
@@ -74,6 +103,10 @@ void free(void *buf)
 	UNLOCK;
 }
 
+/** @brief Allocate memory
+ *
+ *  @param size Size of memory to allocate
+ *  @return Void. */
 void *smalloc(size_t size)
 {
 	LOCK;
@@ -85,6 +118,11 @@ void *smalloc(size_t size)
 	return p;
 }
 
+/** @brief Allocate aligned memory
+ *
+ *  @param alignment Size to align memory to
+ *  @param size Size of memory to allocate
+ *  @return aligned pointer to newly allocated memory */
 void *smemalign(size_t alignment, size_t size)
 {
 	LOCK;
@@ -96,6 +134,11 @@ void *smemalign(size_t alignment, size_t size)
 	return p;
 }
 
+/** @brief Free memory
+ *
+ *  @param buf Pointer to previously allocated memory (by smalloc or smemalign)
+ *  @param size Size of memory to free
+ *  @return Void. */
 void sfree(void *buf, size_t size)
 {
 	LOCK;

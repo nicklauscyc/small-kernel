@@ -7,13 +7,13 @@
  *  @bug No known bugs.
  */
 
-#ifndef _P1_TIMER_DRIVER_H_
-#define _P1_TIMER_DRIVER_H_
+#ifndef P1_TIMER_DRIVER_H_
+#define P1_TIMER_DRIVER_H_
 
 void init_timer( void (*tickback)(unsigned int) );
 unsigned int get_total_ticks( void );
 
-#endif /* _P1_TIMER_DRIVER_H_ */
+#endif /* P1_TIMER_DRIVER_H_ */
 
 
 

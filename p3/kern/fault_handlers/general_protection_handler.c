@@ -10,6 +10,10 @@
 #include <panic_thread.h>	/* panic_thread() */
 #include <interrupt_defines.h> /* INT_CTL_PORT, INT_ACK_CURRENT */
 
+/** @brief General protection handler
+ *
+ *  @param ebp Base pointer to stack of fault handler
+ *  @return Void. */
 void
 general_protection_handler( int *ebp )
 {

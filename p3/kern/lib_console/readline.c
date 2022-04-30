@@ -8,6 +8,7 @@
 #include <string.h> 		/* memcpy */
 #include <stdint.h>			/* uint32_t */
 #include <stddef.h>			/* NULL */
+#include <malloc.h>			/* smalloc/sfree */
 #include <console.h>		/* putbyte() */
 #include <keyhelp.h>		/* process_scancode() */
 #include <scheduler.h>		/* status_t, queue_t, make_runnable  */
@@ -22,17 +23,10 @@
 #include <lib_thread_management/mutex.h> /* mutex_t */
 #include <logger.h>
 
-// TODO: Delete, debugging
-#include <simics.h>
-#include <malloc.h>
-
 static void mark_curr_blocked( tcb_t *tcb, void *data );
 static char get_next_char( void );
 static int readchar( void );
 static int _readline(char *buf, int len);
-
-/** @brief Queue of threads blocked on readline call. */
-//static queue_t	readline_q;
 
 /** @brief Thread being served. Can be blocked, running or runnable. */
 static tcb_t   *readline_curr;
@@ -47,7 +41,10 @@ static uint32_t	curr_blocked;
 static mutex_t	readline_mux;
 
 
-/** @brief Initialize readline */
+/** @brief Initialize readline.
+ *
+ *  @return Void.
+ *  */
 void
 init_readline( void )
 {
@@ -60,7 +57,8 @@ init_readline( void )
 /** @brief Readline syscall handler
  *
  *  @param buf Buffer in which to write characters
- *  @param len Max number of characters to write in buf */
+ *  @param len Max number of characters to write in buf
+ *  @return Number of bytes read on success, negative value on error */
 int
 readline( int len, char *buf )
 {
@@ -71,8 +69,6 @@ readline( int len, char *buf )
 		if (!is_valid_user_pointer(buf + i, READ_WRITE))
 			return -1;
 	}
-
-	lprintf("Passed validity checks");
 
 	/* Acquire readline mux. Put ourselves at the back of the queue. */
 	mutex_lock(&readline_mux);
@@ -87,6 +83,14 @@ readline( int len, char *buf )
 	return res;
 }
 
+/** @brief Readline helper.
+ *
+ *	Does not guarantee mutual exclusion of reads but deschedules and waits
+ *	for chars to arrive while processing.
+ *
+ *  @param buf Buffer in which to write characters
+ *  @param len Max number of characters to write in buf
+ *  @return Number of bytes read on success, negative value on error */
 
 static int
 _readline(char *buf, int len)
@@ -95,9 +99,9 @@ _readline(char *buf, int len)
   	get_cursor(&start_row, &start_col);
 
 	assert(len <= CONSOLE_WIDTH * CONSOLE_HEIGHT);
+	/* Too large to comfortably fit on kernel stack */
 	char *temp_buf;
 	temp_buf = smalloc(CONSOLE_WIDTH * CONSOLE_HEIGHT);
-  	//char temp_buf[CONSOLE_WIDTH * CONSOLE_HEIGHT];
 
   	int i = 0;
   	int written = 0; /* characters written so far */
@@ -163,15 +167,18 @@ _readline(char *buf, int len)
   	}
 	memcpy(buf, temp_buf, written);
 
-	// TODO: Delte
 	sfree(temp_buf, CONSOLE_HEIGHT * CONSOLE_WIDTH);
 
   	return written;
 }
 
 /** @brief Call to let readline know new characters have arrived.
- *	This is called within the keybd interrupt handler, after the
- *	signal is acknowledged. */
+ *
+ *	NOTE: This is called within the keybd interrupt handler, after the
+ *	signal is acknowledged.
+ *
+ *	@return Void.
+ *	*/
 void
 readline_char_arrived_handler( void )
 {
@@ -195,6 +202,12 @@ readline_char_arrived_handler( void )
 
 /* --- HELPERS --- */
 
+/** @brief Callback to mark tcb as blocked.
+ *
+ *  @param tcb Tcb to mark blocked
+ *  @param data Unused
+ *  @return Void.
+ *  */
 static void
 mark_curr_blocked( tcb_t *tcb, void *data )
 {
@@ -202,6 +215,11 @@ mark_curr_blocked( tcb_t *tcb, void *data )
 	curr_blocked = 1;
 }
 
+/** @brief Gets next char from user input,
+ *		   blocking if no more characters to read
+ *
+ *  @return Next character from user input
+ *  */
 static char
 get_next_char( void )
 {
@@ -220,7 +238,9 @@ get_next_char( void )
 	return char_value;
 }
 
-
+/** @brief Tries to read a character from user input.
+ *
+ *  @return Character on success, negative value on error */
 static int
 readchar( void )
 {

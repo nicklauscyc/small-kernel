@@ -9,11 +9,15 @@
 #include <interrupt_defines.h>	/* INT_CTL_PORT, INT_ACK_CURRENT */
 #include <lib_thread_management/mutex.h>	/* mutex_t */
 
+/** @brief Mutex for print calls */
 static mutex_t print_mux;
 
-/* 0 if uninitialized, 1 if initialized */
+/** @brief Whether print is initialized */
 static int print_initialized = 0;
 
+/** @brief Initializes print module
+ *
+ *  @return Void. */
 static void
 init_print( void )
 {
@@ -22,7 +26,11 @@ init_print( void )
 	print_initialized = 1;
 }
 
-/** @brief Handler for print syscall. */
+/** @brief Handler for print syscall.
+ *
+ *  @param len Length of message to print
+ *  @param buf Buffer to read from
+ *  @return 0 on success, negative value on error */
 int
 print( int len, char *buf )
 {
@@ -38,8 +46,6 @@ print( int len, char *buf )
 		return -1;
 
 	mutex_lock(&print_mux);
-
-	// Check here that print_mux has actually been locked, maybe print on mux_lock or smth
 
 	putbytes(buf, len);
 

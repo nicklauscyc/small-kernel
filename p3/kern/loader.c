@@ -2,48 +2,37 @@
  * The 15-410 kernel project.
  * @name loader.c
  *
- * Functions for the loading
- * of user programs from binary
- * files should be written in
- * this file. The function
- * elf_load_helper() is provided
- * for your use.
- *
- * The loader should never interact directly with
- * virtual memory. Rather it should call functions
- * defined in the process mananger module (which itself
- * will be responsible for talking to the VM module).
- *
+ * Module for loading user programs and aiding in configuring
+ * a tasks initial memory.
  */
+
 /*@{*/
 /* --- Includes --- */
-#include <x86/cr.h>     /* {get,set}_{cr0,cr3} */
 #include <loader.h>
-#include <malloc.h>     /* sfree() */
+
+#include <cr.h>			/* {get,set}_{cr0,cr3} */
+#include <asm.h>		/* enable_interrupts(), disable_interrupts() */
 #include <page.h>       /* PAGE_SIZE */
+#include <malloc.h>     /* sfree() */
 #include <string.h>     /* strncmp, memcpy */
-#include <exec2obj.h>   /* exec2obj_TOC */
-#include <elf_410.h>    /* simple_elf_t, elf_load_helper */
 #include <stdint.h>     /* UINT32_MAX */
-#include <task_manager.h>   /* task_new, task_prepare, task_set, STACK_ALIGNED*/
-#include <memory_manager.h> /* {disable,enable}_write_protection */
 #include <logger.h>     /* log_warn() */
-#include <scheduler.h> /* get_running_tid() */
-#include <assert.h> /* assert() */
-#include <simics.h>
-#include <x86/asm.h> /* enable_interrupts(), disable_interrupts() */
+#include <assert.h>		/* assert() */
+#include <elf_410.h>    /* simple_elf_t, elf_load_helper */
+#include <exec2obj.h>   /* exec2obj_TOC */
+#include <scheduler.h>	/* get_running_tid() */
 #include <iret_travel.h> /* iret_travel() */
 #include <task_manager_internal.h>
 #include <eflags.h>	/* get_eflags*/
 #include <seg.h>	/* SEGSEL_... */
 #include <common_kern.h> /* USER_MEM_START */
+#include <task_manager.h>   /* task_new, task_prepare, task_set, STACK_ALIGNED*/
+#include <memory_manager.h> /* {disable,enable}_write_protection */
 #include <lib_memory_management/memory_management.h> /* _new_pages */
-/* --- Local function prototypes --- */
 
+#include <simics.h>
 
-/* TODO: Move this to a helper file.
- *
- * Having a helper means we evaluate the arguments before expanding _MIN
+/* Having a helper means we evaluate the arguments before expanding _MIN
  *  and therefore avoid evaluating A and B multiple times. */
 #define _MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MIN(A,B) _MIN(A,B)
@@ -101,6 +90,11 @@ getbytes( const char *filename, int offset, int size, char *buf )
     return bytes_to_copy;
 }
 
+/** @brief Zeroes out a memory region (including rounding up to their end)
+ *
+ *  @param start Start of memory region
+ *  @param len   Length of memory region
+ *  @return Void. */
 static void
 zero_out_memory_region( uint32_t start, uint32_t len )
 {
@@ -177,7 +171,10 @@ transplant_program_memory( simple_elf_t *se_hdr )
  *  This entrypoint is defined in 410user/crt0.c and is used by all user
  *  programs.
  *
- *  Requires that argc and argv are validated
+ *  @pre argc and argv have been validated
+ *  @param arg Number of arguments
+ *  @param argv Pointer to argument list
+ *  @return Pointer to bottom of stack (ie. the new esp)
  */
 static uint32_t *
 configure_stack( int argc, char **argv )
@@ -248,11 +245,9 @@ configure_stack( int argc, char **argv )
  *  a single thread) and for the syscall exec(). We disable calls to
  *  exec() when there is more than 1 thread in the invoking task.
  *
- *  TODO don't think this is the best requires
- *  @req that fname and argv are in kernel memory, unaffected by
- *       parent directory
- *
  *  @param fname Name of program to run.
+ *  @param arg   Argument count
+ *  @param argv  Argument vector
  *  @return 0 on success, negative value on error.
  */
 int
@@ -371,6 +366,8 @@ cleanup:
  *  @param fname Executable name
  *  @param argc Argument count
  *  @param argv Argument vector
+ *
+ *  @return 0 on success, negative value on error
  */
 int
 load_initial_user_program( char *fname, int argc, char **argv )
@@ -426,6 +423,11 @@ load_initial_user_program( char *fname, int argc, char **argv )
  *  @pre Kernel must not have mode switched to user mode before to get the
  *       correct user eflags
  *  @pre Interrupts must be disabled
+ *  @param tcbp Pointer to thread to be configured
+ *  @param user_esp Pointer to user stack
+ *  @param entry_point Pointer to code to run
+ *	@param user_pd  User's page directory
+ *	@return 0 on success, negative value on error
  */
 int
 configure_initial_task_stack( tcb_t *tcbp, uint32_t user_esp,
@@ -557,9 +559,11 @@ register_with_simics( uint32_t tid, char *fname )
 	return 0;
 }
 
-/* @brief Loads user program information into a simple_elf_t struct
+/** @brief Loads user program information into a simple_elf_t struct
  *
- * @param se_hdr Pointer to simple_elf_t struct to be filled
+ *  @param se_hdr Pointer to simple_elf_t struct to be filled
+ *  @param fname  Filename for user program
+ *
  * @return 0 on success, -1 on error
  */
 int
