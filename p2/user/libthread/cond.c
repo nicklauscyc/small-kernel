@@ -123,24 +123,17 @@ cond_wait( cond_t *cv, mutex_t *mp )
 	/* Add to cv queue tail */
 	Q_INSERT_TAIL(cv->qp, &cn, link);
 
-
 	/* Give up cv mutex */
 	mutex_unlock(cv->mp);
 
 	/* Give up mutex */
 	mutex_unlock(mp);
 
-	/* Finally deschedule this thread */
-	int runnable = 0;
-
     /* Wait until we are woken up by cond_signal */
     while (!cn.should_wakeup) {
-	    int res = deschedule(&runnable);
-        /* res should be 0 on successful return */
-        assert(!res);
+		/* deschedule only succeeds if cn.should_wakeup == 0 */
+	    deschedule(&(cn.should_wakeup));
     }
-
-
 	/* On wake up, reacquire mutex */
 	mutex_lock(mp);
 
@@ -174,18 +167,12 @@ _cond_signal( cond_t *cv )
 		affirm(front->descheduled);
 		front->descheduled = 0;
 
-		/* get tid and make runnable */
-		int tid = front->tid;
-        int res;
-
         /* Make runnable will only fail if thread has not been descheduled yet.
-         * However since we know front->descheduled is 1, then that thread will
-         * be deschedule soon - where soon means in a few instructions.
-		 */
+		 * However, should_wakeup is set to 1 and if this is the case,
+		 * cond_wait() will not run deschedule() since &(cn.should_wakeup) is
+		 * now non-zero */
         front->should_wakeup = 1;
-		while ((res = make_runnable(tid)) < 0) {
-            yield(tid);
-        }
+		make_runnable(front->tid);
 	}
 	return;
 }
